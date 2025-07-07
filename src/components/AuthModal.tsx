@@ -12,7 +12,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTab?: "signin" | "signup";
-  onAuthSuccess: () => void;
+  onAuthSuccess?: () => void;
 }
 
 const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: AuthModalProps) => {
@@ -40,7 +40,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: Au
         description: "You have successfully signed in to HealthFair Pro.",
       });
       
-      onAuthSuccess();
+      onAuthSuccess?.();
       onClose();
     } catch (error: any) {
       toast({
