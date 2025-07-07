@@ -6,14 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Lock, User, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTab?: "signin" | "signup";
+  onAuthSuccess: () => void;
 }
 
-const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) => {
+const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: AuthModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -21,30 +23,76 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate authentication
-    setTimeout(() => {
-      setIsLoading(false);
+    const formData = new FormData(e.target as HTMLFormElement);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Welcome back!",
         description: "You have successfully signed in to HealthFair Pro.",
       });
+      
+      onAuthSuccess();
       onClose();
-    }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Sign in failed",
+        description: error.message || "Please check your credentials and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate registration
-    setTimeout(() => {
-      setIsLoading(false);
+    const formData = new FormData(e.target as HTMLFormElement);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const fullName = formData.get('fullName') as string;
+    const organization = formData.get('organization') as string;
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName,
+            organization: organization,
+          }
+        }
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Account created!",
-        description: "Welcome to HealthFair Pro. Your account has been created successfully.",
+        description: "Please check your email to confirm your account.",
       });
+      
       onClose();
-    }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Sign up failed",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -76,6 +124,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
+                      name="email"
                       type="email"
                       placeholder="Enter your email"
                       className="pl-9"
@@ -90,6 +139,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
+                      name="password"
                       type="password"
                       placeholder="Enter your password"
                       className="pl-9"
@@ -118,6 +168,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="name"
+                      name="fullName"
                       type="text"
                       placeholder="Enter your full name"
                       className="pl-9"
@@ -132,6 +183,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="organization"
+                      name="organization"
                       type="text"
                       placeholder="Enter your organization"
                       className="pl-9"
@@ -146,6 +198,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="signup-email"
+                      name="email"
                       type="email"
                       placeholder="Enter your email"
                       className="pl-9"
@@ -160,6 +213,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="signup-password"
+                      name="password"
                       type="password"
                       placeholder="Create a password"
                       className="pl-9"

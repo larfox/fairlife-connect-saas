@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +17,32 @@ import Header from "@/components/Header";
 import AuthModal from "@/components/AuthModal";
 import Dashboard from "@/components/Dashboard";
 import heroImage from "@/assets/health-fair-hero.jpg";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
 
 const Index = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"signin" | "signup">("signin");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSignIn = () => {
     setAuthModalTab("signin");
@@ -33,21 +54,20 @@ const Index = () => {
     setIsAuthModalOpen(true);
   };
 
-  const handleSignOut = () => {
-    setIsAuthenticated(false);
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
   };
 
   const handleAuthSuccess = () => {
-    setIsAuthenticated(true);
     setIsAuthModalOpen(false);
   };
 
   // If authenticated, show dashboard
-  if (isAuthenticated) {
+  if (user) {
     return (
       <>
         <Header 
-          isAuthenticated={isAuthenticated}
+          isAuthenticated={!!user}
           onSignOut={handleSignOut}
         />
         <Dashboard />
@@ -99,7 +119,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header 
-        isAuthenticated={isAuthenticated}
+        isAuthenticated={!!user}
         onSignIn={handleSignIn}
         onSignUp={handleSignUp}
         onSignOut={handleSignOut}
@@ -289,6 +309,7 @@ const Index = () => {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         defaultTab={authModalTab}
+        onAuthSuccess={handleAuthSuccess}
       />
     </div>
   );
