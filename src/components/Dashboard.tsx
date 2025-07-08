@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,10 +11,15 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Building,
+  Settings
 } from "lucide-react";
+import FoundationManagement from "@/components/FoundationManagement";
 
 const Dashboard = () => {
+  const [currentView, setCurrentView] = useState<"dashboard" | "foundation">("dashboard");
+
   // Mock data for demonstration
   const stats = [
     {
@@ -102,6 +108,10 @@ const Dashboard = () => {
     }
   };
 
+  if (currentView === "foundation") {
+    return <FoundationManagement onBack={() => setCurrentView("dashboard")} />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -113,10 +123,21 @@ const Dashboard = () => {
               Welcome back! Here's what's happening with your health fairs.
             </p>
           </div>
-          <Button variant="hero" size="lg" className="shadow-glow">
-            <Plus className="h-5 w-5 mr-2" />
-            Create Event
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              onClick={() => setCurrentView("foundation")}
+              className="gap-2"
+            >
+              <Building className="h-5 w-5" />
+              Foundation Setup
+            </Button>
+            <Button variant="hero" size="lg" className="shadow-glow">
+              <Plus className="h-5 w-5 mr-2" />
+              Create Event
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
