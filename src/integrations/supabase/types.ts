@@ -128,6 +128,69 @@ export type Database = {
         }
         Relationships: []
       }
+      patients: {
+        Row: {
+          address: string | null
+          allergies: string | null
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          first_name: string
+          gender: string | null
+          id: string
+          insurance_number: string | null
+          insurance_provider: string | null
+          is_active: boolean | null
+          last_name: string
+          medical_conditions: string | null
+          medications: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          allergies?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          first_name: string
+          gender?: string | null
+          id?: string
+          insurance_number?: string | null
+          insurance_provider?: string | null
+          is_active?: boolean | null
+          last_name: string
+          medical_conditions?: string | null
+          medications?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          allergies?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          first_name?: string
+          gender?: string | null
+          id?: string
+          insurance_number?: string | null
+          insurance_provider?: string | null
+          is_active?: boolean | null
+          last_name?: string
+          medical_conditions?: string | null
+          medications?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

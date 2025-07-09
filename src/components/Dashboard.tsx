@@ -13,12 +13,13 @@ import {
   AlertCircle,
   TrendingUp,
   Building,
-  Settings
+  UserCheck
 } from "lucide-react";
 import FoundationManagement from "@/components/FoundationManagement";
+import PatientManagement from "@/components/PatientManagement";
 
 const Dashboard = () => {
-  const [currentView, setCurrentView] = useState<"dashboard" | "foundation">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients">("dashboard");
 
   // Mock data for demonstration
   const stats = [
@@ -112,6 +113,10 @@ const Dashboard = () => {
     return <FoundationManagement onBack={() => setCurrentView("dashboard")} />;
   }
 
+  if (currentView === "patients") {
+    return <PatientManagement onBack={() => setCurrentView("dashboard")} />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -132,6 +137,15 @@ const Dashboard = () => {
             >
               <Building className="h-5 w-5" />
               Foundation Setup
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              onClick={() => setCurrentView("patients")}
+              className="gap-2"
+            >
+              <UserCheck className="h-5 w-5" />
+              Patient Management
             </Button>
             <Button variant="hero" size="lg" className="shadow-glow">
               <Plus className="h-5 w-5 mr-2" />
