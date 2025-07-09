@@ -53,6 +53,53 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_time: string | null
+          event_date: string
+          id: string
+          is_active: boolean | null
+          location_id: string
+          name: string
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          event_date: string
+          id?: string
+          is_active?: boolean | null
+          location_id: string
+          name: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          event_date?: string
+          id?: string
+          is_active?: boolean | null
+          location_id?: string
+          name?: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           address: string | null
@@ -128,15 +175,36 @@ export type Database = {
         }
         Relationships: []
       }
+      parishes: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       patients: {
         Row: {
-          address: string | null
           allergies: string | null
           created_at: string
           date_of_birth: string | null
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
+          event_id: string | null
           first_name: string
           gender: string | null
           id: string
@@ -146,17 +214,19 @@ export type Database = {
           last_name: string
           medical_conditions: string | null
           medications: string | null
+          parish_id: string | null
           phone: string | null
+          town_id: string | null
           updated_at: string
         }
         Insert: {
-          address?: string | null
           allergies?: string | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          event_id?: string | null
           first_name: string
           gender?: string | null
           id?: string
@@ -166,17 +236,19 @@ export type Database = {
           last_name: string
           medical_conditions?: string | null
           medications?: string | null
+          parish_id?: string | null
           phone?: string | null
+          town_id?: string | null
           updated_at?: string
         }
         Update: {
-          address?: string | null
           allergies?: string | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          event_id?: string | null
           first_name?: string
           gender?: string | null
           id?: string
@@ -186,10 +258,34 @@ export type Database = {
           last_name?: string
           medical_conditions?: string | null
           medications?: string | null
+          parish_id?: string | null
           phone?: string | null
+          town_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "patients_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_parish_id_fkey"
+            columns: ["parish_id"]
+            isOneToOne: false
+            referencedRelation: "parishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_town_id_fkey"
+            columns: ["town_id"]
+            isOneToOne: false
+            referencedRelation: "towns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -247,6 +343,38 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      towns: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parish_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parish_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parish_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "towns_parish_id_fkey"
+            columns: ["parish_id"]
+            isOneToOne: false
+            referencedRelation: "parishes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

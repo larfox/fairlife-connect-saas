@@ -1,33 +1,31 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { CalendarIcon, Plus, Pencil, Trash2, Search, UserPlus, Phone, Mail, Calendar as CalendarLucide } from "lucide-react";
+import { Pencil, Trash2, Search, UserPlus, Phone, Mail, Calendar as CalendarLucide, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 
 const patientSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
-  date_of_birth: z.date().optional(),
+  date_of_birth: z.string().optional(),
   gender: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  address: z.string().optional(),
+  parish_id: z.string().optional(),
+  town_id: z.string().optional(),
+  event_id: z.string().optional(),
   emergency_contact_name: z.string().optional(),
   emergency_contact_phone: z.string().optional(),
   medical_conditions: z.string().optional(),
@@ -47,7 +45,9 @@ interface Patient {
   gender: string | null;
   phone: string | null;
   email: string | null;
-  address: string | null;
+  parish_id: string | null;
+  town_id: string | null;
+  event_id: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   medical_conditions: string | null;
@@ -60,8 +60,33 @@ interface Patient {
   updated_at: string;
 }
 
+interface Parish {
+  id: string;
+  name: string;
+}
+
+interface Town {
+  id: string;
+  name: string;
+  parish_id: string;
+}
+
+interface Event {
+  id: string;
+  name: string;
+  location_id: string;
+  event_date: string;
+  locations?: {
+    name: string;
+  };
+}
+
 const PatientsManager = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [parishes, setParishes] = useState<Parish[]>([]);
+  const [towns, setTowns] = useState<Town[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [filteredTowns, setFilteredTowns] = useState<Town[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -76,7 +101,9 @@ const PatientsManager = () => {
       gender: "",
       phone: "",
       email: "",
-      address: "",
+      parish_id: "",
+      town_id: "",
+      event_id: "",
       emergency_contact_name: "",
       emergency_contact_phone: "",
       medical_conditions: "",
@@ -87,20 +114,34 @@ const PatientsManager = () => {
     },
   });
 
-  const fetchPatients = async () => {
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("patients")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [patientsRes, parishesRes, townsRes, eventsRes] = await Promise.all([
+        supabase.from("patients").select("*").order("created_at", { ascending: false }),
+        supabase.from("parishes").select("*").order("name"),
+        supabase.from("towns").select("*").order("name"),
+        supabase.from("events").select(`
+          *,
+          locations (
+            name
+          )
+        `).eq("is_active", true).order("event_date", { ascending: false })
+      ]);
 
-      if (error) throw error;
-      setPatients(data || []);
+      if (patientsRes.error) throw patientsRes.error;
+      if (parishesRes.error) throw parishesRes.error;
+      if (townsRes.error) throw townsRes.error;
+      if (eventsRes.error) throw eventsRes.error;
+
+      setPatients(patientsRes.data || []);
+      setParishes(parishesRes.data || []);
+      setTowns(townsRes.data || []);
+      setEvents(eventsRes.data || []);
     } catch (error) {
-      console.error("Error fetching patients:", error);
+      console.error("Error fetching data:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch patients",
+        description: "Failed to fetch data",
         variant: "destructive",
       });
     } finally {
@@ -109,20 +150,37 @@ const PatientsManager = () => {
   };
 
   useEffect(() => {
-    fetchPatients();
+    fetchData();
   }, []);
+
+  // Filter towns based on selected parish
+  const selectedParish = form.watch("parish_id");
+  useEffect(() => {
+    if (selectedParish) {
+      setFilteredTowns(towns.filter(town => town.parish_id === selectedParish));
+      // Reset town selection if it doesn't belong to the selected parish
+      const currentTown = form.getValues("town_id");
+      if (currentTown && !towns.find(t => t.id === currentTown && t.parish_id === selectedParish)) {
+        form.setValue("town_id", "");
+      }
+    } else {
+      setFilteredTowns([]);
+      form.setValue("town_id", "");
+    }
+  }, [selectedParish, towns, form]);
 
   const handleSubmit = async (data: PatientFormData) => {
     try {
-      // Transform data for database submission
       const dbData = {
         first_name: data.first_name,
         last_name: data.last_name,
-        date_of_birth: data.date_of_birth ? data.date_of_birth.toISOString().split('T')[0] : null,
+        date_of_birth: data.date_of_birth || null,
         email: data.email || null,
         phone: data.phone || null,
         gender: data.gender || null,
-        address: data.address || null,
+        parish_id: data.parish_id || null,
+        town_id: data.town_id || null,
+        event_id: data.event_id || null,
         emergency_contact_name: data.emergency_contact_name || null,
         emergency_contact_phone: data.emergency_contact_phone || null,
         medical_conditions: data.medical_conditions || null,
@@ -157,7 +215,7 @@ const PatientsManager = () => {
         });
       }
 
-      fetchPatients();
+      fetchData();
       setIsDialogOpen(false);
       setEditingPatient(null);
       form.reset();
@@ -176,7 +234,10 @@ const PatientsManager = () => {
     form.reset({
       ...patient,
       email: patient.email || "",
-      date_of_birth: patient.date_of_birth ? new Date(patient.date_of_birth) : undefined,
+      parish_id: patient.parish_id || "",
+      town_id: patient.town_id || "",
+      event_id: patient.event_id || "",
+      date_of_birth: patient.date_of_birth || "",
     });
     setIsDialogOpen(true);
   };
@@ -194,7 +255,7 @@ const PatientsManager = () => {
         title: "Success",
         description: "Patient deleted successfully",
       });
-      fetchPatients();
+      fetchData();
     } catch (error) {
       console.error("Error deleting patient:", error);
       toast({
@@ -214,7 +275,23 @@ const PatientsManager = () => {
   );
 
   const resetForm = () => {
-    form.reset();
+    form.reset({
+      first_name: "",
+      last_name: "",
+      gender: "",
+      phone: "",
+      email: "",
+      parish_id: "",
+      town_id: "",
+      event_id: "",
+      emergency_contact_name: "",
+      emergency_contact_phone: "",
+      medical_conditions: "",
+      allergies: "",
+      medications: "",
+      insurance_provider: "",
+      insurance_number: "",
+    });
     setEditingPatient(null);
   };
 
@@ -283,40 +360,11 @@ const PatientsManager = () => {
                     control={form.control}
                     name="date_of_birth"
                     render={({ field }) => (
-                      <FormItem className="flex flex-col">
+                      <FormItem>
                         <FormLabel>Date of Birth</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                              }
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -377,17 +425,79 @@ const PatientsManager = () => {
 
                 <FormField
                   control={form.control}
-                  name="address"
+                  name="event_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
+                      <FormLabel>Health Fair Event</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select health fair event" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {events.map((event) => (
+                            <SelectItem key={event.id} value={event.id}>
+                              {event.name} - {event.locations?.name} ({format(new Date(event.event_date), "MMM dd, yyyy")})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="parish_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Parish</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select parish" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {parishes.map((parish) => (
+                              <SelectItem key={parish.id} value={parish.id}>
+                                {parish.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="town_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Town</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select town" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {filteredTowns.map((town) => (
+                              <SelectItem key={town.id} value={town.id}>
+                                {town.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -522,7 +632,7 @@ const PatientsManager = () => {
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
@@ -560,6 +670,19 @@ const PatientsManager = () => {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">With Location</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {patients.filter(p => p.parish_id && p.town_id).length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Patients Table */}
@@ -578,95 +701,111 @@ const PatientsManager = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Date of Birth</TableHead>
                   <TableHead>Contact</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Insurance</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPatients.map((patient) => (
-                  <TableRow key={patient.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium text-foreground">
-                          {patient.first_name} {patient.last_name}
-                        </div>
-                        {patient.gender && (
-                          <div className="text-sm text-muted-foreground capitalize">
-                            {patient.gender}
+                {filteredPatients.map((patient) => {
+                  const parish = parishes.find(p => p.id === patient.parish_id);
+                  const town = towns.find(t => t.id === patient.town_id);
+                  
+                  return (
+                    <TableRow key={patient.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium text-foreground">
+                            {patient.first_name} {patient.last_name}
                           </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {patient.date_of_birth ? (
-                        <div className="flex items-center space-x-1">
-                          <CalendarLucide className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm">
-                            {format(new Date(patient.date_of_birth), "MMM dd, yyyy")}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {patient.phone && (
-                          <div className="flex items-center space-x-1">
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm">{patient.phone}</span>
-                          </div>
-                        )}
-                        {patient.email && (
-                          <div className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm">{patient.email}</span>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {patient.insurance_provider ? (
-                        <div className="text-sm">
-                          <div className="font-medium">{patient.insurance_provider}</div>
-                          {patient.insurance_number && (
-                            <div className="text-muted-foreground">
-                              {patient.insurance_number}
+                          {patient.gender && (
+                            <div className="text-sm text-muted-foreground capitalize">
+                              {patient.gender}
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={patient.is_active ? "secondary" : "outline"}
-                      >
-                        {patient.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(patient)}
+                      </TableCell>
+                      <TableCell>
+                        {patient.date_of_birth ? (
+                          <div className="flex items-center space-x-1">
+                            <CalendarLucide className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">
+                              {format(new Date(patient.date_of_birth), "MMM dd, yyyy")}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {patient.phone && (
+                            <div className="flex items-center space-x-1">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{patient.phone}</span>
+                            </div>
+                          )}
+                          {patient.email && (
+                            <div className="flex items-center space-x-1">
+                              <Mail className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{patient.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {parish && town ? (
+                          <div className="text-sm">
+                            <div className="font-medium">{town.name}</div>
+                            <div className="text-muted-foreground">{parish.name}</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {patient.insurance_provider ? (
+                          <div className="text-sm">
+                            <div className="font-medium">{patient.insurance_provider}</div>
+                            {patient.insurance_number && (
+                              <div className="text-muted-foreground">
+                                {patient.insurance_number}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={patient.is_active ? "secondary" : "outline"}
                         >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(patient.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          {patient.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(patient)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(patient.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             {filteredPatients.length === 0 && (
