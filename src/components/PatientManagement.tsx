@@ -10,9 +10,10 @@ import PatientsManager from "@/components/patient/PatientsManager";
 
 interface PatientManagementProps {
   onBack?: () => void;
+  selectedEventId?: string;
 }
 
-const PatientManagement = ({ onBack }: PatientManagementProps) => {
+const PatientManagement = ({ onBack, selectedEventId }: PatientManagementProps) => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -53,7 +54,7 @@ const PatientManagement = ({ onBack }: PatientManagementProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <PatientsManager />
+            <PatientsManager selectedEventId={selectedEventId} />
           </CardContent>
         </Card>
       </div>

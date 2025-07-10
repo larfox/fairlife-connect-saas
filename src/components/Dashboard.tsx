@@ -19,7 +19,11 @@ import FoundationManagement from "@/components/FoundationManagement";
 import PatientManagement from "@/components/PatientManagement";
 import { CreateEventModal } from "@/components/CreateEventModal";
 
-const Dashboard = () => {
+interface DashboardProps {
+  selectedEventId?: string;
+}
+
+const Dashboard = ({ selectedEventId }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients">("dashboard");
 
   // Mock data for demonstration
@@ -115,7 +119,7 @@ const Dashboard = () => {
   }
 
   if (currentView === "patients") {
-    return <PatientManagement onBack={() => setCurrentView("dashboard")} />;
+    return <PatientManagement onBack={() => setCurrentView("dashboard")} selectedEventId={selectedEventId} />;
   }
 
   return (

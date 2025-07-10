@@ -81,7 +81,11 @@ interface Event {
   };
 }
 
-const PatientsManager = () => {
+interface PatientsManagerProps {
+  selectedEventId?: string;
+}
+
+const PatientsManager = ({ selectedEventId }: PatientsManagerProps) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [parishes, setParishes] = useState<Parish[]>([]);
   const [towns, setTowns] = useState<Town[]>([]);
@@ -103,7 +107,7 @@ const PatientsManager = () => {
       email: "",
       parish_id: "",
       town_id: "",
-      event_id: "",
+      event_id: selectedEventId || "",
       emergency_contact_name: "",
       emergency_contact_phone: "",
       medical_conditions: "",
@@ -283,7 +287,7 @@ const PatientsManager = () => {
       email: "",
       parish_id: "",
       town_id: "",
-      event_id: "",
+      event_id: selectedEventId || "",
       emergency_contact_name: "",
       emergency_contact_phone: "",
       medical_conditions: "",
