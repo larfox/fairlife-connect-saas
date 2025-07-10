@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import FoundationManagement from "@/components/FoundationManagement";
 import PatientManagement from "@/components/PatientManagement";
+import { CreateEventModal } from "@/components/CreateEventModal";
 
 const Dashboard = () => {
   const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients">("dashboard");
@@ -147,10 +148,7 @@ const Dashboard = () => {
               <UserCheck className="h-5 w-5" />
               Patient Management
             </Button>
-            <Button variant="hero" size="lg" className="shadow-glow">
-              <Plus className="h-5 w-5 mr-2" />
-              Create Event
-            </Button>
+            <CreateEventModal />
           </div>
         </div>
 
