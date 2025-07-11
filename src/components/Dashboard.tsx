@@ -13,18 +13,19 @@ import {
   AlertCircle,
   TrendingUp,
   Building,
-  UserCheck
+  UserCheck,
+  CalendarDays
 } from "lucide-react";
 import FoundationManagement from "@/components/FoundationManagement";
 import PatientManagement from "@/components/PatientManagement";
-import { CreateEventModal } from "@/components/CreateEventModal";
+import EventsManagement from "@/components/EventsManagement";
 
 interface DashboardProps {
   selectedEventId?: string;
 }
 
 const Dashboard = ({ selectedEventId }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events">("dashboard");
 
   // Mock data for demonstration
   const stats = [
@@ -122,6 +123,10 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
     return <PatientManagement onBack={() => setCurrentView("dashboard")} selectedEventId={selectedEventId} />;
   }
 
+  if (currentView === "events") {
+    return <EventsManagement onBack={() => setCurrentView("dashboard")} />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -152,7 +157,15 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
               <UserCheck className="h-5 w-5" />
               Patient Management
             </Button>
-            <CreateEventModal />
+            <Button 
+              variant="outline" 
+              size="lg" 
+              onClick={() => setCurrentView("events")}
+              className="gap-2"
+            >
+              <CalendarDays className="h-5 w-5" />
+              Events
+            </Button>
           </div>
         </div>
 
