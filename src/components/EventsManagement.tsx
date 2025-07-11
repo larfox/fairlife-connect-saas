@@ -26,7 +26,7 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [locations, setLocations] = useState<Tables<"locations">[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "open" | "closed">("open");
+  const [filter, setFilter] = useState<"all" | "open" | "pending" | "closed">("open");
   const [searchTerm, setSearchTerm] = useState("");
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -38,7 +38,8 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
     event_date: "",
     start_time: "",
     end_time: "",
-    location_id: ""
+    location_id: "",
+    status: "open" as "open" | "pending" | "closed"
   });
 
   useEffect(() => {
@@ -50,10 +51,8 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
     let filtered = events;
 
     // Filter by status
-    if (filter === "open") {
-      filtered = filtered.filter(event => event.is_active);
-    } else if (filter === "closed") {
-      filtered = filtered.filter(event => !event.is_active);
+    if (filter !== "all") {
+      filtered = filtered.filter(event => event.status === filter);
     }
 
     // Filter by search term
@@ -132,7 +131,8 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
         event_date: "",
         start_time: "",
         end_time: "",
-        location_id: ""
+        location_id: "",
+        status: "open"
       });
       fetchEvents();
     } catch (error) {
@@ -179,14 +179,26 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
       event_date: event.event_date,
       start_time: event.start_time || "",
       end_time: event.end_time || "",
-      location_id: event.location_id
+      location_id: event.location_id,
+      status: (event.status as "open" | "pending" | "closed") || "open"
     });
   };
 
-  const getStatusBadge = (isActive: boolean | null) => {
+  const getStatusBadge = (status: string | null) => {
+    const badgeVariant = 
+      status === "open" ? "default" :
+      status === "pending" ? "outline" :
+      "secondary";
+    
+    const statusText = 
+      status === "open" ? "Open" :
+      status === "pending" ? "Pending" :
+      status === "closed" ? "Closed" :
+      "Unknown";
+    
     return (
-      <Badge variant={isActive ? "default" : "secondary"}>
-        {isActive ? "Open" : "Closed"}
+      <Badge variant={badgeVariant}>
+        {statusText}
       </Badge>
     );
   };
@@ -295,6 +307,19 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={formData.status} onValueChange={(value: "open" | "pending" | "closed") => setFormData({...formData, status: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
@@ -310,13 +335,14 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={filter} onValueChange={(value: "all" | "open" | "closed") => setFilter(value)}>
+            <Select value={filter} onValueChange={(value: "all" | "open" | "pending" | "closed") => setFilter(value)}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Events</SelectItem>
                 <SelectItem value="open">Open Events</SelectItem>
+                <SelectItem value="pending">Pending Events</SelectItem>
                 <SelectItem value="closed">Closed Events</SelectItem>
               </SelectContent>
             </Select>
@@ -371,7 +397,7 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
                     </div>
                     
                     <div className="flex items-center space-x-3">
-                      {getStatusBadge(event.is_active)}
+                      {getStatusBadge(event.status)}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -458,6 +484,19 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
                         {location.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit_status">Status</Label>
+                <Select value={formData.status} onValueChange={(value: "open" | "pending" | "closed") => setFormData({...formData, status: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
