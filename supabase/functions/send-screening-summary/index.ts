@@ -28,15 +28,21 @@ interface ScreeningSummaryRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("Function called at:", new Date().toISOString());
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
+    console.log("CORS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log("Processing request body...");
     const { patientEmail, patientName, screeningData, eventName }: ScreeningSummaryRequest = await req.json();
+    console.log("Request data:", { patientEmail, patientName, eventName });
 
     if (!patientEmail || !patientName) {
+      console.log("Missing required fields:", { patientEmail, patientName });
       return new Response(
         JSON.stringify({ error: "Patient email and name are required" }),
         {
@@ -118,6 +124,9 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
+    console.log("Sending email to:", patientEmail);
+    console.log("Resend API Key available:", !!Deno.env.get("RESEND_API_KEY"));
+    
     const emailResponse = await resend.emails.send({
       from: "Health Screening <onboarding@resend.dev>",
       to: [patientEmail],
@@ -125,7 +134,14 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
-    console.log("Screening summary email sent successfully:", emailResponse);
+    console.log("Email API response:", emailResponse);
+
+    if (emailResponse.error) {
+      console.error("Resend API error:", emailResponse.error);
+      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
+    }
+
+    console.log("Screening summary email sent successfully. Message ID:", emailResponse.data?.id);
 
     return new Response(JSON.stringify({ success: true, messageId: emailResponse.data?.id }), {
       status: 200,
