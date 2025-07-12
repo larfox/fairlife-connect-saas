@@ -79,13 +79,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
   const [availableDoctors, setAvailableDoctors] = useState<any[]>([]);
   const [availableNurses, setAvailableNurses] = useState<any[]>([]);
   const [healthProfessionalAssignments, setHealthProfessionalAssignments] = useState({
-    screening_nurse: "",
-    complaints_professional: "",
-    prognosis_doctor: "",
-    prescriptions_doctor: "",
-    ecg_doctor: "",
-    optician: "",
-    dental_professional: ""
+    screening_nurse: "unassigned",
+    complaints_professional: "unassigned",
+    prognosis_doctor: "unassigned",
+    prescriptions_doctor: "unassigned",
+    ecg_doctor: "unassigned",
+    optician: "unassigned",
+    dental_professional: "unassigned"
   });
   
   const [loading, setLoading] = useState(true);
@@ -239,7 +239,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
           // Update health professional assignments
           setHealthProfessionalAssignments(prev => ({
             ...prev,
-            prognosis_doctor: prognosisData.doctor_id || ""
+            prognosis_doctor: prognosisData.doctor_id || "unassigned"
           }));
         }
 
@@ -539,6 +539,9 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
   const updateHealthProfessionalAssignment = async (field: string, professionalId: string) => {
     if (!currentVisit) return;
 
+    // Convert 'unassigned' back to empty string for database
+    const dbValue = professionalId === 'unassigned' ? '' : professionalId;
+
     try {
       let updateQuery;
       let tableName;
@@ -547,13 +550,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         case 'screening_nurse':
           updateQuery = supabase
             .from('basic_screening')
-            .update({ screened_by: professionalId || null })
+            .update({ screened_by: dbValue || null })
             .eq('patient_visit_id', currentVisit.id);
           break;
         case 'prognosis_doctor':
           updateQuery = supabase
             .from('patient_prognosis')
-            .update({ doctor_id: professionalId || null })
+            .update({ doctor_id: dbValue || null })
             .eq('patient_visit_id', currentVisit.id);
           break;
         case 'complaints_professional':
@@ -568,7 +571,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
           if (latestComplaint && latestComplaint.length > 0) {
             updateQuery = supabase
               .from('patient_complaints')
-              .update({ assigned_professional_id: professionalId || null })
+              .update({ assigned_professional_id: dbValue || null })
               .eq('id', latestComplaint[0].id);
           }
           break;
@@ -626,20 +629,20 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         ? availableDoctors 
         : [...availableDoctors, ...availableNurses];
     
-    const currentValue = healthProfessionalAssignments[field as keyof typeof healthProfessionalAssignments] || '';
+    const currentValue = healthProfessionalAssignments[field as keyof typeof healthProfessionalAssignments] || 'unassigned';
     
     return (
       <div className="mt-4 pt-3 border-t">
         <Label className="text-sm font-medium text-muted-foreground">{label}:</Label>
         <Select
           value={currentValue}
-          onValueChange={(value) => updateHealthProfessionalAssignment(field, value)}
+          onValueChange={(value) => updateHealthProfessionalAssignment(field, value === 'unassigned' ? '' : value)}
         >
           <SelectTrigger className="mt-1">
             <SelectValue placeholder="Select professional..." />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Unassigned</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
             {type === 'nurse' && availableNurses.map((nurse) => (
               <SelectItem key={nurse.id} value={nurse.id}>
                 {nurse.first_name} {nurse.last_name} (Nurse)
