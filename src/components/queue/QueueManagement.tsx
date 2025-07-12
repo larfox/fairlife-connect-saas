@@ -45,45 +45,78 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
 
   const fetchServices = async () => {
     try {
-      console.log("Fetching services for event:", selectedEvent?.id, selectedEvent?.name);
+      console.log("=== FETCHING SERVICES DEBUG ===");
+      console.log("Selected event:", selectedEvent);
+      console.log("Event ID:", selectedEvent?.id);
+      console.log("Event name:", selectedEvent?.name);
       
-      // Only fetch services that are associated with this event
-      const { data, error } = await supabase
-        .from("event_services")
-        .select(`
-          services!inner (
-            id,
-            name,
-            description,
-            duration_minutes,
-            is_active
-          )
-        `)
-        .eq("event_id", selectedEvent.id);
-
-      if (error) {
-        console.error("Database error:", error);
-        throw error;
+      if (!selectedEvent?.id) {
+        console.log("No event selected, cannot fetch services");
+        setServices([]);
+        return;
       }
       
-      console.log("Raw event_services data:", data);
+      // First, let's try a simple query to see what services exist for this event
+      const { data: eventServicesData, error: eventServicesError } = await supabase
+        .from("event_services")
+        .select("*")
+        .eq("event_id", selectedEvent.id);
+        
+      console.log("Event services raw data:", eventServicesData);
+      console.log("Event services error:", eventServicesError);
       
-      // Extract the services from the event_services relation
-      const eventServices = data?.map(item => item.services).filter(service => service && service.is_active) || [];
+      if (eventServicesError) {
+        console.error("Error fetching event services:", eventServicesError);
+        throw eventServicesError;
+      }
       
-      console.log("Extracted services:", eventServices);
+      if (!eventServicesData || eventServicesData.length === 0) {
+        console.log("No services found for this event, falling back to all services");
+        // Fallback: fetch all active services if no event-specific services
+        const { data: allServices, error: allServicesError } = await supabase
+          .from("services")
+          .select("*")
+          .eq("is_active", true)
+          .order("name");
+          
+        if (allServicesError) throw allServicesError;
+        
+        const sortedServices = (allServices || []).sort((a, b) => {
+          if (a.name.toLowerCase().includes('know your numbers')) return -1;
+          if (b.name.toLowerCase().includes('know your numbers')) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        console.log("Using all services as fallback:", sortedServices);
+        setServices(sortedServices);
+        return;
+      }
+      
+      // Now fetch the actual service details
+      const serviceIds = eventServicesData.map(es => es.service_id);
+      const { data: servicesData, error: servicesError } = await supabase
+        .from("services")
+        .select("*")
+        .in("id", serviceIds)
+        .eq("is_active", true);
+        
+      console.log("Services data:", servicesData);
+      console.log("Services error:", servicesError);
+      
+      if (servicesError) throw servicesError;
       
       // Sort services to put "Know Your Numbers" first
-      const sortedServices = eventServices.sort((a, b) => {
+      const sortedServices = (servicesData || []).sort((a, b) => {
         if (a.name.toLowerCase().includes('know your numbers')) return -1;
         if (b.name.toLowerCase().includes('know your numbers')) return 1;
         return a.name.localeCompare(b.name);
       });
       
-      console.log("Sorted services:", sortedServices);
+      console.log("Final sorted services:", sortedServices);
       setServices(sortedServices);
+      
     } catch (error) {
-      console.error("Error fetching services:", error);
+      console.error("Error in fetchServices:", error);
       toast({
         title: "Error fetching services",
         description: "Failed to load services for this event.",
