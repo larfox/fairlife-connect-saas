@@ -109,21 +109,44 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
 
       if (visitError) throw visitError;
 
-      // Add selected services to queue
-      if (selectedServices.length > 0) {
-        const serviceQueueEntries = selectedServices.map((serviceId, index) => ({
+      // Get "Know Your Numbers" service ID
+      const { data: knowYourNumbersService, error: serviceError } = await supabase
+        .from("services")
+        .select("id")
+        .ilike("name", "%know your numbers%")
+        .single();
+
+      if (serviceError) throw serviceError;
+
+      // Prepare service queue entries - always start with "Know Your Numbers"
+      const serviceQueueEntries = [
+        {
           patient_visit_id: visit.id,
-          service_id: serviceId,
-          queue_position: index + 1,
+          service_id: knowYourNumbersService.id,
+          queue_position: 1,
           status: 'waiting'
-        }));
+        }
+      ];
 
-        const { error: serviceError } = await supabase
-          .from("service_queue")
-          .insert(serviceQueueEntries);
-
-        if (serviceError) throw serviceError;
+      // Add other selected services after "Know Your Numbers"
+      if (selectedServices.length > 0) {
+        const otherServiceEntries = selectedServices
+          .filter(serviceId => serviceId !== knowYourNumbersService.id) // Avoid duplicates
+          .map((serviceId, index) => ({
+            patient_visit_id: visit.id,
+            service_id: serviceId,
+            queue_position: index + 2, // Start from position 2 since "Know Your Numbers" is position 1
+            status: 'waiting'
+          }));
+        
+        serviceQueueEntries.push(...otherServiceEntries);
       }
+
+      const { error: queueError } = await supabase
+        .from("service_queue")
+        .insert(serviceQueueEntries);
+
+      if (queueError) throw queueError;
 
       toast({
         title: "Patient registered successfully",
