@@ -36,6 +36,13 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
     }
   }, [selectedEvent]);
 
+  // Update active tab when services are loaded to default to first service if coming from search
+  useEffect(() => {
+    if (services.length > 0 && activeTab === "search") {
+      setActiveTab(`search-${services[0].id}`);
+    }
+  }, [services]);
+
   const fetchServices = async () => {
     try {
       const { data, error } = await supabase
@@ -45,8 +52,17 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
         .order("name");
 
       if (error) throw error;
-      setServices(data || []);
+      
+      // Sort services to put "Know Your Numbers" first
+      const sortedServices = (data || []).sort((a, b) => {
+        if (a.name.toLowerCase().includes('know your numbers')) return -1;
+        if (b.name.toLowerCase().includes('know your numbers')) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      
+      setServices(sortedServices);
     } catch (error) {
+      console.error("Error fetching services:", error);
       toast({
         title: "Error fetching services",
         description: "Failed to load services.",
