@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, User, Calendar, AlertTriangle, History } from "lucide-react";
+import { Search, User, Calendar, AlertTriangle, History, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import PatientDetailsModal from "./PatientDetailsModal";
+import { PatientEditModal } from "./PatientEditModal";
 
 interface PatientSearchProps {
   selectedEvent: any;
@@ -38,6 +39,7 @@ const PatientSearch = ({ selectedEvent }: PatientSearchProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<PatientRecord[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [editingPatient, setEditingPatient] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -264,29 +266,38 @@ const PatientSearch = ({ selectedEvent }: PatientSearchProps) => {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setSelectedPatient(patient)}
-                            className="gap-1"
-                          >
-                            <User className="h-3 w-3" />
-                            Details
-                          </Button>
-                          {!currentEventVisit && (
-                            <Button 
-                              size="sm"
-                              onClick={() => addToCurrentEvent(patient.id)}
-                              className="gap-1"
-                            >
-                              <Calendar className="h-3 w-3" />
-                              Add to Event
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <div className="flex gap-2">
+                           <Button 
+                             size="sm" 
+                             variant="outline"
+                             onClick={() => setSelectedPatient(patient)}
+                             className="gap-1"
+                           >
+                             <User className="h-3 w-3" />
+                             Details
+                           </Button>
+                           <Button 
+                             size="sm" 
+                             variant="outline"
+                             onClick={() => setEditingPatient(patient)}
+                             className="gap-1"
+                           >
+                             <Edit className="h-3 w-3" />
+                             Edit
+                           </Button>
+                           {!currentEventVisit && (
+                             <Button 
+                               size="sm"
+                               onClick={() => addToCurrentEvent(patient.id)}
+                               className="gap-1"
+                             >
+                               <Calendar className="h-3 w-3" />
+                               Add to Event
+                             </Button>
+                           )}
+                         </div>
+                       </TableCell>
                     </TableRow>
                   );
                 })}
@@ -302,6 +313,18 @@ const PatientSearch = ({ selectedEvent }: PatientSearchProps) => {
           eventId={selectedEvent.id}
           isOpen={!!selectedPatient}
           onClose={() => setSelectedPatient(null)}
+        />
+      )}
+
+      {editingPatient && (
+        <PatientEditModal 
+          patient={editingPatient}
+          isOpen={!!editingPatient}
+          onClose={() => setEditingPatient(null)}
+          onPatientUpdated={() => {
+            handleSearch(); // Refresh search results
+            setEditingPatient(null);
+          }}
         />
       )}
     </div>
