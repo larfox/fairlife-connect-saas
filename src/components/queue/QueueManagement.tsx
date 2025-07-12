@@ -45,11 +45,13 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
 
   const fetchServices = async () => {
     try {
+      console.log("Fetching services for event:", selectedEvent?.id, selectedEvent?.name);
+      
       // Only fetch services that are associated with this event
       const { data, error } = await supabase
         .from("event_services")
         .select(`
-          services (
+          services!inner (
             id,
             name,
             description,
@@ -59,10 +61,17 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
         `)
         .eq("event_id", selectedEvent.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Database error:", error);
+        throw error;
+      }
+      
+      console.log("Raw event_services data:", data);
       
       // Extract the services from the event_services relation
-      const eventServices = data?.map(item => item.services).filter(Boolean) || [];
+      const eventServices = data?.map(item => item.services).filter(service => service && service.is_active) || [];
+      
+      console.log("Extracted services:", eventServices);
       
       // Sort services to put "Know Your Numbers" first
       const sortedServices = eventServices.sort((a, b) => {
@@ -71,7 +80,7 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
         return a.name.localeCompare(b.name);
       });
       
-      console.log("Fetched services for event:", sortedServices);
+      console.log("Sorted services:", sortedServices);
       setServices(sortedServices);
     } catch (error) {
       console.error("Error fetching services:", error);
