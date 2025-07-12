@@ -196,6 +196,15 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
     try {
       const bmi = calculateBMI(screeningData.weight, screeningData.height);
+      const autoNotes = generateAutoNotes();
+      
+      // Combine user notes with automatic assessment
+      let finalNotes = screeningData.notes || "";
+      if (autoNotes) {
+        finalNotes = finalNotes 
+          ? `${autoNotes}\n\nAdditional Notes: ${finalNotes}`
+          : autoNotes;
+      }
       
       const screeningPayload = {
         patient_visit_id: currentVisit.id,
@@ -207,7 +216,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         oxygen_saturation: screeningData.oxygen_saturation ? parseInt(screeningData.oxygen_saturation) : null,
         blood_pressure_systolic: screeningData.blood_pressure_systolic ? parseInt(screeningData.blood_pressure_systolic) : null,
         blood_pressure_diastolic: screeningData.blood_pressure_diastolic ? parseInt(screeningData.blood_pressure_diastolic) : null,
-        notes: screeningData.notes || null
+        notes: finalNotes || null
       };
 
       const { error } = await supabase
@@ -291,6 +300,38 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     // BMI = weight(kg) / height(m)^2
     const bmi = weightKg / (heightM * heightM);
     return Math.round(bmi * 10) / 10; // Round to 1 decimal place
+  };
+
+  // Determine blood pressure status
+  const getBloodPressureStatus = (systolic: string, diastolic: string) => {
+    if (!systolic || !diastolic) return "";
+    const sys = parseInt(systolic);
+    const dia = parseInt(diastolic);
+    
+    if (sys < 90 || dia < 60) return "Blood Pressure: Low";
+    if (sys >= 180 || dia >= 120) return "Blood Pressure: High (Crisis)";
+    if (sys >= 140 || dia >= 90) return "Blood Pressure: High";
+    if (sys >= 130 || dia >= 80) return "Blood Pressure: Elevated";
+    return "Blood Pressure: In Range";
+  };
+
+  // Determine BMI status
+  const getBMIStatus = (bmi: number | null) => {
+    if (!bmi) return "";
+    
+    if (bmi < 18.5) return "BMI: Underweight";
+    if (bmi >= 30) return "BMI: Obese";
+    if (bmi >= 25) return "BMI: Overweight";
+    return "BMI: Normal Weight";
+  };
+
+  // Generate automatic notes based on readings
+  const generateAutoNotes = () => {
+    const bpStatus = getBloodPressureStatus(screeningData.blood_pressure_systolic, screeningData.blood_pressure_diastolic);
+    const bmiStatus = getBMIStatus(currentBMI);
+    
+    const autoNotes = [bpStatus, bmiStatus].filter(note => note).join(". ");
+    return autoNotes ? autoNotes + "." : "";
   };
 
   const currentBMI = calculateBMI(screeningData.weight, screeningData.height);
@@ -516,12 +557,21 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
                       <div>
                         <Label htmlFor="screening_notes">Notes</Label>
-                        <Textarea
-                          id="screening_notes"
-                          placeholder="Additional screening notes..."
-                          value={screeningData.notes}
-                          onChange={(e) => setScreeningData({...screeningData, notes: e.target.value})}
-                        />
+                        <div className="space-y-2">
+                          {/* Auto-generated comments */}
+                          {generateAutoNotes() && (
+                            <div className="p-2 bg-blue-50 dark:bg-blue-950 border rounded text-sm">
+                              <span className="font-medium">Automatic Assessment: </span>
+                              {generateAutoNotes()}
+                            </div>
+                          )}
+                          <Textarea
+                            id="screening_notes"
+                            placeholder="Additional screening notes..."
+                            value={screeningData.notes}
+                            onChange={(e) => setScreeningData({...screeningData, notes: e.target.value})}
+                          />
+                        </div>
                       </div>
 
                       <Button onClick={saveScreening} className="gap-2">
