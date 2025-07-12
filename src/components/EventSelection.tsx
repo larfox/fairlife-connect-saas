@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Clock, Users, ArrowRight, CheckCircle } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, ArrowRight, CheckCircle, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,10 +18,11 @@ interface Event {
 }
 
 interface EventSelectionProps {
-  onEventSelected: (eventId: string) => void;
+  onEventSelect: (event: any) => void;
+  onBack: () => void;
 }
 
-const EventSelection = ({ onEventSelected }: EventSelectionProps) => {
+const EventSelection = ({ onEventSelect, onBack }: EventSelectionProps) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,7 +81,10 @@ const EventSelection = ({ onEventSelected }: EventSelectionProps) => {
 
   const handleSelectEvent = () => {
     if (selectedEventId) {
-      onEventSelected(selectedEventId);
+      const selectedEvent = events.find(event => event.id === selectedEventId);
+      if (selectedEvent) {
+        onEventSelect(selectedEvent);
+      }
     }
   };
 
@@ -117,12 +121,20 @@ const EventSelection = ({ onEventSelected }: EventSelectionProps) => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="flex items-center justify-between mb-8">
+            <Button variant="ghost" onClick={onBack} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+          </div>
+
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-4">
-              Select a Health Fair
+              Select a Health Fair Event
             </h1>
             <p className="text-lg text-muted-foreground">
-              Choose which health fair event you'd like to participate in or manage.
+              Choose which health fair event you'd like to manage the queue for.
             </p>
           </div>
 
@@ -207,7 +219,7 @@ const EventSelection = ({ onEventSelected }: EventSelectionProps) => {
                   disabled={!selectedEventId}
                   className="px-8"
                 >
-                  Continue to Dashboard
+                  Continue to Queue System
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>

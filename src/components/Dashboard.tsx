@@ -14,18 +14,22 @@ import {
   TrendingUp,
   Building,
   UserCheck,
-  CalendarDays
+  CalendarDays,
+  ClipboardList
 } from "lucide-react";
 import FoundationManagement from "@/components/FoundationManagement";
 import PatientManagement from "@/components/PatientManagement";
 import EventsManagement from "@/components/EventsManagement";
+import QueueManagement from "@/components/queue/QueueManagement";
+import EventSelection from "@/components/EventSelection";
 
 interface DashboardProps {
   selectedEventId?: string;
 }
 
 const Dashboard = ({ selectedEventId }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue" | "event_selection">("dashboard");
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
   // Mock data for demonstration
   const stats = [
@@ -115,6 +119,11 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
     }
   };
 
+  const handleEventSelect = (event: any) => {
+    setSelectedEvent(event);
+    setCurrentView("queue");
+  };
+
   if (currentView === "foundation") {
     return <FoundationManagement onBack={() => setCurrentView("dashboard")} />;
   }
@@ -125,6 +134,27 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
 
   if (currentView === "events") {
     return <EventsManagement onBack={() => setCurrentView("dashboard")} />;
+  }
+
+  if (currentView === "event_selection") {
+    return (
+      <EventSelection 
+        onBack={() => setCurrentView("dashboard")}
+        onEventSelect={handleEventSelect}
+      />
+    );
+  }
+
+  if (currentView === "queue" && selectedEvent) {
+    return (
+      <QueueManagement 
+        selectedEvent={selectedEvent}
+        onBack={() => {
+          setSelectedEvent(null);
+          setCurrentView("dashboard");
+        }}
+      />
+    );
   }
 
   return (
@@ -165,6 +195,14 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
             >
               <CalendarDays className="h-5 w-5" />
               Events
+            </Button>
+            <Button 
+              size="lg" 
+              onClick={() => setCurrentView("event_selection")}
+              className="gap-2"
+            >
+              <ClipboardList className="h-5 w-5" />
+              Queue System
             </Button>
           </div>
         </div>

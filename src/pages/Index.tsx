@@ -76,7 +76,10 @@ const Index = () => {
           isAuthenticated={!!user}
           onSignOut={handleSignOut}
         />
-        <EventSelection onEventSelected={handleEventSelected} />
+        <EventSelection 
+          onEventSelect={(event) => handleEventSelected(event.id)} 
+          onBack={() => setSelectedEventId(null)} 
+        />
       </>
     );
   }
