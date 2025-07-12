@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Activity, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -137,76 +139,104 @@ export function ServiceSummary({ selectedEvent, onStatsUpdate }: ServiceSummaryP
         <h2 className="text-2xl font-bold">Service Queue Summary</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {serviceStats.map((service) => (
-          <Card key={service.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">{service.name}</CardTitle>
-              {service.description && (
-                <p className="text-sm text-muted-foreground">{service.description}</p>
-              )}
-              <div className="text-xs text-muted-foreground">
-                Duration: {service.duration_minutes} minutes
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Total Registered */}
-              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Total</span>
-                </div>
-                <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                  {service.totalRegistered}
-                </span>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Services Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Service Name</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead className="text-center">Total</TableHead>
+                <TableHead className="text-center">Waiting</TableHead>
+                <TableHead className="text-center">In Progress</TableHead>
+                <TableHead className="text-center">Completed</TableHead>
+                <TableHead className="text-center">Progress</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {serviceStats.map((service) => {
+                const progressPercentage = service.totalRegistered > 0 
+                  ? Math.round((service.completed / service.totalRegistered) * 100)
+                  : 0;
 
-              {/* Status Grid */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-950 rounded">
-                  <Clock className="h-4 w-4 mx-auto text-yellow-600 dark:text-yellow-400 mb-1" />
-                  <div className="font-semibold text-yellow-700 dark:text-yellow-300">{service.waiting}</div>
-                  <div className="text-xs text-yellow-600 dark:text-yellow-400">Waiting</div>
-                </div>
-                
-                <div className="text-center p-2 bg-orange-50 dark:bg-orange-950 rounded">
-                  <AlertCircle className="h-4 w-4 mx-auto text-orange-600 dark:text-orange-400 mb-1" />
-                  <div className="font-semibold text-orange-700 dark:text-orange-300">{service.inProgress}</div>
-                  <div className="text-xs text-orange-600 dark:text-orange-400">In Progress</div>
-                </div>
-                
-                <div className="text-center p-2 bg-green-50 dark:bg-green-950 rounded">
-                  <CheckCircle className="h-4 w-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
-                  <div className="font-semibold text-green-700 dark:text-green-300">{service.completed}</div>
-                  <div className="text-xs text-green-600 dark:text-green-400">Completed</div>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Progress</span>
-                  <span>
-                    {service.totalRegistered > 0 
-                      ? Math.round((service.completed / service.totalRegistered) * 100)
-                      : 0}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ 
-                      width: service.totalRegistered > 0 
-                        ? `${(service.completed / service.totalRegistered) * 100}%`
-                        : '0%'
-                    }}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                return (
+                  <TableRow key={service.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{service.name}</div>
+                        {service.description && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {service.description}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <Badge variant="outline">
+                        {service.duration_minutes} min
+                      </Badge>
+                    </TableCell>
+                    
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <span className="font-semibold text-blue-700">
+                          {service.totalRegistered}
+                        </span>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Clock className="h-4 w-4 text-yellow-600" />
+                        <span className="font-semibold text-yellow-700">
+                          {service.waiting}
+                        </span>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <AlertCircle className="h-4 w-4 text-orange-600" />
+                        <span className="font-semibold text-orange-700">
+                          {service.inProgress}
+                        </span>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="font-semibold text-green-700">
+                          {service.completed}
+                        </span>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-center">
+                      <div className="flex items-center gap-2">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${progressPercentage}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-muted-foreground min-w-[2.5rem]">
+                          {progressPercentage}%
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
