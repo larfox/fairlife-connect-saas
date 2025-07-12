@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ServiceAssignmentForm } from "./ServiceAssignmentForm";
+
 
 interface PatientDetailsModalProps {
   patient: any;
@@ -451,7 +451,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="complaints">Complaints</TabsTrigger>
               <TabsTrigger value="prognosis">Prognosis</TabsTrigger>
-              <TabsTrigger value="assignments">Assignments</TabsTrigger>
+              <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -843,13 +843,24 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               </Card>
             </TabsContent>
 
-            <TabsContent value="assignments" className="space-y-4">
-              {currentVisit && (
-                <ServiceAssignmentForm 
-                  currentVisit={currentVisit}
-                  onAssignmentUpdate={fetchPatientData}
-                />
-              )}
+            <TabsContent value="prescriptions" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Prescriptions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="text-center text-muted-foreground py-8">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Prescription management feature will be available here.</p>
+                      <p className="text-sm mt-2">Track medications, dosages, and refill schedules.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
