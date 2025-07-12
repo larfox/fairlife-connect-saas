@@ -911,14 +911,14 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
 
         {/* Edit Event Dialog */}
         <Dialog open={!!editingEvent} onOpenChange={() => setEditingEvent(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle>Edit Event</DialogTitle>
               <DialogDescription>
                 Update the event details
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-4 py-4 overflow-y-auto flex-1">
               <div className="grid gap-2">
                 <Label htmlFor="edit_name">Event Name</Label>
                 <Input
@@ -995,7 +995,7 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
                 </Select>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0">
               <Button variant="outline" onClick={() => setEditingEvent(null)}>
                 Cancel
               </Button>
