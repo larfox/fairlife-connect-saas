@@ -124,13 +124,16 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
         .from("service_queue")
         .select(`
           *,
-          patient_visits!inner(
+          patient_visit:patient_visits!inner(
             *,
-            patients(*)
-          )
+            patient:patients(*)
+          ),
+          service:services(*),
+          doctor:doctors(*),
+          nurse:nurses(*)
         `)
         .eq("service_id", serviceId)
-        .eq("patient_visits.event_id", selectedEvent.id)
+        .eq("patient_visit.event_id", selectedEvent.id)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
