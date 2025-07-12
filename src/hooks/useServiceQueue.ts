@@ -117,26 +117,25 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
         const serviceId = item.service.id;
         const isKnowYourNumbers = item.service.name.toLowerCase().includes('know your numbers');
         
-        // For non-"Know Your Numbers" services, filter out patients who:
-        // 1. Don't have screening completed, OR
-        // 2. Have completed "Know Your Numbers" service
-        if (!isKnowYourNumbers) {
-          const hasScreeningCompleted = item.patient_visit.basic_screening_completed;
-          const hasCompletedKnowYourNumbers = completedKnowYourNumbersPatients.has(item.patient_visit_id);
-          
-          // Skip this patient if they don't meet the requirements
-          if (!hasScreeningCompleted || hasCompletedKnowYourNumbers) {
-            return;
-          }
-        }
-        
+        // Create service group if it doesn't exist
         if (!groupedData[serviceId]) {
           groupedData[serviceId] = {
             service: item.service,
             patients: []
           };
         }
-        groupedData[serviceId].patients.push(item);
+        
+        // For "Know Your Numbers" services, add all patients
+        if (isKnowYourNumbers) {
+          groupedData[serviceId].patients.push(item);
+        } else {
+          // For other services, only add patients who have completed "Know Your Numbers"
+          const hasCompletedKnowYourNumbers = completedKnowYourNumbersPatients.has(item.patient_visit_id);
+          
+          if (hasCompletedKnowYourNumbers) {
+            groupedData[serviceId].patients.push(item);
+          }
+        }
       });
 
       // Convert to array and sort services, with "Know Your Numbers" first
