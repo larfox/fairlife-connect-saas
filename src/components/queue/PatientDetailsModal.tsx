@@ -194,10 +194,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     if (!currentVisit) return;
 
     try {
+      const bmi = calculateBMI(screeningData.weight, screeningData.height);
+      
       const screeningPayload = {
         patient_visit_id: currentVisit.id,
         weight: screeningData.weight ? parseFloat(screeningData.weight) : null,
         height: screeningData.height ? parseFloat(screeningData.height) : null,
+        bmi: bmi,
         blood_sugar: screeningData.blood_sugar ? parseInt(screeningData.blood_sugar) : null,
         heart_rate: screeningData.heart_rate ? parseInt(screeningData.heart_rate) : null,
         oxygen_saturation: screeningData.oxygen_saturation ? parseInt(screeningData.oxygen_saturation) : null,
@@ -270,6 +273,24 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     }
     return age;
   };
+
+  // Calculate BMI from weight (lbs) and height (ft)
+  const calculateBMI = (weightLbs: string, heightFt: string) => {
+    if (!weightLbs || !heightFt) return null;
+    const weight = parseFloat(weightLbs);
+    const height = parseFloat(heightFt);
+    if (weight <= 0 || height <= 0) return null;
+    
+    // Convert pounds to kg and feet to meters
+    const weightKg = weight / 2.205;
+    const heightM = height * 0.3048;
+    
+    // BMI = weight(kg) / height(m)^2
+    const bmi = weightKg / (heightM * heightM);
+    return Math.round(bmi * 10) / 10; // Round to 1 decimal place
+  };
+
+  const currentBMI = calculateBMI(screeningData.weight, screeningData.height);
 
   if (loading) {
     return (
@@ -476,6 +497,18 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                             />
                           </div>
                         </div>
+
+                        {/* BMI Display */}
+                        <div>
+                          <Label>BMI (Calculated)</Label>
+                          <div className="p-2 bg-muted rounded border">
+                            {currentBMI ? (
+                              <span className="text-lg font-semibold">{currentBMI}</span>
+                            ) : (
+                              <span className="text-muted-foreground">Enter weight and height</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       <div>
@@ -527,8 +560,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                               <div>
                                 <span className="font-medium">BP:</span> {basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic}
                               </div>
-                            )}
-                          </div>
+                             )}
+                             {basicScreening.bmi && (
+                               <div>
+                                 <span className="font-medium">BMI:</span> {basicScreening.bmi}
+                               </div>
+                             )}
+                           </div>
                           {basicScreening.notes && (
                             <div className="mt-3">
                               <span className="font-medium">Notes:</span> {basicScreening.notes}
