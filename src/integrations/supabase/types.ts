@@ -25,6 +25,7 @@ export type Database = {
           height: number | null
           id: string
           notes: string | null
+          oxygen_saturation: number | null
           patient_visit_id: string
           screened_by: string | null
           temperature: number | null
@@ -41,6 +42,7 @@ export type Database = {
           height?: number | null
           id?: string
           notes?: string | null
+          oxygen_saturation?: number | null
           patient_visit_id: string
           screened_by?: string | null
           temperature?: number | null
@@ -57,6 +59,7 @@ export type Database = {
           height?: number | null
           id?: string
           notes?: string | null
+          oxygen_saturation?: number | null
           patient_visit_id?: string
           screened_by?: string | null
           temperature?: number | null

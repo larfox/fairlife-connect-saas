@@ -182,9 +182,10 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
       setNewComplaint({ text: "", severity: "mild" });
       fetchPatientData();
     } catch (error) {
+      console.error("Error saving complaint:", error);
       toast({
         title: "Save failed",
-        description: "Failed to save complaint.",
+        description: `Failed to save complaint: ${error.message || error}`,
         variant: "destructive",
       });
     }
@@ -222,9 +223,10 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
       fetchPatientData();
     } catch (error) {
+      console.error("Error saving screening data:", error);
       toast({
         title: "Save failed",
-        description: "Failed to save screening data.",
+        description: `Failed to save screening data: ${error.message || error}`,
         variant: "destructive",
       });
     }
@@ -253,9 +255,10 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
       fetchPatientData();
     } catch (error) {
+      console.error("Error saving prognosis:", error);
       toast({
         title: "Save failed",
-        description: "Failed to save prognosis.",
+        description: `Failed to save prognosis: ${error.message || error}`,
         variant: "destructive",
       });
     }
