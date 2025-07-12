@@ -134,7 +134,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
           });
         }
 
-        // Fetch basic screening for current visit
+        // Fetch basic screening for current visit (get the latest one)
         const { data: screeningData, error: screeningError } = await supabase
           .from("basic_screening")
           .select(`
@@ -142,9 +142,11 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
             nurses (first_name, last_name)
           `)
           .eq("patient_visit_id", currentEventVisit.id)
-          .single();
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        if (screeningError && screeningError.code !== 'PGRST116') {
+        if (screeningError) {
           throw screeningError;
         }
         
@@ -244,9 +246,16 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         notes: finalNotes || null
       };
 
+      // Delete existing screening records for this visit to prevent duplicates
+      await supabase
+        .from("basic_screening")
+        .delete()
+        .eq("patient_visit_id", currentVisit.id);
+
+      // Insert the new screening record
       const { error } = await supabase
         .from("basic_screening")
-        .upsert([screeningPayload]);
+        .insert([screeningPayload]);
 
       if (error) throw error;
 
