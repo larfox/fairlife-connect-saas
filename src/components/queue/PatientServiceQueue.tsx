@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, Clock, Play, CheckCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Eye, Clock, Play, CheckCircle, Filter } from 'lucide-react';
 import PatientDetailsModal from './PatientDetailsModal';
 
 interface PatientServiceQueueProps {
@@ -66,6 +67,7 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
   const [serviceQueues, setServiceQueues] = useState<ServiceGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [statusFilters, setStatusFilters] = useState<{[serviceId: string]: string}>({});
 
   useEffect(() => {
     if (selectedEvent?.id) {
@@ -233,6 +235,30 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
     return null;
   };
 
+  const getServiceProviderName = (patient: QueueItem) => {
+    if (patient.doctor) {
+      return `Dr. ${patient.doctor.first_name} ${patient.doctor.last_name}`;
+    } else if (patient.nurse) {
+      return `${patient.nurse.first_name} ${patient.nurse.last_name}`;
+    }
+    return null;
+  };
+
+  const getFilteredPatients = (serviceGroup: ServiceGroup) => {
+    const filter = statusFilters[serviceGroup.service.id];
+    if (!filter || filter === 'all') {
+      return serviceGroup.patients;
+    }
+    return serviceGroup.patients.filter(patient => patient.status === filter);
+  };
+
+  const handleStatusFilterChange = (serviceId: string, status: string) => {
+    setStatusFilters(prev => ({
+      ...prev,
+      [serviceId]: status
+    }));
+  };
+
   if (loading) {
     return <div className="p-4">Loading patient queues...</div>;
   }
@@ -248,9 +274,26 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>{serviceGroup.service.name}</span>
-              <Badge variant="outline">
-                {serviceGroup.patients.length} patients
-              </Badge>
+              <div className="flex items-center space-x-2">
+                <Select
+                  value={statusFilters[serviceGroup.service.id] || 'all'}
+                  onValueChange={(value) => handleStatusFilterChange(serviceGroup.service.id, value)}
+                >
+                  <SelectTrigger className="w-32">
+                    <Filter className="h-4 w-4 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="waiting">Waiting</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge variant="outline">
+                  {getFilteredPatients(serviceGroup).length} patients
+                </Badge>
+              </div>
             </CardTitle>
             {serviceGroup.service.description && (
               <p className="text-sm text-muted-foreground">{serviceGroup.service.description}</p>
@@ -261,7 +304,7 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
               <p className="text-muted-foreground text-center py-4">No patients in this service queue</p>
             ) : (
               <div className="space-y-3">
-                {serviceGroup.patients.map((patient, index) => (
+                {getFilteredPatients(serviceGroup).map((patient, index) => (
                   <div
                     key={patient.id}
                     className={`flex items-center justify-between p-3 rounded-lg border ${
@@ -280,6 +323,11 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {patient.patient_visit.patient.patient_number}
+                          {getServiceProviderName(patient) && (
+                            <span className="ml-2 text-primary">
+                              • {getServiceProviderName(patient)}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
