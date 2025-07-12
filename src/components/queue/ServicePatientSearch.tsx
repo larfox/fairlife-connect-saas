@@ -111,6 +111,12 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
 
+    console.log("=== SERVICE PATIENT SEARCH DEBUG ===");
+    console.log("Search term:", searchTerm);
+    console.log("Selected event:", selectedEvent);
+    console.log("Service ID:", serviceId);
+    console.log("Service name:", serviceName);
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -139,6 +145,9 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
         .eq("is_active", true)
         .limit(10);
 
+      console.log("Search query result:", data);
+      console.log("Search query error:", error);
+
       if (error) throw error;
 
       const formattedResults = data?.map(patient => ({
@@ -148,6 +157,9 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
           event: visit.events
         }))
       })) || [];
+
+      console.log("Formatted search results:", formattedResults);
+      console.log("Number of results:", formattedResults.length);
 
       setSearchResults(formattedResults);
       setShowDropdown(true);
