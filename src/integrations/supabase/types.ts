@@ -86,6 +86,60 @@ export type Database = {
           },
         ]
       }
+      dental_assessments: {
+        Row: {
+          assessment_notes: string | null
+          created_at: string
+          dental_professional_id: string | null
+          gum_health: string | null
+          id: string
+          oral_health_assessment: string | null
+          patient_visit_id: string
+          recommendations: string | null
+          teeth_condition: string | null
+          updated_at: string
+        }
+        Insert: {
+          assessment_notes?: string | null
+          created_at?: string
+          dental_professional_id?: string | null
+          gum_health?: string | null
+          id?: string
+          oral_health_assessment?: string | null
+          patient_visit_id: string
+          recommendations?: string | null
+          teeth_condition?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assessment_notes?: string | null
+          created_at?: string
+          dental_professional_id?: string | null
+          gum_health?: string | null
+          id?: string
+          oral_health_assessment?: string | null
+          patient_visit_id?: string
+          recommendations?: string | null
+          teeth_condition?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dental_assessments_dental_professional_id_fkey"
+            columns: ["dental_professional_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dental_assessments_patient_visit_id_fkey"
+            columns: ["patient_visit_id"]
+            isOneToOne: false
+            referencedRelation: "patient_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           created_at: string
@@ -124,6 +178,54 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ecg_results: {
+        Row: {
+          created_at: string
+          id: string
+          interpretation: string | null
+          notes: string | null
+          patient_visit_id: string
+          performed_by: string | null
+          result: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interpretation?: string | null
+          notes?: string | null
+          patient_visit_id: string
+          performed_by?: string | null
+          result?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interpretation?: string | null
+          notes?: string | null
+          patient_visit_id?: string
+          performed_by?: string | null
+          result?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecg_results_patient_visit_id_fkey"
+            columns: ["patient_visit_id"]
+            isOneToOne: false
+            referencedRelation: "patient_visits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecg_results_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_doctors: {
         Row: {
@@ -373,6 +475,57 @@ export type Database = {
         }
         Relationships: []
       }
+      optician_assessments: {
+        Row: {
+          assessment_notes: string | null
+          created_at: string
+          eye_pressure: number | null
+          id: string
+          optician_id: string | null
+          patient_visit_id: string
+          prescription_details: string | null
+          updated_at: string
+          vision_test_results: string | null
+        }
+        Insert: {
+          assessment_notes?: string | null
+          created_at?: string
+          eye_pressure?: number | null
+          id?: string
+          optician_id?: string | null
+          patient_visit_id: string
+          prescription_details?: string | null
+          updated_at?: string
+          vision_test_results?: string | null
+        }
+        Update: {
+          assessment_notes?: string | null
+          created_at?: string
+          eye_pressure?: number | null
+          id?: string
+          optician_id?: string | null
+          patient_visit_id?: string
+          prescription_details?: string | null
+          updated_at?: string
+          vision_test_results?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optician_assessments_optician_id_fkey"
+            columns: ["optician_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optician_assessments_patient_visit_id_fkey"
+            columns: ["patient_visit_id"]
+            isOneToOne: false
+            referencedRelation: "patient_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parishes: {
         Row: {
           created_at: string
@@ -396,6 +549,7 @@ export type Database = {
       }
       patient_complaints: {
         Row: {
+          assigned_professional_id: string | null
           complaint_text: string
           created_at: string
           id: string
@@ -404,6 +558,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_professional_id?: string | null
           complaint_text: string
           created_at?: string
           id?: string
@@ -412,6 +567,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_professional_id?: string | null
           complaint_text?: string
           created_at?: string
           id?: string
@@ -420,6 +576,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "patient_complaints_assigned_professional_id_fkey"
+            columns: ["assigned_professional_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "patient_complaints_patient_visit_id_fkey"
             columns: ["patient_visit_id"]
@@ -621,6 +784,60 @@ export type Database = {
             columns: ["town_id"]
             isOneToOne: false
             referencedRelation: "towns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prescriptions: {
+        Row: {
+          created_at: string
+          dosage: string | null
+          duration: string | null
+          frequency: string | null
+          id: string
+          instructions: string | null
+          medication: string
+          patient_visit_id: string
+          prescribed_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dosage?: string | null
+          duration?: string | null
+          frequency?: string | null
+          id?: string
+          instructions?: string | null
+          medication: string
+          patient_visit_id: string
+          prescribed_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dosage?: string | null
+          duration?: string | null
+          frequency?: string | null
+          id?: string
+          instructions?: string | null
+          medication?: string
+          patient_visit_id?: string
+          prescribed_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescriptions_patient_visit_id_fkey"
+            columns: ["patient_visit_id"]
+            isOneToOne: false
+            referencedRelation: "patient_visits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescriptions_prescribed_by_fkey"
+            columns: ["prescribed_by"]
+            isOneToOne: false
+            referencedRelation: "doctors"
             referencedColumns: ["id"]
           },
         ]

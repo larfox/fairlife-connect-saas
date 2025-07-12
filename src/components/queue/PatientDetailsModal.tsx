@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   User, 
   AlertTriangle, 
@@ -73,11 +74,26 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     interpretation: "",
     notes: ""
   });
+  
+  // Health professionals and assignments
+  const [availableDoctors, setAvailableDoctors] = useState<any[]>([]);
+  const [availableNurses, setAvailableNurses] = useState<any[]>([]);
+  const [healthProfessionalAssignments, setHealthProfessionalAssignments] = useState({
+    screening_nurse: "",
+    complaints_professional: "",
+    prognosis_doctor: "",
+    prescriptions_doctor: "",
+    ecg_doctor: "",
+    optician: "",
+    dental_professional: ""
+  });
+  
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen && patient) {
+      fetchAvailableHealthProfessionals();
       fetchPatientData();
     }
   }, [isOpen, patient, eventId]);
@@ -98,6 +114,51 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
       });
     }
   }, [isOpen]);
+
+  const fetchAvailableHealthProfessionals = async () => {
+    try {
+      // Fetch doctors assigned to this event
+      const { data: doctorsData, error: doctorsError } = await supabase
+        .from('event_doctors')
+        .select(`
+          doctors!inner(
+            id,
+            first_name,
+            last_name,
+            is_active
+          )
+        `)
+        .eq('event_id', eventId)
+        .eq('doctors.is_active', true);
+
+      if (doctorsError) throw doctorsError;
+
+      // Fetch nurses assigned to this event
+      const { data: nursesData, error: nursesError } = await supabase
+        .from('event_nurses')
+        .select(`
+          nurses!inner(
+            id,
+            first_name,
+            last_name,
+            is_active
+          )
+        `)
+        .eq('event_id', eventId)
+        .eq('nurses.is_active', true);
+
+      if (nursesError) throw nursesError;
+
+      // Extract doctors and nurses from the relationship data
+      const assignedDoctors = doctorsData?.map(ed => ed.doctors).filter(Boolean) || [];
+      const assignedNurses = nursesData?.map(en => en.nurses).filter(Boolean) || [];
+      
+      setAvailableDoctors(assignedDoctors);
+      setAvailableNurses(assignedNurses);
+    } catch (error) {
+      console.error("Error fetching health professionals:", error);
+    }
+  };
 
   const fetchPatientData = async () => {
     try {
@@ -174,6 +235,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
             follow_up_required: prognosisData.follow_up_required || false,
             follow_up_notes: prognosisData.follow_up_notes || ""
           });
+          
+          // Update health professional assignments
+          setHealthProfessionalAssignments(prev => ({
+            ...prev,
+            prognosis_doctor: prognosisData.doctor_id || ""
+          }));
         }
 
         // Fetch basic screening for current visit (get the latest one)
@@ -193,6 +260,14 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         }
         
         setBasicScreening(screeningData);
+        
+        // Update health professional assignments for screening
+        if (screeningData?.screened_by) {
+          setHealthProfessionalAssignments(prev => ({
+            ...prev,
+            screening_nurse: screeningData.screened_by
+          }));
+        }
         
         // Populate screening form if data exists
         if (screeningData) {
@@ -459,6 +534,139 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
   };
 
   const currentBMI = calculateBMI(screeningData.weight, screeningData.height);
+
+  // Update health professional assignment
+  const updateHealthProfessionalAssignment = async (field: string, professionalId: string) => {
+    if (!currentVisit) return;
+
+    try {
+      let updateQuery;
+      let tableName;
+      
+      switch (field) {
+        case 'screening_nurse':
+          updateQuery = supabase
+            .from('basic_screening')
+            .update({ screened_by: professionalId || null })
+            .eq('patient_visit_id', currentVisit.id);
+          break;
+        case 'prognosis_doctor':
+          updateQuery = supabase
+            .from('patient_prognosis')
+            .update({ doctor_id: professionalId || null })
+            .eq('patient_visit_id', currentVisit.id);
+          break;
+        case 'complaints_professional':
+          // For complaints, we'll update the latest complaint
+          const { data: latestComplaint } = await supabase
+            .from('patient_complaints')
+            .select('id')
+            .eq('patient_visit_id', currentVisit.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (latestComplaint && latestComplaint.length > 0) {
+            updateQuery = supabase
+              .from('patient_complaints')
+              .update({ assigned_professional_id: professionalId || null })
+              .eq('id', latestComplaint[0].id);
+          }
+          break;
+        default:
+          // For new tables, we'll implement upsert logic later
+          setHealthProfessionalAssignments(prev => ({
+            ...prev,
+            [field]: professionalId
+          }));
+          toast({
+            title: "Assignment updated",
+            description: "Health professional assignment has been updated.",
+          });
+          return;
+      }
+      
+      if (updateQuery) {
+        const { error } = await updateQuery;
+        if (error) throw error;
+      }
+
+      setHealthProfessionalAssignments(prev => ({
+        ...prev,
+        [field]: professionalId
+      }));
+
+      toast({
+        title: "Assignment updated",
+        description: "Health professional assignment has been updated.",
+      });
+
+    } catch (error) {
+      console.error("Error updating health professional assignment:", error);
+      toast({
+        title: "Update failed",
+        description: "Failed to update health professional assignment.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Health Professional Selector Component
+  const HealthProfessionalSelector = ({ 
+    field, 
+    label, 
+    type = 'doctor' 
+  }: { 
+    field: string; 
+    label: string; 
+    type?: 'doctor' | 'nurse' | 'both' 
+  }) => {
+    const professionals = type === 'nurse' 
+      ? availableNurses 
+      : type === 'doctor' 
+        ? availableDoctors 
+        : [...availableDoctors, ...availableNurses];
+    
+    const currentValue = healthProfessionalAssignments[field as keyof typeof healthProfessionalAssignments] || '';
+    
+    return (
+      <div className="mt-4 pt-3 border-t">
+        <Label className="text-sm font-medium text-muted-foreground">{label}:</Label>
+        <Select
+          value={currentValue}
+          onValueChange={(value) => updateHealthProfessionalAssignment(field, value)}
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Select professional..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Unassigned</SelectItem>
+            {type === 'nurse' && availableNurses.map((nurse) => (
+              <SelectItem key={nurse.id} value={nurse.id}>
+                {nurse.first_name} {nurse.last_name} (Nurse)
+              </SelectItem>
+            ))}
+            {type === 'doctor' && availableDoctors.map((doctor) => (
+              <SelectItem key={doctor.id} value={doctor.id}>
+                Dr. {doctor.first_name} {doctor.last_name}
+              </SelectItem>
+            ))}
+            {type === 'both' && [
+              ...availableNurses.map((nurse) => (
+                <SelectItem key={`nurse-${nurse.id}`} value={nurse.id}>
+                  {nurse.first_name} {nurse.last_name} (Nurse)
+                </SelectItem>
+              )),
+              ...availableDoctors.map((doctor) => (
+                <SelectItem key={`doctor-${doctor.id}`} value={doctor.id}>
+                  Dr. {doctor.first_name} {doctor.last_name}
+                </SelectItem>
+              ))
+            ]}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -776,14 +984,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                         </div>
                       )}
                       
-                      {/* Health Professional Info */}
-                      <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
-                        <span className="font-medium">Health Professional:</span> 
-                        {basicScreening?.nurses ? 
-                          ` ${basicScreening.nurses.first_name} ${basicScreening.nurses.last_name} (Nurse)` : 
-                          ' [Nurse assignment pending]'
-                        }
-                      </div>
+                      {/* Health Professional Selector */}
+                      <HealthProfessionalSelector 
+                        field="screening_nurse" 
+                        label="Screening Nurse" 
+                        type="nurse" 
+                      />
                     </div>
                   )}
                 </CardContent>
@@ -849,10 +1055,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     )}
                   </div>
                   
-                  {/* Health Professional Info */}
-                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
-                    <span className="font-medium">Health Professional:</span> [Name will be added based on assignment]
-                  </div>
+                  {/* Health Professional Selector */}
+                  <HealthProfessionalSelector 
+                    field="complaints_professional" 
+                    label="Assigned Health Professional" 
+                    type="both" 
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -917,14 +1125,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     </div>
                   )}
                   
-                  {/* Health Professional Info */}
-                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
-                    <span className="font-medium">Health Professional:</span> 
-                    {prognosis?.doctors ? 
-                      ` Dr. ${prognosis.doctors.first_name} ${prognosis.doctors.last_name}` : 
-                      ' [Doctor assignment pending]'
-                    }
-                  </div>
+                   {/* Health Professional Selector */}
+                   <HealthProfessionalSelector 
+                     field="prognosis_doctor" 
+                     label="Assigned Doctor" 
+                     type="doctor" 
+                   />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1018,10 +1224,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     )}
                   </div>
                   
-                  {/* Health Professional Info */}
-                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
-                    <span className="font-medium">Health Professional:</span> [Doctor name will be added based on assignment]
-                  </div>
+                   {/* Health Professional Selector */}
+                   <HealthProfessionalSelector 
+                     field="prescriptions_doctor" 
+                     label="Prescribing Doctor" 
+                     type="doctor" 
+                   />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1095,10 +1303,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     )}
                   </div>
                   
-                  {/* Health Professional Info */}
-                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
-                    <span className="font-medium">Health Professional:</span> Dr. [Name will be added based on assignment]
-                  </div>
+                   {/* Health Professional Selector */}
+                   <HealthProfessionalSelector 
+                     field="ecg_doctor" 
+                     label="ECG Performing Doctor" 
+                     type="doctor" 
+                   />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1160,10 +1370,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     <p className="text-muted-foreground">No previous optician assessments recorded.</p>
                   </div>
                   
-                  {/* Health Professional Info */}
-                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
-                    <span className="font-medium">Optician:</span> [Name will be added based on assignment]
-                  </div>
+                   {/* Health Professional Selector */}
+                   <HealthProfessionalSelector 
+                     field="optician" 
+                     label="Assigned Optician" 
+                     type="doctor" 
+                   />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1233,10 +1445,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     <p className="text-muted-foreground">No previous dental assessments recorded.</p>
                   </div>
                   
-                  {/* Health Professional Info */}
-                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
-                    <span className="font-medium">Dental Professional:</span> [Name will be added based on assignment]
-                  </div>
+                   {/* Health Professional Selector */}
+                   <HealthProfessionalSelector 
+                     field="dental_professional" 
+                     label="Assigned Dental Professional" 
+                     type="doctor" 
+                   />
                 </CardContent>
               </Card>
             </TabsContent>
