@@ -45,27 +45,39 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
 
   const fetchServices = async () => {
     try {
+      // Only fetch services that are associated with this event
       const { data, error } = await supabase
-        .from("services")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
+        .from("event_services")
+        .select(`
+          services (
+            id,
+            name,
+            description,
+            duration_minutes,
+            is_active
+          )
+        `)
+        .eq("event_id", selectedEvent.id);
 
       if (error) throw error;
       
+      // Extract the services from the event_services relation
+      const eventServices = data?.map(item => item.services).filter(Boolean) || [];
+      
       // Sort services to put "Know Your Numbers" first
-      const sortedServices = (data || []).sort((a, b) => {
+      const sortedServices = eventServices.sort((a, b) => {
         if (a.name.toLowerCase().includes('know your numbers')) return -1;
         if (b.name.toLowerCase().includes('know your numbers')) return 1;
         return a.name.localeCompare(b.name);
       });
       
+      console.log("Fetched services for event:", sortedServices);
       setServices(sortedServices);
     } catch (error) {
       console.error("Error fetching services:", error);
       toast({
         title: "Error fetching services",
-        description: "Failed to load services.",
+        description: "Failed to load services for this event.",
         variant: "destructive",
       });
     }
