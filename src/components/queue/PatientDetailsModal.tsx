@@ -259,10 +259,56 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
       if (error) throw error;
 
-      toast({
-        title: "Screening saved",
-        description: "Patient screening data has been updated.",
-      });
+      // Send email summary if patient has an email
+      if (patient.email) {
+        try {
+          const { error: emailError } = await supabase.functions.invoke('send-screening-summary', {
+            body: {
+              patientEmail: patient.email,
+              patientName: `${patient.first_name} ${patient.last_name}`,
+              screeningData: {
+                weight: screeningPayload.weight,
+                height: screeningPayload.height,
+                bmi: screeningPayload.bmi,
+                blood_pressure_systolic: screeningPayload.blood_pressure_systolic,
+                blood_pressure_diastolic: screeningPayload.blood_pressure_diastolic,
+                heart_rate: screeningPayload.heart_rate,
+                temperature: null, // Not in current form but included in email template
+                oxygen_saturation: screeningPayload.oxygen_saturation,
+                blood_sugar: screeningPayload.blood_sugar,
+                notes: finalNotes
+              },
+              eventName: currentVisit.events?.name
+            }
+          });
+
+          if (emailError) {
+            console.error("Error sending email:", emailError);
+            toast({
+              title: "Warning",
+              description: "Screening data saved but email could not be sent",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Success",
+              description: "Screening data saved and email summary sent to patient",
+            });
+          }
+        } catch (emailError) {
+          console.error("Error sending email:", emailError);
+          toast({
+            title: "Warning", 
+            description: "Screening data saved but email could not be sent",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Screening saved",
+          description: "Patient screening data has been updated.",
+        });
+      }
 
       fetchPatientData();
     } catch (error) {
