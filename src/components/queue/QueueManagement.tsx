@@ -11,6 +11,7 @@ import PatientRegistration from "./PatientRegistration";
 import ServiceQueue from "./ServiceQueue";
 import { PatientServiceQueue } from "./PatientServiceQueue";
 import { ServiceSummary } from "./ServiceSummary";
+import ServicePatientSearch from "./ServicePatientSearch";
 
 interface QueueManagementProps {
   selectedEvent: any;
@@ -25,13 +26,34 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
     inProgress: 0,
     completed: 0
   });
+  const [services, setServices] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     if (selectedEvent) {
       fetchQueueStats();
+      fetchServices();
     }
   }, [selectedEvent]);
+
+  const fetchServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+      setServices(data || []);
+    } catch (error) {
+      toast({
+        title: "Error fetching services",
+        description: "Failed to load services.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchQueueStats = async () => {
     try {
@@ -153,15 +175,17 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
 
         {/* Main Queue Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(services.length + 2, 6)}, minmax(0, 1fr))` }}>
             <TabsTrigger value="registration" className="gap-2">
               <UserPlus className="h-4 w-4" />
               Registration
             </TabsTrigger>
-            <TabsTrigger value="search" className="gap-2">
-              <Search className="h-4 w-4" />
-              Search Patients
-            </TabsTrigger>
+            {services.map((service) => (
+              <TabsTrigger key={service.id} value={`search-${service.id}`} className="gap-2">
+                <Search className="h-4 w-4" />
+                {service.name}
+              </TabsTrigger>
+            ))}
             <TabsTrigger value="services" className="gap-2">
               <Activity className="h-4 w-4" />
               Service Queues
@@ -175,12 +199,15 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
             />
           </TabsContent>
 
-          <TabsContent value="search" className="space-y-6 mt-6">
-            <PatientServiceQueue 
-              selectedEvent={selectedEvent} 
-              onStatsUpdate={fetchQueueStats}
-            />
-          </TabsContent>
+          {services.map((service) => (
+            <TabsContent key={service.id} value={`search-${service.id}`} className="space-y-6 mt-6">
+              <ServicePatientSearch 
+                selectedEvent={selectedEvent} 
+                serviceId={service.id}
+                serviceName={service.name}
+              />
+            </TabsContent>
+          ))}
 
           <TabsContent value="services" className="space-y-6 mt-6">
             <ServiceSummary 
