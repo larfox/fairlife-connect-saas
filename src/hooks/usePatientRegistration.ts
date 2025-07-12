@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,6 +22,7 @@ interface PatientData {
 
 export const usePatientRegistration = (selectedEvent: any, onRegistrationComplete: () => void) => {
   const [loading, setLoading] = useState(false);
+  const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>('');
   const { toast } = useToast();
 
   const initialPatientData: PatientData = {
@@ -45,11 +46,39 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
   const [patientData, setPatientData] = useState<PatientData>(initialPatientData);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
+  // Auto-select "Know Your Numbers" when services are available
+  const initializeServices = async () => {
+    try {
+      const { data: knowYourNumbersService, error } = await supabase
+        .from("services")
+        .select("id")
+        .ilike("name", "%know your numbers%")
+        .single();
+
+      if (!error && knowYourNumbersService) {
+        setKnowYourNumbersServiceId(knowYourNumbersService.id);
+        setSelectedServices([knowYourNumbersService.id]);
+      }
+    } catch (error) {
+      console.error('Error fetching Know Your Numbers service:', error);
+    }
+  };
+
+  // Initialize services on mount
+  useEffect(() => {
+    initializeServices();
+  }, []);
+
   const updatePatientData = (field: string, value: string) => {
     setPatientData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleServiceToggle = (serviceId: string) => {
+    // Prevent deselecting "Know Your Numbers"
+    if (serviceId === knowYourNumbersServiceId) {
+      return;
+    }
+    
     setSelectedServices(prev => 
       prev.includes(serviceId) 
         ? prev.filter(id => id !== serviceId)
@@ -155,7 +184,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
 
       // Reset form
       setPatientData(initialPatientData);
-      setSelectedServices([]);
+      setSelectedServices([knowYourNumbersServiceId]); // Keep "Know Your Numbers" selected
       onRegistrationComplete();
 
     } catch (error) {
@@ -173,6 +202,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     patientData,
     selectedServices,
     loading,
+    knowYourNumbersServiceId,
     updatePatientData,
     handleServiceToggle,
     handleRegisterPatient

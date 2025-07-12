@@ -28,6 +28,7 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
     patientData,
     selectedServices,
     loading,
+    knowYourNumbersServiceId,
     updatePatientData,
     handleServiceToggle,
     handleRegisterPatient
@@ -105,6 +106,7 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
             services={services}
             selectedServices={selectedServices}
             onServiceToggle={handleServiceToggle}
+            knowYourNumbersServiceId={knowYourNumbersServiceId}
           />
 
           <div className="flex justify-end pt-4">
