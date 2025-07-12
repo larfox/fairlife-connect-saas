@@ -17,11 +17,13 @@ import {
   Activity,
   Save,
   Clock,
-  UserCog
+  UserCog,
+  Pill,
+  Zap
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ServiceAssignmentForm } from "./ServiceAssignmentForm";
+
 
 
 interface PatientDetailsModalProps {
@@ -53,6 +55,20 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     treatment_plan: "",
     follow_up_required: false,
     follow_up_notes: ""
+  });
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [newPrescription, setNewPrescription] = useState({
+    medication: "",
+    dosage: "",
+    frequency: "",
+    duration: "",
+    instructions: ""
+  });
+  const [ecgResults, setEcgResults] = useState<any[]>([]);
+  const [newEcgResult, setNewEcgResult] = useState({
+    result: "",
+    interpretation: "",
+    notes: ""
   });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -468,12 +484,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="complaints">Complaints</TabsTrigger>
               <TabsTrigger value="prognosis">Prognosis</TabsTrigger>
-              <TabsTrigger value="assignments">Service Assignments</TabsTrigger>
+              <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+              <TabsTrigger value="ecg">ECG Results</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -865,13 +882,168 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               </Card>
             </TabsContent>
 
-            <TabsContent value="assignments" className="space-y-4">
-              {currentVisit && (
-                <ServiceAssignmentForm 
-                  currentVisit={currentVisit}
-                  onAssignmentUpdate={fetchPatientData}
-                />
-              )}
+            <TabsContent value="prescriptions" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Pill className="h-5 w-5" />
+                    Prescriptions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="medication">Medication</Label>
+                          <Input
+                            id="medication"
+                            placeholder="Medication name"
+                            value={newPrescription.medication}
+                            onChange={(e) => setNewPrescription({...newPrescription, medication: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dosage">Dosage</Label>
+                          <Input
+                            id="dosage"
+                            placeholder="e.g., 500mg"
+                            value={newPrescription.dosage}
+                            onChange={(e) => setNewPrescription({...newPrescription, dosage: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="frequency">Frequency</Label>
+                          <Input
+                            id="frequency"
+                            placeholder="e.g., Twice daily"
+                            value={newPrescription.frequency}
+                            onChange={(e) => setNewPrescription({...newPrescription, frequency: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="duration">Duration</Label>
+                          <Input
+                            id="duration"
+                            placeholder="e.g., 7 days"
+                            value={newPrescription.duration}
+                            onChange={(e) => setNewPrescription({...newPrescription, duration: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="instructions">Instructions</Label>
+                        <Textarea
+                          id="instructions"
+                          placeholder="Special instructions..."
+                          value={newPrescription.instructions}
+                          onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Add Prescription
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Current Prescriptions</h4>
+                    {prescriptions.length > 0 ? (
+                      prescriptions.map((prescription, index) => (
+                        <div key={index} className="p-3 border rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">{prescription.medication}</span>
+                            <Badge variant="outline">{prescription.dosage}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {prescription.frequency} for {prescription.duration}
+                          </p>
+                          {prescription.instructions && (
+                            <p className="text-sm mt-1">{prescription.instructions}</p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No prescriptions recorded.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="ecg" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    ECG Results
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="ecg_result">ECG Result</Label>
+                        <Input
+                          id="ecg_result"
+                          placeholder="e.g., Normal sinus rhythm"
+                          value={newEcgResult.result}
+                          onChange={(e) => setNewEcgResult({...newEcgResult, result: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="interpretation">Interpretation</Label>
+                        <Textarea
+                          id="interpretation"
+                          placeholder="Clinical interpretation..."
+                          value={newEcgResult.interpretation}
+                          onChange={(e) => setNewEcgResult({...newEcgResult, interpretation: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ecg_notes">Notes</Label>
+                        <Textarea
+                          id="ecg_notes"
+                          placeholder="Additional notes..."
+                          value={newEcgResult.notes}
+                          onChange={(e) => setNewEcgResult({...newEcgResult, notes: e.target.value})}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save ECG Result
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Previous ECG Results</h4>
+                    {ecgResults.length > 0 ? (
+                      ecgResults.map((ecg, index) => (
+                        <div key={index} className="p-3 border rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">{ecg.result}</span>
+                            <Badge variant="outline">ECG</Badge>
+                          </div>
+                          {ecg.interpretation && (
+                            <p className="text-sm mb-2">{ecg.interpretation}</p>
+                          )}
+                          {ecg.notes && (
+                            <p className="text-sm text-muted-foreground">{ecg.notes}</p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No ECG results recorded.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
