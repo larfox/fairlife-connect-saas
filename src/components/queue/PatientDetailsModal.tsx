@@ -36,6 +36,16 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
   const [complaints, setComplaints] = useState<any[]>([]);
   const [prognosis, setPrognosis] = useState<any>(null);
   const [basicScreening, setBasicScreening] = useState<any>(null);
+  const [screeningData, setScreeningData] = useState({
+    weight: "",
+    height: "",
+    blood_sugar: "",
+    heart_rate: "",
+    oxygen_saturation: "",
+    blood_pressure_systolic: "",
+    blood_pressure_diastolic: "",
+    notes: ""
+  });
   const [newComplaint, setNewComplaint] = useState({ text: "", severity: "mild" });
   const [prognosisData, setPrognosisData] = useState({
     diagnosis: "",
@@ -123,6 +133,20 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         }
         
         setBasicScreening(screeningData);
+        
+        // Populate screening form if data exists
+        if (screeningData) {
+          setScreeningData({
+            weight: screeningData.weight?.toString() || "",
+            height: screeningData.height?.toString() || "",
+            blood_sugar: screeningData.blood_sugar?.toString() || "",
+            heart_rate: screeningData.heart_rate?.toString() || "",
+            oxygen_saturation: (screeningData as any).oxygen_saturation?.toString() || "",
+            blood_pressure_systolic: screeningData.blood_pressure_systolic?.toString() || "",
+            blood_pressure_diastolic: screeningData.blood_pressure_diastolic?.toString() || "",
+            notes: screeningData.notes || ""
+          });
+        }
       }
 
     } catch (error) {
@@ -166,6 +190,43 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     }
   };
 
+  const saveScreening = async () => {
+    if (!currentVisit) return;
+
+    try {
+      const screeningPayload = {
+        patient_visit_id: currentVisit.id,
+        weight: screeningData.weight ? parseFloat(screeningData.weight) : null,
+        height: screeningData.height ? parseFloat(screeningData.height) : null,
+        blood_sugar: screeningData.blood_sugar ? parseInt(screeningData.blood_sugar) : null,
+        heart_rate: screeningData.heart_rate ? parseInt(screeningData.heart_rate) : null,
+        oxygen_saturation: screeningData.oxygen_saturation ? parseInt(screeningData.oxygen_saturation) : null,
+        blood_pressure_systolic: screeningData.blood_pressure_systolic ? parseInt(screeningData.blood_pressure_systolic) : null,
+        blood_pressure_diastolic: screeningData.blood_pressure_diastolic ? parseInt(screeningData.blood_pressure_diastolic) : null,
+        notes: screeningData.notes || null
+      };
+
+      const { error } = await supabase
+        .from("basic_screening")
+        .upsert([screeningPayload]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Screening saved",
+        description: "Patient screening data has been updated.",
+      });
+
+      fetchPatientData();
+    } catch (error) {
+      toast({
+        title: "Save failed",
+        description: "Failed to save screening data.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const savePrognosis = async () => {
     if (!currentVisit) return;
 
@@ -195,6 +256,19 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         variant: "destructive",
       });
     }
+  };
+
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   if (loading) {
@@ -312,50 +386,162 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     Basic Screening - "Know Your Numbers"
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {basicScreening ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {basicScreening.blood_pressure_systolic && (
-                        <div>
-                          <Label>Blood Pressure</Label>
-                          <p className="text-lg font-semibold">
-                            {basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic}
+                <CardContent className="space-y-6">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      {/* Patient Age Display */}
+                      {patient.date_of_birth && (
+                        <div className="p-3 bg-muted rounded-lg">
+                          <Label className="text-sm font-medium">Patient Age</Label>
+                          <p className="text-lg font-semibold">{calculateAge(patient.date_of_birth)} years old</p>
+                          <p className="text-sm text-muted-foreground">
+                            Born: {new Date(patient.date_of_birth).toLocaleDateString()}
                           </p>
                         </div>
                       )}
-                      {basicScreening.heart_rate && (
+
+                      {/* Screening Form */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label>Heart Rate</Label>
-                          <p className="text-lg font-semibold">{basicScreening.heart_rate} bpm</p>
+                          <Label htmlFor="weight">Weight (lbs)</Label>
+                          <Input
+                            id="weight"
+                            type="number"
+                            placeholder="Enter weight in pounds"
+                            value={screeningData.weight}
+                            onChange={(e) => setScreeningData({...screeningData, weight: e.target.value})}
+                          />
                         </div>
-                      )}
-                      {basicScreening.temperature && (
+
                         <div>
-                          <Label>Temperature</Label>
-                          <p className="text-lg font-semibold">{basicScreening.temperature}°F</p>
+                          <Label htmlFor="height">Height (ft)</Label>
+                          <Input
+                            id="height"
+                            type="number"
+                            step="0.1"
+                            placeholder="Enter height in feet"
+                            value={screeningData.height}
+                            onChange={(e) => setScreeningData({...screeningData, height: e.target.value})}
+                          />
                         </div>
-                      )}
-                      {basicScreening.weight && (
+
                         <div>
-                          <Label>Weight</Label>
-                          <p className="text-lg font-semibold">{basicScreening.weight} lbs</p>
+                          <Label htmlFor="blood_sugar">GMR (Blood Sugar Reading)</Label>
+                          <Input
+                            id="blood_sugar"
+                            type="number"
+                            placeholder="Enter blood sugar reading"
+                            value={screeningData.blood_sugar}
+                            onChange={(e) => setScreeningData({...screeningData, blood_sugar: e.target.value})}
+                          />
                         </div>
-                      )}
-                      {basicScreening.height && (
+
                         <div>
-                          <Label>Height</Label>
-                          <p className="text-lg font-semibold">{basicScreening.height} ft</p>
+                          <Label htmlFor="heart_rate">Pulse (bpm)</Label>
+                          <Input
+                            id="heart_rate"
+                            type="number"
+                            placeholder="Enter pulse rate"
+                            value={screeningData.heart_rate}
+                            onChange={(e) => setScreeningData({...screeningData, heart_rate: e.target.value})}
+                          />
                         </div>
-                      )}
-                      {basicScreening.bmi && (
+
                         <div>
-                          <Label>BMI</Label>
-                          <p className="text-lg font-semibold">{basicScreening.bmi}</p>
+                          <Label htmlFor="oxygen_saturation">Oxygen (%)</Label>
+                          <Input
+                            id="oxygen_saturation"
+                            type="number"
+                            placeholder="Enter oxygen saturation"
+                            value={screeningData.oxygen_saturation}
+                            onChange={(e) => setScreeningData({...screeningData, oxygen_saturation: e.target.value})}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="blood_pressure">Blood Pressure</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              placeholder="Systolic"
+                              value={screeningData.blood_pressure_systolic}
+                              onChange={(e) => setScreeningData({...screeningData, blood_pressure_systolic: e.target.value})}
+                            />
+                            <span className="self-center">/</span>
+                            <Input
+                              type="number"
+                              placeholder="Diastolic"
+                              value={screeningData.blood_pressure_diastolic}
+                              onChange={(e) => setScreeningData({...screeningData, blood_pressure_diastolic: e.target.value})}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="screening_notes">Notes</Label>
+                        <Textarea
+                          id="screening_notes"
+                          placeholder="Additional screening notes..."
+                          value={screeningData.notes}
+                          onChange={(e) => setScreeningData({...screeningData, notes: e.target.value})}
+                        />
+                      </div>
+
+                      <Button onClick={saveScreening} className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save Screening Data
+                      </Button>
+
+                      {/* Display Current Screening if Available */}
+                      {basicScreening && (
+                        <div className="mt-6 p-4 bg-muted rounded-lg">
+                          <h4 className="font-medium mb-3">Current Screening Results</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                            {basicScreening.weight && (
+                              <div>
+                                <span className="font-medium">Weight:</span> {basicScreening.weight} lbs
+                              </div>
+                            )}
+                            {basicScreening.height && (
+                              <div>
+                                <span className="font-medium">Height:</span> {basicScreening.height} ft
+                              </div>
+                            )}
+                            {basicScreening.blood_sugar && (
+                              <div>
+                                <span className="font-medium">GMR:</span> {basicScreening.blood_sugar}
+                              </div>
+                            )}
+                            {basicScreening.heart_rate && (
+                              <div>
+                                <span className="font-medium">Pulse:</span> {basicScreening.heart_rate} bpm
+                              </div>
+                            )}
+                            {(basicScreening as any).oxygen_saturation && (
+                              <div>
+                                <span className="font-medium">Oxygen:</span> {(basicScreening as any).oxygen_saturation}%
+                              </div>
+                            )}
+                            {basicScreening.blood_pressure_systolic && (
+                              <div>
+                                <span className="font-medium">BP:</span> {basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic}
+                              </div>
+                            )}
+                          </div>
+                          {basicScreening.notes && (
+                            <div className="mt-3">
+                              <span className="font-medium">Notes:</span> {basicScreening.notes}
+                            </div>
+                          )}
+                          {basicScreening.nurses && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Screened by: {basicScreening.nurses.first_name} {basicScreening.nurses.last_name}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <p className="text-muted-foreground">No screening data recorded yet.</p>
                   )}
                 </CardContent>
               </Card>
