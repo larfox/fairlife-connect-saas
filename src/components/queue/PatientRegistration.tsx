@@ -10,7 +10,7 @@ import { PatientBasicInfoForm } from "./forms/PatientBasicInfoForm";
 import { PatientMedicalInfoForm } from "./forms/PatientMedicalInfoForm";
 import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
 import { usePatientRegistration } from "@/hooks/usePatientRegistration";
-import PatientSearch from "./PatientSearch";
+import AutocompletePatientSearch from "./AutocompletePatientSearch";
 
 interface PatientRegistrationProps {
   selectedEvent: any;
@@ -80,7 +80,7 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
 
   return (
     <div className="space-y-6">
-      <PatientSearch selectedEvent={selectedEvent} />
+      <AutocompletePatientSearch selectedEvent={selectedEvent} />
       
       <Card>
         <CardHeader>
