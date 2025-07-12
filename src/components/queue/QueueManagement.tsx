@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import PatientRegistration from "./PatientRegistration";
 import ServiceQueue from "./ServiceQueue";
 import { PatientServiceQueue } from "./PatientServiceQueue";
+import { ServiceSummary } from "./ServiceSummary";
 
 interface QueueManagementProps {
   selectedEvent: any;
@@ -194,10 +195,9 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
           </TabsContent>
 
           <TabsContent value="services" className="space-y-6 mt-6">
-            <ServiceQueue 
+            <ServiceSummary 
               selectedEvent={selectedEvent} 
               onStatsUpdate={fetchQueueStats}
-              viewMode="detailed"
             />
           </TabsContent>
         </Tabs>
