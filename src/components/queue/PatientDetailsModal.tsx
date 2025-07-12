@@ -16,10 +16,12 @@ import {
   Calendar,
   Activity,
   Save,
-  Clock
+  Clock,
+  UserCog
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ServiceAssignmentForm } from "./ServiceAssignmentForm";
 
 interface PatientDetailsModalProps {
   patient: any;
@@ -225,11 +227,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="complaints">Complaints</TabsTrigger>
               <TabsTrigger value="prognosis">Prognosis</TabsTrigger>
+              <TabsTrigger value="assignments">Assignments</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -481,6 +484,15 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="assignments" className="space-y-4">
+              {currentVisit && (
+                <ServiceAssignmentForm 
+                  currentVisit={currentVisit}
+                  onAssignmentUpdate={fetchPatientData}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">

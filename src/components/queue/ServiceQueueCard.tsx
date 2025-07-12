@@ -72,6 +72,12 @@ export function ServiceQueueCard({
   getFilteredPatients
 }: ServiceQueueCardProps) {
   const filteredPatients = getFilteredPatients(serviceGroup);
+  
+  // Calculate service summary statistics
+  const totalRegistered = serviceGroup.patients.length;
+  const waitingCount = serviceGroup.patients.filter(p => p.status === 'waiting').length;
+  const inProgressCount = serviceGroup.patients.filter(p => p.status === 'in_progress').length;
+  const completedCount = serviceGroup.patients.filter(p => p.status === 'completed').length;
 
   return (
     <Card>
@@ -88,6 +94,26 @@ export function ServiceQueueCard({
         {serviceGroup.service.description && (
           <p className="text-sm text-muted-foreground">{serviceGroup.service.description}</p>
         )}
+        
+        {/* Service Summary */}
+        <div className="grid grid-cols-4 gap-2 text-sm">
+          <div className="text-center p-2 bg-blue-50 dark:bg-blue-950 rounded">
+            <div className="font-semibold text-blue-700 dark:text-blue-300">{totalRegistered}</div>
+            <div className="text-blue-600 dark:text-blue-400">Total</div>
+          </div>
+          <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-950 rounded">
+            <div className="font-semibold text-yellow-700 dark:text-yellow-300">{waitingCount}</div>
+            <div className="text-yellow-600 dark:text-yellow-400">Waiting</div>
+          </div>
+          <div className="text-center p-2 bg-orange-50 dark:bg-orange-950 rounded">
+            <div className="font-semibold text-orange-700 dark:text-orange-300">{inProgressCount}</div>
+            <div className="text-orange-600 dark:text-orange-400">In Progress</div>
+          </div>
+          <div className="text-center p-2 bg-green-50 dark:bg-green-950 rounded">
+            <div className="font-semibold text-green-700 dark:text-green-300">{completedCount}</div>
+            <div className="text-green-600 dark:text-green-400">Completed</div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {filteredPatients.length === 0 ? (
