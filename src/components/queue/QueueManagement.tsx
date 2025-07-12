@@ -18,7 +18,7 @@ interface QueueManagementProps {
 }
 
 const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("registration");
   const [queueStats, setQueueStats] = useState({
     totalPatients: 0,
     waiting: 0,
@@ -153,11 +153,7 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
 
         {/* Main Queue Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="gap-2">
-              <Activity className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="registration" className="gap-2">
               <UserPlus className="h-4 w-4" />
               Registration
@@ -171,14 +167,6 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
               Service Queues
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="overview" className="space-y-6 mt-6">
-            <ServiceQueue 
-              selectedEvent={selectedEvent} 
-              onStatsUpdate={fetchQueueStats}
-              viewMode="overview"
-            />
-          </TabsContent>
 
           <TabsContent value="registration" className="space-y-6 mt-6">
             <PatientRegistration 
