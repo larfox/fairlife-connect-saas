@@ -21,6 +21,7 @@ interface QueueItem {
   patient_visit: {
     id: string;
     queue_number: number;
+    basic_screening_completed: boolean | null;
     patient: {
       id: string;
       first_name: string;
@@ -86,11 +87,49 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
         return;
       }
 
-      // Group by service and order services with "Know Your Numbers" first
+      // Get all "Know Your Numbers" queue items for this event to check completion status
+      const { data: knowYourNumbersData, error: kynError } = await supabase
+        .from('service_queue')
+        .select(`
+          *,
+          service:services(*),
+          patient_visit:patient_visits(*)
+        `)
+        .eq('patient_visit.event_id', selectedEvent.id)
+        .ilike('service.name', '%know your numbers%');
+
+      if (kynError) {
+        console.error('Error fetching Know Your Numbers data:', kynError);
+      }
+
+      // Create a map of patients who have completed "Know Your Numbers"
+      const completedKnowYourNumbersPatients = new Set<string>();
+      knowYourNumbersData?.forEach((item: any) => {
+        if (item.status === 'completed') {
+          completedKnowYourNumbersPatients.add(item.patient_visit_id);
+        }
+      });
+
+      // Group by service and filter patients based on screening requirements
       const groupedData: { [key: string]: ServiceGroup } = {};
       
       queueData?.forEach((item: QueueItem) => {
         const serviceId = item.service.id;
+        const isKnowYourNumbers = item.service.name.toLowerCase().includes('know your numbers');
+        
+        // For non-"Know Your Numbers" services, filter out patients who:
+        // 1. Don't have screening completed, OR
+        // 2. Have completed "Know Your Numbers" service
+        if (!isKnowYourNumbers) {
+          const hasScreeningCompleted = item.patient_visit.basic_screening_completed;
+          const hasCompletedKnowYourNumbers = completedKnowYourNumbersPatients.has(item.patient_visit_id);
+          
+          // Skip this patient if they don't meet the requirements
+          if (!hasScreeningCompleted || hasCompletedKnowYourNumbers) {
+            return;
+          }
+        }
+        
         if (!groupedData[serviceId]) {
           groupedData[serviceId] = {
             service: item.service,
