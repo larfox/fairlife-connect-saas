@@ -20,6 +20,7 @@ export type Database = {
           blood_pressure_systolic: number | null
           blood_sugar: number | null
           bmi: number | null
+          cholesterol: number | null
           created_at: string
           heart_rate: number | null
           height: number | null
@@ -37,6 +38,7 @@ export type Database = {
           blood_pressure_systolic?: number | null
           blood_sugar?: number | null
           bmi?: number | null
+          cholesterol?: number | null
           created_at?: string
           heart_rate?: number | null
           height?: number | null
@@ -54,6 +56,7 @@ export type Database = {
           blood_pressure_systolic?: number | null
           blood_sugar?: number | null
           bmi?: number | null
+          cholesterol?: number | null
           created_at?: string
           heart_rate?: number | null
           height?: number | null

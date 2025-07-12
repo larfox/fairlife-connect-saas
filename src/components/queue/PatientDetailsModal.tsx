@@ -19,7 +19,9 @@ import {
   Clock,
   UserCog,
   Pill,
-  Zap
+  Zap,
+  Eye,
+  Smile
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +49,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     oxygen_saturation: "",
     blood_pressure_systolic: "",
     blood_pressure_diastolic: "",
+    cholesterol: "",
     notes: ""
   });
   const [newComplaint, setNewComplaint] = useState({ text: "", severity: "mild" });
@@ -90,6 +93,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         oxygen_saturation: "",
         blood_pressure_systolic: "",
         blood_pressure_diastolic: "",
+        cholesterol: "",
         notes: ""
       });
     }
@@ -209,6 +213,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
             oxygen_saturation: (screeningData as any).oxygen_saturation?.toString() || "",
             blood_pressure_systolic: screeningData.blood_pressure_systolic?.toString() || "",
             blood_pressure_diastolic: screeningData.blood_pressure_diastolic?.toString() || "",
+            cholesterol: (screeningData as any).cholesterol?.toString() || "",
             notes: userNotes
           });
         }
@@ -281,6 +286,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         oxygen_saturation: screeningData.oxygen_saturation ? parseInt(screeningData.oxygen_saturation) : null,
         blood_pressure_systolic: screeningData.blood_pressure_systolic ? parseInt(screeningData.blood_pressure_systolic) : null,
         blood_pressure_diastolic: screeningData.blood_pressure_diastolic ? parseInt(screeningData.blood_pressure_diastolic) : null,
+        cholesterol: screeningData.cholesterol ? parseInt(screeningData.cholesterol) : null,
         notes: finalNotes || null
       };
 
@@ -484,13 +490,15 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-9">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="complaints">Complaints</TabsTrigger>
               <TabsTrigger value="prognosis">Prognosis</TabsTrigger>
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="ecg">ECG Results</TabsTrigger>
+              <TabsTrigger value="optician">Optician</TabsTrigger>
+              <TabsTrigger value="dental">Dental</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -661,6 +669,17 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                           </div>
                         </div>
 
+                        <div>
+                          <Label htmlFor="cholesterol">Cholesterol (mg/dL)</Label>
+                          <Input
+                            id="cholesterol"
+                            type="number"
+                            placeholder="Enter cholesterol level"
+                            value={screeningData.cholesterol}
+                            onChange={(e) => setScreeningData({...screeningData, cholesterol: e.target.value})}
+                          />
+                        </div>
+
                         {/* BMI Display */}
                         <div>
                           <Label>BMI (Calculated)</Label>
@@ -698,7 +717,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                         Save Screening Data
                       </Button>
 
-                      {/* Display Current Screening if Available */}
+                       {/* Display Current Screening if Available */}
                       {basicScreening && (
                         <div className="mt-6 p-4 bg-muted rounded-lg">
                           <h4 className="font-medium mb-3">Current Screening Results</h4>
@@ -738,6 +757,11 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                                  <span className="font-medium">BMI:</span> {basicScreening.bmi}
                                </div>
                              )}
+                             {(basicScreening as any).cholesterol && (
+                               <div>
+                                 <span className="font-medium">Cholesterol:</span> {(basicScreening as any).cholesterol} mg/dL
+                               </div>
+                             )}
                            </div>
                           {basicScreening.notes && (
                             <div className="mt-3">
@@ -751,6 +775,15 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                           )}
                         </div>
                       )}
+                      
+                      {/* Health Professional Info */}
+                      <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                        <span className="font-medium">Health Professional:</span> 
+                        {basicScreening?.nurses ? 
+                          ` ${basicScreening.nurses.first_name} ${basicScreening.nurses.last_name} (Nurse)` : 
+                          ' [Nurse assignment pending]'
+                        }
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -815,6 +848,11 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                       <p className="text-muted-foreground">No complaints recorded.</p>
                     )}
                   </div>
+                  
+                  {/* Health Professional Info */}
+                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                    <span className="font-medium">Health Professional:</span> [Name will be added based on assignment]
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -878,6 +916,15 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                       </Button>
                     </div>
                   )}
+                  
+                  {/* Health Professional Info */}
+                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                    <span className="font-medium">Health Professional:</span> 
+                    {prognosis?.doctors ? 
+                      ` Dr. ${prognosis.doctors.first_name} ${prognosis.doctors.last_name}` : 
+                      ' [Doctor assignment pending]'
+                    }
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -970,6 +1017,11 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                       <p className="text-muted-foreground">No prescriptions recorded.</p>
                     )}
                   </div>
+                  
+                  {/* Health Professional Info */}
+                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                    <span className="font-medium">Health Professional:</span> [Doctor name will be added based on assignment]
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1041,6 +1093,149 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     ) : (
                       <p className="text-muted-foreground">No ECG results recorded.</p>
                     )}
+                  </div>
+                  
+                  {/* Health Professional Info */}
+                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                    <span className="font-medium">Health Professional:</span> Dr. [Name will be added based on assignment]
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="optician" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Eye className="h-5 w-5" />
+                    Optician Assessment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="vision_test">Vision Test Results</Label>
+                        <Textarea
+                          id="vision_test"
+                          placeholder="Enter vision test results (e.g., 20/20, 20/40)..."
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="eye_pressure">Eye Pressure (mmHg)</Label>
+                        <Input
+                          id="eye_pressure"
+                          type="number"
+                          placeholder="Enter eye pressure reading"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="prescription_needed">Prescription</Label>
+                        <Textarea
+                          id="prescription_needed"
+                          placeholder="Enter prescription details if needed..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="optician_notes">Optician Notes</Label>
+                        <Textarea
+                          id="optician_notes"
+                          placeholder="Additional assessment notes..."
+                          rows={3}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save Optician Assessment
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Previous Assessments</h4>
+                    <p className="text-muted-foreground">No previous optician assessments recorded.</p>
+                  </div>
+                  
+                  {/* Health Professional Info */}
+                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                    <span className="font-medium">Optician:</span> [Name will be added based on assignment]
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="dental" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smile className="h-5 w-5" />
+                    Dental Assessment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="oral_health">Oral Health Assessment</Label>
+                        <Textarea
+                          id="oral_health"
+                          placeholder="Overall oral health condition..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="teeth_condition">Teeth Condition</Label>
+                        <Textarea
+                          id="teeth_condition"
+                          placeholder="Condition of teeth, cavities, etc..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="gum_health">Gum Health</Label>
+                        <Textarea
+                          id="gum_health"
+                          placeholder="Gum condition and health assessment..."
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="dental_recommendations">Recommendations</Label>
+                        <Textarea
+                          id="dental_recommendations"
+                          placeholder="Treatment recommendations, referrals, etc..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="dental_notes">Dental Notes</Label>
+                        <Textarea
+                          id="dental_notes"
+                          placeholder="Additional dental assessment notes..."
+                          rows={3}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save Dental Assessment
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Previous Assessments</h4>
+                    <p className="text-muted-foreground">No previous dental assessments recorded.</p>
+                  </div>
+                  
+                  {/* Health Professional Info */}
+                  <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                    <span className="font-medium">Dental Professional:</span> [Name will be added based on assignment]
                   </div>
                 </CardContent>
               </Card>
