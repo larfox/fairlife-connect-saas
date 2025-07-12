@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import PatientRegistration from "./PatientRegistration";
 import ServiceQueue from "./ServiceQueue";
-import PatientSearch from "./PatientSearch";
+import { PatientServiceQueue } from "./PatientServiceQueue";
 
 interface QueueManagementProps {
   selectedEvent: any;
@@ -187,7 +187,10 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
           </TabsContent>
 
           <TabsContent value="search" className="space-y-6 mt-6">
-            <PatientSearch selectedEvent={selectedEvent} />
+            <PatientServiceQueue 
+              selectedEvent={selectedEvent} 
+              onStatsUpdate={fetchQueueStats}
+            />
           </TabsContent>
 
           <TabsContent value="services" className="space-y-6 mt-6">
