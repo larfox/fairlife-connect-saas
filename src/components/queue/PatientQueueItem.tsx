@@ -1,0 +1,138 @@
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Eye } from 'lucide-react';
+import { StatusBadge } from './StatusBadge';
+
+interface QueueItem {
+  id: string;
+  status: string;
+  queue_position: number | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  service_id: string;
+  patient_visit_id: string;
+  doctor_id: string | null;
+  nurse_id: string | null;
+  service: {
+    id: string;
+    name: string;
+    description: string | null;
+    duration_minutes: number;
+  };
+  patient_visit: {
+    id: string;
+    queue_number: number;
+    patient: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      patient_number: string;
+      phone: string | null;
+      email: string | null;
+    };
+  };
+  doctor?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  } | null;
+  nurse?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  } | null;
+}
+
+interface PatientQueueItemProps {
+  patient: QueueItem;
+  index: number;
+  onViewDetails: (patient: any) => void;
+  onUpdateStatus: (queueItemId: string, newStatus: string) => void;
+}
+
+export function PatientQueueItem({ 
+  patient, 
+  index, 
+  onViewDetails, 
+  onUpdateStatus 
+}: PatientQueueItemProps) {
+  const getServiceProviderName = (patient: QueueItem) => {
+    if (patient.doctor) {
+      return `Dr. ${patient.doctor.first_name} ${patient.doctor.last_name}`;
+    } else if (patient.nurse) {
+      return `${patient.nurse.first_name} ${patient.nurse.last_name}`;
+    }
+    return null;
+  };
+
+  const getNextAvailableAction = (patient: QueueItem) => {
+    if (patient.status === 'waiting') {
+      return (
+        <Button
+          size="sm"
+          onClick={() => onUpdateStatus(patient.id, 'in_progress')}
+          className="ml-2"
+        >
+          Start Service
+        </Button>
+      );
+    } else if (patient.status === 'in_progress') {
+      return (
+        <Button
+          size="sm"
+          onClick={() => onUpdateStatus(patient.id, 'completed')}
+          className="ml-2"
+          variant="outline"
+        >
+          Mark Complete
+        </Button>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div
+      className={`flex items-center justify-between p-3 rounded-lg border ${
+        index === 0 && patient.status === 'waiting' 
+          ? 'bg-blue-50 border-blue-200' 
+          : 'bg-card'
+      }`}
+    >
+      <div className="flex items-center space-x-3">
+        <div className="text-sm font-medium text-muted-foreground">
+          #{patient.patient_visit.queue_number}
+        </div>
+        <div>
+          <div className="font-medium">
+            {patient.patient_visit.patient.first_name} {patient.patient_visit.patient.last_name}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {patient.patient_visit.patient.patient_number}
+            {getServiceProviderName(patient) && (
+              <span className="ml-2 text-primary">
+                • {getServiceProviderName(patient)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        <StatusBadge status={patient.status} />
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onViewDetails(patient.patient_visit.patient)}
+        >
+          <Eye className="h-4 w-4 mr-1" />
+          Details
+        </Button>
+        
+        {getNextAvailableAction(patient)}
+      </div>
+    </div>
+  );
+}
