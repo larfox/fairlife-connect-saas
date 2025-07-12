@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, User, Calendar, AlertTriangle, History, Edit, ChevronDown } from "lucide-react";
+import { Search, User, Calendar, AlertTriangle, History, Edit, ChevronDown, Clock, CheckCircle, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import PatientDetailsModal from "./PatientDetailsModal";
 import { PatientEditModal } from "./PatientEditModal";
+import { PatientQueueItem } from "./PatientQueueItem";
 
 interface ServicePatientSearchProps {
   selectedEvent: any;
@@ -44,9 +45,18 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
   const [editingPatient, setEditingPatient] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [queueData, setQueueData] = useState<any[]>([]);
+  const [queueStats, setQueueStats] = useState({ waiting: 0, inProgress: 0, completed: 0 });
   const { toast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load queue data on mount and when service changes
+  useEffect(() => {
+    if (selectedEvent?.id && serviceId) {
+      fetchQueueData();
+    }
+  }, [selectedEvent, serviceId]);
 
   // Debounced search
   useEffect(() => {
@@ -107,6 +117,36 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
   }, [showDropdown, searchResults, highlightedIndex]);
+
+  const fetchQueueData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("service_queue")
+        .select(`
+          *,
+          patient_visits!inner(
+            *,
+            patients(*)
+          )
+        `)
+        .eq("service_id", serviceId)
+        .eq("patient_visits.event_id", selectedEvent.id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      setQueueData(data || []);
+      
+      // Calculate stats
+      const waiting = data?.filter(q => q.status === 'waiting').length || 0;
+      const inProgress = data?.filter(q => q.status === 'in_progress').length || 0;
+      const completed = data?.filter(q => q.status === 'completed').length || 0;
+      
+      setQueueStats({ waiting, inProgress, completed });
+    } catch (error) {
+      console.error("Error fetching queue data:", error);
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -302,6 +342,9 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
       setSearchTerm("");
       setSearchResults([]);
       setShowDropdown(false);
+      
+      // Refresh queue data
+      fetchQueueData();
 
     } catch (error) {
       console.error("Error adding patient:", error);
@@ -320,6 +363,51 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
 
   return (
     <div className="space-y-6">
+      {/* Service Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-yellow-500/10 p-2 rounded-lg">
+                <Clock className="h-5 w-5 text-yellow-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">{queueStats.waiting}</p>
+                <p className="text-sm text-muted-foreground">Waiting</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-500/10 p-2 rounded-lg">
+                <Activity className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">{queueStats.inProgress}</p>
+                <p className="text-sm text-muted-foreground">In Progress</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-500/10 p-2 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">{queueStats.completed}</p>
+                <p className="text-sm text-muted-foreground">Completed</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -451,6 +539,61 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
           </div>
         </CardContent>
       </Card>
+
+      {/* Service Queue */}
+      {queueData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              {serviceName} Queue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {queueData.map((queueItem, index) => (
+                <PatientQueueItem
+                  key={queueItem.id}
+                  patient={queueItem}
+                  index={index}
+                  onViewDetails={(patient) => setSelectedPatient(patient.patient_visit.patient)}
+                  onUpdateStatus={(queueItemId, newStatus) => {
+                    // Handle status update
+                    const updateStatus = async () => {
+                      try {
+                        const { error } = await supabase
+                          .from("service_queue")
+                          .update({ 
+                            status: newStatus,
+                            ...(newStatus === 'in_progress' ? { started_at: new Date().toISOString() } : {}),
+                            ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {})
+                          })
+                          .eq("id", queueItemId);
+
+                        if (error) throw error;
+
+                        fetchQueueData();
+                        toast({
+                          title: "Status updated",
+                          description: `Patient status updated to ${newStatus}.`,
+                        });
+                      } catch (error) {
+                        console.error("Error updating status:", error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to update patient status.",
+                          variant: "destructive",
+                        });
+                      }
+                    };
+                    updateStatus();
+                  }}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Patient Details Modal */}
       {selectedPatient && (
