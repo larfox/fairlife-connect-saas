@@ -73,27 +73,45 @@ export function ServiceAssignmentForm({ currentVisit, onAssignmentUpdate }: Serv
 
       if (queueError) throw queueError;
 
-      // Fetch available doctors
+      // Fetch doctors assigned to this event
       const { data: doctorsData, error: doctorsError } = await supabase
-        .from('doctors')
-        .select('id, first_name, last_name')
-        .eq('is_active', true)
-        .order('last_name');
+        .from('event_doctors')
+        .select(`
+          doctors!inner(
+            id,
+            first_name,
+            last_name,
+            is_active
+          )
+        `)
+        .eq('event_id', currentVisit.event_id)
+        .eq('doctors.is_active', true);
 
       if (doctorsError) throw doctorsError;
 
-      // Fetch available nurses
+      // Fetch nurses assigned to this event
       const { data: nursesData, error: nursesError } = await supabase
-        .from('nurses')
-        .select('id, first_name, last_name')
-        .eq('is_active', true)
-        .order('last_name');
+        .from('event_nurses')
+        .select(`
+          nurses!inner(
+            id,
+            first_name,
+            last_name,
+            is_active
+          )
+        `)
+        .eq('event_id', currentVisit.event_id)
+        .eq('nurses.is_active', true);
 
       if (nursesError) throw nursesError;
 
       setServiceQueueItems(queueItems || []);
-      setDoctors(doctorsData || []);
-      setNurses(nursesData || []);
+      // Extract doctors from event_doctors relationship
+      const assignedDoctors = doctorsData?.map(ed => ed.doctors).filter(Boolean) || [];
+      setDoctors(assignedDoctors);
+      // Extract nurses from event_nurses relationship  
+      const assignedNurses = nursesData?.map(en => en.nurses).filter(Boolean) || [];
+      setNurses(assignedNurses);
     } catch (error) {
       console.error('Error fetching assignment data:', error);
       toast({

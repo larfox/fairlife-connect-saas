@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ServiceAssignmentForm } from "./ServiceAssignmentForm";
 
 
 interface PatientDetailsModalProps {
@@ -82,12 +83,33 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     try {
       setLoading(true);
       
-      // Fetch visit history
+      // Fetch visit history with service details
       const { data: visits, error: visitsError } = await supabase
         .from("patient_visits")
         .select(`
           *,
-          events (name, event_date)
+          events (name, event_date),
+          service_queue (
+            *,
+            services (name),
+            doctors (first_name, last_name),
+            nurses (first_name, last_name)
+          ),
+          basic_screening (
+            bmi,
+            blood_pressure_systolic,
+            blood_pressure_diastolic,
+            notes
+          ),
+          patient_complaints (
+            complaint_text,
+            severity
+          ),
+          patient_prognosis (
+            diagnosis,
+            treatment_plan,
+            doctors (first_name, last_name)
+          )
         `)
         .eq("patient_id", patient.id)
         .order("visit_date", { ascending: false });
@@ -451,7 +473,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="complaints">Complaints</TabsTrigger>
               <TabsTrigger value="prognosis">Prognosis</TabsTrigger>
-              <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+              <TabsTrigger value="assignments">Service Assignments</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -843,24 +865,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               </Card>
             </TabsContent>
 
-            <TabsContent value="prescriptions" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Prescriptions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="text-center text-muted-foreground py-8">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Prescription management feature will be available here.</p>
-                      <p className="text-sm mt-2">Track medications, dosages, and refill schedules.</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            <TabsContent value="assignments" className="space-y-4">
+              {currentVisit && (
+                <ServiceAssignmentForm 
+                  currentVisit={currentVisit}
+                  onAssignmentUpdate={fetchPatientData}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
@@ -872,28 +883,129 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {visitHistory.length > 0 ? (
                       visitHistory.map((visit) => (
-                        <div key={visit.id} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{visit.events?.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(visit.visit_date).toLocaleDateString()}
-                              </p>
+                        <div key={visit.id} className="border rounded-lg overflow-hidden">
+                          {/* Visit Header */}
+                          <div className="bg-muted/50 p-4 border-b">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-lg">{visit.events?.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Health Fair Date: {visit.events?.event_date ? new Date(visit.events.event_date).toLocaleDateString() : 'N/A'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Visit Date: {new Date(visit.visit_date).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="outline">Queue #{visit.queue_number}</Badge>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Status: {visit.status}
+                                </p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <Badge variant="outline">Queue #{visit.queue_number}</Badge>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Status: {visit.status}
-                              </p>
-                            </div>
+                          </div>
+
+                          {/* Visit Details */}
+                          <div className="p-4 space-y-4">
+                            {/* Services Received */}
+                            {visit.service_queue && visit.service_queue.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-sm mb-2">Services Received:</h4>
+                                <div className="space-y-2">
+                                  {visit.service_queue.map((service) => (
+                                    <div key={service.id} className="bg-muted/30 p-2 rounded text-sm">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-medium">{service.services?.name}</span>
+                                        <Badge variant={service.status === 'completed' ? 'default' : 'outline'} className="text-xs">
+                                          {service.status}
+                                        </Badge>
+                                      </div>
+                                      {service.doctors && (
+                                        <p className="text-muted-foreground mt-1">
+                                          Doctor: Dr. {service.doctors.first_name} {service.doctors.last_name}
+                                        </p>
+                                      )}
+                                      {service.nurses && (
+                                        <p className="text-muted-foreground">
+                                          Nurse: {service.nurses.first_name} {service.nurses.last_name}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Basic Screening */}
+                            {visit.basic_screening && visit.basic_screening.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-sm mb-2">Screening Results:</h4>
+                                {visit.basic_screening.map((screening, index) => (
+                                  <div key={index} className="bg-blue-50 dark:bg-blue-950 p-2 rounded text-sm">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {screening.bmi && (
+                                        <p>BMI: {screening.bmi}</p>
+                                      )}
+                                      {screening.blood_pressure_systolic && screening.blood_pressure_diastolic && (
+                                        <p>BP: {screening.blood_pressure_systolic}/{screening.blood_pressure_diastolic}</p>
+                                      )}
+                                    </div>
+                                    {screening.notes && (
+                                      <p className="text-muted-foreground mt-1">{screening.notes}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Complaints */}
+                            {visit.patient_complaints && visit.patient_complaints.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-sm mb-2">Complaints:</h4>
+                                <div className="space-y-1">
+                                  {visit.patient_complaints.map((complaint, index) => (
+                                    <div key={index} className="bg-yellow-50 dark:bg-yellow-950 p-2 rounded text-sm">
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant={complaint.severity === 'severe' ? 'destructive' : 'outline'} className="text-xs">
+                                          {complaint.severity}
+                                        </Badge>
+                                        <span>{complaint.complaint_text}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Diagnosis */}
+                            {visit.patient_prognosis && visit.patient_prognosis.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-sm mb-2">Diagnosis & Treatment:</h4>
+                                {visit.patient_prognosis.map((prognosis, index) => (
+                                  <div key={index} className="bg-green-50 dark:bg-green-950 p-2 rounded text-sm">
+                                    {prognosis.diagnosis && (
+                                      <p><strong>Diagnosis:</strong> {prognosis.diagnosis}</p>
+                                    )}
+                                    {prognosis.treatment_plan && (
+                                      <p><strong>Treatment:</strong> {prognosis.treatment_plan}</p>
+                                    )}
+                                    {prognosis.doctors && (
+                                      <p className="text-muted-foreground mt-1">
+                                        Diagnosed by: Dr. {prognosis.doctors.first_name} {prognosis.doctors.last_name}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))
                     ) : (
-                      <p className="text-muted-foreground">No previous visits.</p>
+                      <p className="text-muted-foreground text-center py-8">No previous visits found.</p>
                     )}
                   </div>
                 </CardContent>
