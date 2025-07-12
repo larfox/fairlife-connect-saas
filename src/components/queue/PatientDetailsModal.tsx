@@ -62,6 +62,22 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     }
   }, [isOpen, patient, eventId]);
 
+  // Reset screening data when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setScreeningData({
+        weight: "",
+        height: "",
+        blood_sugar: "",
+        heart_rate: "",
+        oxygen_saturation: "",
+        blood_pressure_systolic: "",
+        blood_pressure_diastolic: "",
+        notes: ""
+      });
+    }
+  }, [isOpen]);
+
   const fetchPatientData = async () => {
     try {
       setLoading(true);
@@ -136,6 +152,15 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         
         // Populate screening form if data exists
         if (screeningData) {
+          // Extract user notes from saved notes (remove auto-generated parts)
+          let userNotes = screeningData.notes || "";
+          if (userNotes.includes("Additional Notes: ")) {
+            userNotes = userNotes.split("Additional Notes: ")[1] || "";
+          } else if (userNotes.includes(".") && (userNotes.includes("Blood Pressure:") || userNotes.includes("BMI:"))) {
+            // If notes only contain auto-generated content, clear them for editing
+            userNotes = "";
+          }
+          
           setScreeningData({
             weight: screeningData.weight?.toString() || "",
             height: screeningData.height?.toString() || "",
@@ -144,7 +169,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
             oxygen_saturation: (screeningData as any).oxygen_saturation?.toString() || "",
             blood_pressure_systolic: screeningData.blood_pressure_systolic?.toString() || "",
             blood_pressure_diastolic: screeningData.blood_pressure_diastolic?.toString() || "",
-            notes: screeningData.notes || ""
+            notes: userNotes
           });
         }
       }
