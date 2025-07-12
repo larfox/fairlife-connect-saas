@@ -117,6 +117,8 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
   const fetchAvailableHealthProfessionals = async () => {
     try {
+      console.log("Fetching health professionals for eventId:", eventId);
+      
       // Fetch doctors assigned to this event
       const { data: doctorsData, error: doctorsError } = await supabase
         .from('event_doctors')
@@ -130,6 +132,8 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         `)
         .eq('event_id', eventId)
         .eq('doctors.is_active', true);
+
+      console.log("Doctors data:", doctorsData, "Error:", doctorsError);
 
       if (doctorsError) throw doctorsError;
 
@@ -147,11 +151,16 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
         .eq('event_id', eventId)
         .eq('nurses.is_active', true);
 
+      console.log("Nurses data:", nursesData, "Error:", nursesError);
+
       if (nursesError) throw nursesError;
 
       // Extract doctors and nurses from the relationship data
       const assignedDoctors = doctorsData?.map(ed => ed.doctors).filter(Boolean) || [];
       const assignedNurses = nursesData?.map(en => en.nurses).filter(Boolean) || [];
+      
+      console.log("Assigned doctors:", assignedDoctors);
+      console.log("Assigned nurses:", assignedNurses);
       
       setAvailableDoctors(assignedDoctors);
       setAvailableNurses(assignedNurses);
