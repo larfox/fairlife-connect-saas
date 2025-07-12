@@ -94,13 +94,7 @@ const AutocompletePatientSearch = ({ selectedEvent }: AutocompletePatientSearchP
             )
           )
         `)
-        .or(`
-          first_name.ilike.%${searchTerm}%,
-          last_name.ilike.%${searchTerm}%,
-          patient_number.ilike.%${searchTerm}%,
-          phone.ilike.%${searchTerm}%,
-          email.ilike.%${searchTerm}%
-        `)
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,patient_number.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
         .order("last_name")
         .limit(10);
 
