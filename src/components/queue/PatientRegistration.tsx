@@ -134,6 +134,8 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
         .from("patients")
         .insert([{
           ...patientData,
+          parish_id: patientData.parish_id || null,
+          town_id: patientData.town_id || null,
           event_id: selectedEvent.id
         }])
         .select()
