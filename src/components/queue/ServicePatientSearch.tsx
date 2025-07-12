@@ -559,7 +559,7 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
                   key={queueItem.id}
                   patient={queueItem}
                   index={index}
-                  onViewDetails={(patient) => setSelectedPatient(patient.patient_visit.patient)}
+                  onViewDetails={(patient) => setSelectedPatient(patient)}
                   onUpdateStatus={(queueItemId, newStatus) => {
                     // Handle status update
                     const updateStatus = async () => {
