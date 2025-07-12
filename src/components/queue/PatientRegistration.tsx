@@ -10,6 +10,7 @@ import { PatientBasicInfoForm } from "./forms/PatientBasicInfoForm";
 import { PatientMedicalInfoForm } from "./forms/PatientMedicalInfoForm";
 import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
 import { usePatientRegistration } from "@/hooks/usePatientRegistration";
+import PatientSearch from "./PatientSearch";
 
 interface PatientRegistrationProps {
   selectedEvent: any;
@@ -79,6 +80,8 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
 
   return (
     <div className="space-y-6">
+      <PatientSearch selectedEvent={selectedEvent} />
+      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

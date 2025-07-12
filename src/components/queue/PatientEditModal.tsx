@@ -6,19 +6,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { UserCog, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
+import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
 
 type Parish = Tables<"parishes">;
 type Town = Tables<"towns">;
+type Service = Tables<"services">;
 
 interface PatientEditModalProps {
   patient: any;
   isOpen: boolean;
   onClose: () => void;
   onPatientUpdated: () => void;
+  selectedEvent: any;
 }
 
 interface PatientFormData {
@@ -39,7 +43,7 @@ interface PatientFormData {
   insurance_number: string;
 }
 
-export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated }: PatientEditModalProps) => {
+export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, selectedEvent }: PatientEditModalProps) => {
   const [formData, setFormData] = useState<PatientFormData>({
     first_name: "",
     last_name: "",
@@ -59,6 +63,9 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated }:
   });
   const [parishes, setParishes] = useState<Parish[]>([]);
   const [towns, setTowns] = useState<Town[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -82,6 +89,8 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated }:
         insurance_number: patient.insurance_number || ""
       });
       fetchParishes();
+      fetchServices();
+      fetchPatientServices();
     }
   }, [isOpen, patient]);
 
@@ -120,8 +129,71 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated }:
     }
   };
 
+  const fetchServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+      setServices(data || []);
+
+      // Find "Know Your Numbers" service
+      const kynService = data?.find(service => 
+        service.name.toLowerCase().includes("know your numbers")
+      );
+      if (kynService) {
+        setKnowYourNumbersServiceId(kynService.id);
+      }
+    } catch (error) {
+      console.error("Error fetching services:", error);
+    }
+  };
+
+  const fetchPatientServices = async () => {
+    if (!patient?.id || !selectedEvent?.id) return;
+
+    try {
+      // Get patient visit for this event
+      const { data: visitData, error: visitError } = await supabase
+        .from("patient_visits")
+        .select("id")
+        .eq("patient_id", patient.id)
+        .eq("event_id", selectedEvent.id)
+        .single();
+
+      if (visitError || !visitData) return;
+
+      // Get service queue entries for this patient visit
+      const { data: queueData, error: queueError } = await supabase
+        .from("service_queue")
+        .select("service_id")
+        .eq("patient_visit_id", visitData.id);
+
+      if (queueError) throw queueError;
+
+      const serviceIds = queueData?.map(item => item.service_id) || [];
+      setSelectedServices(serviceIds);
+    } catch (error) {
+      console.error("Error fetching patient services:", error);
+    }
+  };
+
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleServiceToggle = (serviceId: string) => {
+    // Don't allow toggling of "Know Your Numbers" service
+    if (serviceId === knowYourNumbersServiceId) return;
+
+    setSelectedServices(prev => 
+      prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
   };
 
   const handleSave = async () => {
@@ -146,6 +218,46 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated }:
         .eq("id", patient.id);
 
       if (error) throw error;
+
+      // Update service selections if patient has a visit for this event
+      const { data: visitData, error: visitError } = await supabase
+        .from("patient_visits")
+        .select("id")
+        .eq("patient_id", patient.id)
+        .eq("event_id", selectedEvent.id)
+        .single();
+
+      if (visitData && !visitError) {
+        // Delete existing service queue entries
+        const { error: deleteError } = await supabase
+          .from("service_queue")
+          .delete()
+          .eq("patient_visit_id", visitData.id);
+
+        if (deleteError) throw deleteError;
+
+        // Add new service queue entries
+        const servicesToAdd = [...selectedServices];
+        
+        // Always include "Know Your Numbers" service
+        if (knowYourNumbersServiceId && !servicesToAdd.includes(knowYourNumbersServiceId)) {
+          servicesToAdd.push(knowYourNumbersServiceId);
+        }
+
+        if (servicesToAdd.length > 0) {
+          const { error: insertError } = await supabase
+            .from("service_queue")
+            .insert(
+              servicesToAdd.map(serviceId => ({
+                patient_visit_id: visitData.id,
+                service_id: serviceId,
+                status: 'waiting'
+              }))
+            );
+
+          if (insertError) throw insertError;
+        }
+      }
 
       toast({
         title: "Patient updated",
@@ -382,6 +494,20 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated }:
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Selected Services</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ServiceSelectionForm
+                services={services}
+                selectedServices={selectedServices}
+                onServiceToggle={handleServiceToggle}
+                knowYourNumbersServiceId={knowYourNumbersServiceId}
+              />
             </CardContent>
           </Card>
         </div>

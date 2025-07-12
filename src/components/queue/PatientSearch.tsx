@@ -325,6 +325,7 @@ const PatientSearch = ({ selectedEvent }: PatientSearchProps) => {
             handleSearch(); // Refresh search results
             setEditingPatient(null);
           }}
+          selectedEvent={selectedEvent}
         />
       )}
     </div>
