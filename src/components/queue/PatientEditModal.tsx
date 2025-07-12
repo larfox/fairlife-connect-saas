@@ -146,6 +146,14 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
       );
       if (kynService) {
         setKnowYourNumbersServiceId(kynService.id);
+        
+        // Auto-select "Know Your Numbers" if not already selected
+        setSelectedServices(prev => {
+          if (!prev.includes(kynService.id)) {
+            return [...prev, kynService.id];
+          }
+          return prev;
+        });
       }
     } catch (error) {
       console.error("Error fetching services:", error);
@@ -175,7 +183,14 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
       if (queueError) throw queueError;
 
       const serviceIds = queueData?.map(item => item.service_id) || [];
-      setSelectedServices(serviceIds);
+      
+      // Always ensure "Know Your Numbers" is selected if we have that service ID
+      const updatedServiceIds = [...serviceIds];
+      if (knowYourNumbersServiceId && !updatedServiceIds.includes(knowYourNumbersServiceId)) {
+        updatedServiceIds.push(knowYourNumbersServiceId);
+      }
+      
+      setSelectedServices(updatedServiceIds);
     } catch (error) {
       console.error("Error fetching patient services:", error);
     }
