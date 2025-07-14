@@ -9,12 +9,14 @@ import {
   Shield,
   Building,
   UserCheck,
-  ArrowLeft
+  ArrowLeft,
+  Users
 } from "lucide-react";
 import LocationsManager from "@/components/foundation/LocationsManager";
 import ServicesManager from "@/components/foundation/ServicesManager";
 import DoctorsManager from "@/components/foundation/DoctorsManager";
 import NursesManager from "@/components/foundation/NursesManager";
+import StaffManager from "@/components/foundation/StaffManager";
 
 interface FoundationManagementProps {
   onBack?: () => void;
@@ -51,6 +53,13 @@ const FoundationManagement = ({ onBack }: FoundationManagementProps) => {
       icon: Shield,
       description: "Manage nursing staff profiles",
       component: NursesManager
+    },
+    {
+      id: "staff",
+      label: "Staff",
+      icon: Users,
+      description: "Manage staff access and permissions",
+      component: StaffManager
     }
   ];
 
@@ -82,7 +91,7 @@ const FoundationManagement = ({ onBack }: FoundationManagementProps) => {
 
         {/* Management Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl mx-auto">
+          <TabsList className="grid grid-cols-5 w-full max-w-3xl mx-auto">
             {tabs.map((tab) => {
               const IconComponent = tab.icon;
               return (
