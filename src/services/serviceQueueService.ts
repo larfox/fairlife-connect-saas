@@ -110,6 +110,10 @@ const sortServiceGroups = (serviceGroups: ServiceGroup[]): ServiceGroup[] => {
 };
 
 export const updateServiceStatusInDB = async (queueItemId: string, newStatus: string): Promise<void> => {
+  console.log('=== START updateServiceStatusInDB ===');
+  console.log('Queue Item ID:', queueItemId);
+  console.log('New Status:', newStatus);
+  
   // First, get the current queue item to find the patient_visit_id
   const { data: currentItem, error: fetchError } = await supabase
     .from('service_queue')
@@ -122,6 +126,8 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
     throw fetchError;
   }
 
+  console.log('Current item:', currentItem);
+
   const updateData: any = { status: newStatus };
   
   if (newStatus === 'in_progress') {
@@ -129,6 +135,8 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
   } else if (newStatus === 'completed') {
     updateData.completed_at = new Date().toISOString();
   }
+
+  console.log('Update data for main item:', updateData);
 
   // Update the main queue item
   const { error } = await supabase
@@ -141,9 +149,13 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
     throw error;
   }
 
+  console.log('Main item updated successfully');
+
   // Handle cross-service status updates
   if (newStatus === 'in_progress') {
-    console.log('Setting other services to unavailable for patient_visit_id:', currentItem.patient_visit_id, 'excluding service_id:', currentItem.service_id);
+    console.log('=== CROSS-SERVICE UPDATE: Setting others to unavailable ===');
+    console.log('Patient visit ID:', currentItem.patient_visit_id);
+    console.log('Excluding service ID:', currentItem.service_id);
     
     // When a patient starts a service, mark them as unavailable in other waiting services
     const { data: updatedRows, error: unavailableError } = await supabase
@@ -157,19 +169,30 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
     if (unavailableError) {
       console.error('Error updating other services to unavailable:', unavailableError);
     } else {
-      console.log('Successfully updated', updatedRows?.length || 0, 'services to unavailable:', updatedRows);
+      console.log('Successfully updated', updatedRows?.length || 0, 'services to unavailable');
+      console.log('Updated rows:', updatedRows);
     }
   } else if (newStatus === 'completed') {
+    console.log('=== CROSS-SERVICE UPDATE: Setting others back to waiting ===');
+    console.log('Patient visit ID:', currentItem.patient_visit_id);
+    console.log('Excluding service ID:', currentItem.service_id);
+    
     // When a patient completes a service, mark them as waiting in other unavailable services
-    const { error: waitingError } = await supabase
+    const { data: updatedRows, error: waitingError } = await supabase
       .from('service_queue')
       .update({ status: 'waiting' })
       .eq('patient_visit_id', currentItem.patient_visit_id)
       .neq('service_id', currentItem.service_id)
-      .eq('status', 'unavailable');
+      .eq('status', 'unavailable')
+      .select();
 
     if (waitingError) {
       console.error('Error updating other services back to waiting:', waitingError);
+    } else {
+      console.log('Successfully updated', updatedRows?.length || 0, 'services back to waiting');
+      console.log('Updated rows:', updatedRows);
     }
   }
+  
+  console.log('=== END updateServiceStatusInDB ===');
 };
