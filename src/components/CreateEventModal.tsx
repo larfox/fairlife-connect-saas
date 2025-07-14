@@ -193,7 +193,7 @@ export function CreateEventModal() {
           Create Event
         </Button>
       </DialogTrigger>
-      <DialogContent className="fixed inset-4 max-w-none max-h-none overflow-y-auto z-[100] bg-background border shadow-lg">
+      <DialogContent className="fixed top-2 left-2 right-2 bottom-2 max-w-none max-h-none overflow-y-auto z-[100] bg-background border shadow-lg rounded-lg p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
