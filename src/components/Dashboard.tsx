@@ -44,7 +44,6 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showQueueMode, setShowQueueMode] = useState(false);
   const { toast } = useToast();
 
   // Mock data for demonstration
@@ -97,6 +96,7 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
           *,
           locations!inner(name, address)
         `)
+        .eq('status', 'open')
         .order('event_date', { ascending: true });
 
       if (error) throw error;
@@ -261,15 +261,13 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
             <Button 
               size="lg" 
               onClick={() => {
-                const openEvents = events.filter(event => event.status === 'open');
-                if (openEvents.length === 0) {
+                if (events.length === 0) {
                   toast({
                     title: "No Open Events Available",
                     description: "Please create and open an event first before accessing the queue system.",
                     variant: "destructive",
                   });
                 } else {
-                  setShowQueueMode(true);
                   document.getElementById('events-table')?.scrollIntoView({ behavior: 'smooth' });
                 }
               }}
@@ -318,34 +316,18 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-xl">
-                  {showQueueMode ? "Open Events - Queue System" : "Events"}
-                </CardTitle>
+                <CardTitle className="text-xl">Open Events</CardTitle>
                 <CardDescription>
-                  {showQueueMode 
-                    ? "Select an open event to manage its queue system"
-                    : "Manage your health fair events and access queue systems"
-                  }
+                  Manage your open health fair events and access queue systems
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
-                {showQueueMode && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowQueueMode(false)}
-                  >
-                    Show All Events
-                  </Button>
-                )}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setCurrentView("events")}
-                >
-                  Create New Event
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setCurrentView("events")}
+              >
+                Create New Event
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -353,37 +335,33 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
               <div className="flex items-center justify-center py-8">
                 <div className="text-muted-foreground">Loading events...</div>
               </div>
-            ) : (() => {
-              const filteredEvents = showQueueMode ? events.filter(event => event.status === 'open') : events;
-              return filteredEvents.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      {showQueueMode ? "No open events found" : "No events found"}
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4"
-                      onClick={() => setCurrentView("events")}
-                    >
-                      {showQueueMode ? "Create an Open Event" : "Create Your First Event"}
-                    </Button>
-                  </div>
+            ) : events.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No open events found</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => setCurrentView("events")}
+                  >
+                    Create Your First Event
+                  </Button>
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Event Name</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredEvents.map((event) => (
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event Name</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {events.map((event) => (
                     <TableRow key={event.id}>
                       <TableCell className="font-medium">
                         <div>
@@ -462,11 +440,10 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
                         </div>
                       </TableCell>
                     </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              );
-            })()}
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
