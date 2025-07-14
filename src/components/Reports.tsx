@@ -153,6 +153,14 @@ const Reports = ({ onBack }: ReportsProps) => {
   };
 
   const generateServiceReport = async () => {
+    if (!selectedEvent) {
+      toast({
+        title: "Please select an event",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: serviceQueueData, error } = await supabase
@@ -160,7 +168,7 @@ const Reports = ({ onBack }: ReportsProps) => {
         .select(`
           *,
           service:services(name),
-          patient_visit:patient_visits(
+          patient_visit:patient_visits!inner(
             *,
             patient:patients(
               *,
@@ -169,6 +177,7 @@ const Reports = ({ onBack }: ReportsProps) => {
             )
           )
         `)
+        .eq("patient_visit.event_id", selectedEvent)
         .not("patient_visit", "is", null);
 
       if (error) throw error;
@@ -433,6 +442,22 @@ const Reports = ({ onBack }: ReportsProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Select Event</Label>
+                <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.name} - {event.locations?.name} ({format(new Date(event.event_date), "MMM dd, yyyy")})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Button onClick={generateServiceReport} disabled={loading} className="gap-2">
                 <FileText className="h-4 w-4" />
                 Generate Service Report
