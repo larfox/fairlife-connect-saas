@@ -17,7 +17,7 @@ import Header from "@/components/Header";
 import AuthModal from "@/components/AuthModal";
 import Dashboard from "@/components/Dashboard";
 import EventSelection from "@/components/EventSelection";
-import heroImage from "@/assets/health-fair-hero.jpg";
+import heroImage from "@/assets/health-fair-collage.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 
