@@ -16,7 +16,6 @@ import {
 import Header from "@/components/Header";
 import AuthModal from "@/components/AuthModal";
 import Dashboard from "@/components/Dashboard";
-import EventSelection from "@/components/EventSelection";
 import heroImage from "@/assets/health-fair-collage.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -26,7 +25,6 @@ const Index = () => {
   const [authModalTab, setAuthModalTab] = useState<"signin" | "signup">("signin");
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   useEffect(() => {
     // Set up auth state listener
@@ -64,35 +62,15 @@ const Index = () => {
     setIsAuthModalOpen(false);
   };
 
-  const handleEventSelected = (eventId: string) => {
-    setSelectedEventId(eventId);
-  };
-
-  // If authenticated but no event selected, show event selection
-  if (user && !selectedEventId) {
+  // If authenticated, show dashboard
+  if (user) {
     return (
       <>
         <Header 
           isAuthenticated={!!user}
           onSignOut={handleSignOut}
         />
-        <EventSelection 
-          onEventSelect={(event) => handleEventSelected(event.id)} 
-          onBack={() => setSelectedEventId(null)} 
-        />
-      </>
-    );
-  }
-
-  // If authenticated and event selected, show dashboard
-  if (user && selectedEventId) {
-    return (
-      <>
-        <Header 
-          isAuthenticated={!!user}
-          onSignOut={handleSignOut}
-        />
-        <Dashboard selectedEventId={selectedEventId} />
+        <Dashboard />
       </>
     );
   }
