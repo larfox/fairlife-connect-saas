@@ -193,66 +193,67 @@ export function CreateEventModal() {
           Create Event
         </Button>
       </DialogTrigger>
-      <DialogContent className="fixed top-2 left-2 right-2 bottom-2 max-w-none max-h-none overflow-y-auto z-[100] bg-background border shadow-lg rounded-lg p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Create New Health Fair Event
-          </DialogTitle>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Event Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Event Name</Label>
-              <Select 
-                value={formData.name} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, name: value }))}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select event name from location" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[110]">
-                  {locations.map(location => (
-                    <SelectItem key={location.id} value={location.name}>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        {location.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="location">Location Details</Label>
-              <Select 
-                value={formData.location_id} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a location" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[110]">
-                  {locations.map(location => (
-                    <SelectItem key={location.id} value={location.id}>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <div>
-                          <div className="font-medium">{location.name}</div>
-                          <div className="text-sm text-muted-foreground">{location.address}</div>
+      <DialogContent className="fixed inset-0 m-4 max-w-none max-h-none overflow-y-auto z-[100] bg-background border shadow-lg rounded-lg">
+        <div className="p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl mb-6">
+              <Calendar className="h-5 w-5" />
+              Create New Health Fair Event
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Event Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event-name">Event Name</Label>
+                <Select 
+                  value={formData.name} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, name: value }))}
+                  required
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select event name from location" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border shadow-lg z-[110] max-h-[200px] overflow-y-auto">
+                    {locations.map(location => (
+                      <SelectItem key={location.id} value={location.name} className="cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          {location.name}
                         </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location-details">Location Details</Label>
+                <Select 
+                  value={formData.location_id} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}
+                  required
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a location" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border shadow-lg z-[110] max-h-[200px] overflow-y-auto">
+                    {locations.map(location => (
+                      <SelectItem key={location.id} value={location.id} className="cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">{location.name}</div>
+                            <div className="text-sm text-muted-foreground">{location.address}</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
 
           {/* Date and Time */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -385,7 +386,8 @@ export function CreateEventModal() {
               {loading ? "Creating..." : "Create Event"}
             </Button>
           </div>
-        </form>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
