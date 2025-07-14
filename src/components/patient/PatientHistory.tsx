@@ -88,7 +88,7 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
   const [selectedPatientVisit, setSelectedPatientVisit] = useState<PatientVisit | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { toast } = useToast();
@@ -189,7 +189,7 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
       visit.patient.phone?.includes(searchTerm) ||
       visit.event.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesLocation = !selectedLocationId || visit.event.location_id === selectedLocationId;
+    const matchesLocation = selectedLocationId === "all" || visit.event.location_id === selectedLocationId;
 
     return matchesSearch && matchesLocation;
   });
@@ -239,7 +239,7 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
               <SelectValue placeholder="Filter by location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Locations</SelectItem>
+              <SelectItem value="all">All Locations</SelectItem>
               {locations.map((location) => (
                 <SelectItem key={location.id} value={location.id}>
                   {location.name}
@@ -249,13 +249,13 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
           </Select>
         </div>
 
-        {(searchTerm || selectedLocationId) && (
+        {(searchTerm || selectedLocationId !== "all") && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setSearchTerm("");
-              setSelectedLocationId("");
+              setSelectedLocationId("all");
             }}
           >
             Clear Filters
