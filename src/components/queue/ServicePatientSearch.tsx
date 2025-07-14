@@ -12,6 +12,7 @@ import { PatientQueueItem } from "./PatientQueueItem";
 import { StatusBadge } from "./StatusBadge";
 import { updateServiceStatusInDB } from "@/services/serviceQueueService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ServiceStatusFilter } from "./ServiceStatusFilter";
 
 interface ServicePatientSearchProps {
   selectedEvent: any;
@@ -49,6 +50,8 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
   const [loading, setLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [queueData, setQueueData] = useState<any[]>([]);
+  const [filteredQueueData, setFilteredQueueData] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [queueStats, setQueueStats] = useState({ waiting: 0, inProgress: 0, completed: 0, unavailable: 0 });
   const { toast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -150,9 +153,26 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
       const unavailable = data?.filter(q => q.status === 'unavailable').length || 0;
       
       setQueueStats({ waiting, inProgress, completed, unavailable });
+      
+      // Apply current filter
+      applyStatusFilter(data || [], statusFilter);
     } catch (error) {
       console.error("Error fetching queue data:", error);
     }
+  };
+
+  const applyStatusFilter = (data: any[], filter: string) => {
+    if (filter === "all") {
+      setFilteredQueueData(data);
+    } else {
+      const filtered = data.filter(item => item.status === filter);
+      setFilteredQueueData(filtered);
+    }
+  };
+
+  const handleStatusFilterChange = (serviceId: string, status: string) => {
+    setStatusFilter(status);
+    applyStatusFilter(queueData, status);
   };
 
   const handleSearch = async () => {
@@ -565,14 +585,22 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
       {queueData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              {serviceName} Queue
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                {serviceName} Queue
+              </CardTitle>
+              <ServiceStatusFilter
+                serviceId={serviceId}
+                currentFilter={statusFilter}
+                patientCount={filteredQueueData.length}
+                onFilterChange={handleStatusFilterChange}
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {queueData.map((queueItem, index) => (
+              {filteredQueueData.map((queueItem, index) => (
                 <PatientQueueItem
                   key={queueItem.id}
                   patient={queueItem}
