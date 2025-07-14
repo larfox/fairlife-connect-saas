@@ -193,7 +193,7 @@ export function CreateEventModal() {
           Create Event
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto z-[100]">
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto z-[100] bg-background">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -205,23 +205,39 @@ export function CreateEventModal() {
           {/* Basic Event Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="name">Event Name</Label>
+              <Select 
+                value={formData.name} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, name: value }))}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event name from location" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-[110]">
+                  {locations.map(location => (
+                    <SelectItem key={location.id} value={location.name}>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        {location.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location Details</Label>
               <Select 
                 value={formData.location_id} 
-                onValueChange={(value) => {
-                  const selectedLocation = locations.find(loc => loc.id === value);
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    location_id: value,
-                    name: selectedLocation ? `Health Fair at ${selectedLocation.name}` : ""
-                  }));
-                }}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}
                 required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a location" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-[110]">
                   {locations.map(location => (
                     <SelectItem key={location.id} value={location.id}>
                       <div className="flex items-center gap-2">
@@ -235,19 +251,6 @@ export function CreateEventModal() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="name">Event Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Will be auto-generated based on location"
-                required
-                readOnly
-                className="bg-muted"
-              />
             </div>
           </div>
 
@@ -307,7 +310,7 @@ export function CreateEventModal() {
                 <Stethoscope className="h-4 w-4" />
                 Assign Doctors
               </Label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+               <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3 bg-background">
                 {doctors.map(doctor => (
                   <div key={doctor.id} className="flex items-center space-x-2">
                     <Checkbox
@@ -329,7 +332,7 @@ export function CreateEventModal() {
                 <UserCheck className="h-4 w-4" />
                 Assign Nurses
               </Label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+               <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3 bg-background">
                 {nurses.map(nurse => (
                   <div key={nurse.id} className="flex items-center space-x-2">
                     <Checkbox
@@ -351,7 +354,7 @@ export function CreateEventModal() {
                 <Users className="h-4 w-4" />
                 Available Services
               </Label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3 bg-background">
                 {services.map(service => (
                   <div key={service.id} className="flex items-center space-x-2">
                     <Checkbox
