@@ -99,23 +99,33 @@ const Reports = ({ onBack }: ReportsProps) => {
 
     setLoading(true);
     try {
-      const { data: patients, error } = await supabase
-        .from("patients")
+      // First get patient visits for the selected event
+      const { data: patientVisits, error: visitsError } = await supabase
+        .from("patient_visits")
         .select(`
           *,
-          parish:parishes(name),
-          town:towns(name),
-          patient_visits(
+          patient:patients(
             *,
-            event:events(
-              *,
-              locations(name, address)
-            )
+            parish:parishes(name),
+            town:towns(name)
+          ),
+          event:events(
+            *,
+            locations(name, address)
           )
         `)
-        .eq("patient_visits.event_id", selectedEvent);
+        .eq("event_id", selectedEvent);
 
-      if (error) throw error;
+      if (visitsError) throw visitsError;
+
+      // Extract unique patients from the visits
+      const patients = patientVisits?.map(visit => ({
+        ...visit.patient,
+        patient_visits: [{
+          ...visit,
+          event: visit.event
+        }]
+      })) || [];
 
       const event = events.find(e => e.id === selectedEvent);
       const report: LocationReport = {
