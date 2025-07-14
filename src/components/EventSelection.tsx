@@ -47,7 +47,10 @@ const EventSelection = ({ onEventSelect, onBack }: EventSelectionProps) => {
           locations!inner(
             name,
             address
-          )
+          ),
+          event_doctors(id),
+          event_nurses(id),
+          event_services(id)
         `)
         .eq('is_active', true)
         .gte('event_date', new Date().toISOString().split('T')[0])
@@ -55,7 +58,14 @@ const EventSelection = ({ onEventSelect, onBack }: EventSelectionProps) => {
 
       if (error) throw error;
 
-      const formattedEvents = data?.map(event => ({
+      // Filter events that have at least one doctor, nurse, and service assigned
+      const fullySetupEvents = data?.filter(event => 
+        event.event_doctors && event.event_doctors.length > 0 &&
+        event.event_nurses && event.event_nurses.length > 0 &&
+        event.event_services && event.event_services.length > 0
+      ) || [];
+
+      const formattedEvents = fullySetupEvents?.map(event => ({
         id: event.id,
         name: event.name,
         description: event.description,
