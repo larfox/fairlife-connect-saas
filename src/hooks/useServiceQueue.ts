@@ -26,12 +26,18 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
   };
 
   const updateServiceStatus = async (queueItemId: string, newStatus: string) => {
+    console.log('=== useServiceQueue updateServiceStatus CALLED ===');
+    console.log('Queue Item ID:', queueItemId);
+    console.log('New Status:', newStatus);
+    
     try {
+      console.log('Calling updateServiceStatusInDB...');
       await updateServiceStatusInDB(queueItemId, newStatus);
+      console.log('updateServiceStatusInDB completed, refreshing data...');
       fetchServiceQueues();
       onStatsUpdate();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error in updateServiceStatus:', error);
     }
   };
 
