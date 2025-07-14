@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Play, CheckCircle } from 'lucide-react';
+import { Clock, Play, CheckCircle, Pause } from 'lucide-react';
 
 interface StatusBadgeProps {
   status: string;
@@ -13,6 +13,8 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return <Clock className="h-4 w-4" />;
       case 'in_progress':
         return <Play className="h-4 w-4" />;
+      case 'unavailable':
+        return <Pause className="h-4 w-4" />;
       case 'completed':
         return <CheckCircle className="h-4 w-4" />;
       default:
@@ -23,12 +25,14 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   const variants = {
     waiting: 'secondary',
     in_progress: 'default',
+    unavailable: 'secondary',
     completed: 'default'
   } as const;
 
   const colors = {
     waiting: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80',
     in_progress: 'bg-blue-100 text-blue-800 hover:bg-blue-100/80',
+    unavailable: 'bg-gray-100 text-gray-800 hover:bg-gray-100/80',
     completed: 'bg-green-100 text-green-800 hover:bg-green-100/80'
   } as const;
 

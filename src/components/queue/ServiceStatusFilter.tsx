@@ -30,6 +30,7 @@ export function ServiceStatusFilter({
           <SelectItem value="all">All Status</SelectItem>
           <SelectItem value="waiting">Waiting</SelectItem>
           <SelectItem value="in_progress">In Progress</SelectItem>
+          <SelectItem value="unavailable">Unavailable</SelectItem>
           <SelectItem value="completed">Completed</SelectItem>
         </SelectContent>
       </Select>

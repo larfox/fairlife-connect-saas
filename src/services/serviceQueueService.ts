@@ -94,7 +94,7 @@ const sortServiceGroups = (serviceGroups: ServiceGroup[]): ServiceGroup[] => {
   // Sort patients within each service by status and queue position
   sortedServices.forEach(serviceGroup => {
     serviceGroup.patients.sort((a, b) => {
-      const statusOrder = { 'waiting': 0, 'in_progress': 1, 'completed': 2 };
+      const statusOrder = { 'waiting': 0, 'in_progress': 1, 'unavailable': 2, 'completed': 3 };
       const aStatusOrder = statusOrder[a.status as keyof typeof statusOrder] ?? 3;
       const bStatusOrder = statusOrder[b.status as keyof typeof statusOrder] ?? 3;
       
@@ -110,6 +110,18 @@ const sortServiceGroups = (serviceGroups: ServiceGroup[]): ServiceGroup[] => {
 };
 
 export const updateServiceStatusInDB = async (queueItemId: string, newStatus: string): Promise<void> => {
+  // First, get the current queue item to find the patient_visit_id
+  const { data: currentItem, error: fetchError } = await supabase
+    .from('service_queue')
+    .select('patient_visit_id, service_id')
+    .eq('id', queueItemId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching current queue item:', fetchError);
+    throw fetchError;
+  }
+
   const updateData: any = { status: newStatus };
   
   if (newStatus === 'in_progress') {
@@ -118,6 +130,7 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
     updateData.completed_at = new Date().toISOString();
   }
 
+  // Update the main queue item
   const { error } = await supabase
     .from('service_queue')
     .update(updateData)
@@ -126,5 +139,32 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
   if (error) {
     console.error('Error updating service status:', error);
     throw error;
+  }
+
+  // Handle cross-service status updates
+  if (newStatus === 'in_progress') {
+    // When a patient starts a service, mark them as unavailable in other waiting services
+    const { error: unavailableError } = await supabase
+      .from('service_queue')
+      .update({ status: 'unavailable' })
+      .eq('patient_visit_id', currentItem.patient_visit_id)
+      .neq('service_id', currentItem.service_id)
+      .eq('status', 'waiting');
+
+    if (unavailableError) {
+      console.error('Error updating other services to unavailable:', unavailableError);
+    }
+  } else if (newStatus === 'completed') {
+    // When a patient completes a service, mark them as waiting in other unavailable services
+    const { error: waitingError } = await supabase
+      .from('service_queue')
+      .update({ status: 'waiting' })
+      .eq('patient_visit_id', currentItem.patient_visit_id)
+      .neq('service_id', currentItem.service_id)
+      .eq('status', 'unavailable');
+
+    if (waitingError) {
+      console.error('Error updating other services back to waiting:', waitingError);
+    }
   }
 };
