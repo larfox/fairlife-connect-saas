@@ -60,6 +60,9 @@ export function ServiceAssignmentForm({ currentVisit, onAssignmentUpdate }: Serv
     try {
       setLoading(true);
 
+      console.log('Current visit data:', currentVisit);
+      console.log('Event ID being queried:', currentVisit.event_id);
+
       // Fetch service queue items for this visit
       const { data: queueItems, error: queueError } = await supabase
         .from('service_queue')
@@ -87,6 +90,8 @@ export function ServiceAssignmentForm({ currentVisit, onAssignmentUpdate }: Serv
         .eq('event_id', currentVisit.event_id)
         .eq('doctors.is_active', true);
 
+      console.log('Doctors query result:', doctorsData, 'Error:', doctorsError);
+
       if (doctorsError) throw doctorsError;
 
       // Fetch nurses assigned to this event
@@ -103,15 +108,20 @@ export function ServiceAssignmentForm({ currentVisit, onAssignmentUpdate }: Serv
         .eq('event_id', currentVisit.event_id)
         .eq('nurses.is_active', true);
 
+      console.log('Nurses query result:', nursesData, 'Error:', nursesError);
+
       if (nursesError) throw nursesError;
 
       setServiceQueueItems(queueItems || []);
       // Extract doctors from event_doctors relationship
       const assignedDoctors = doctorsData?.map(ed => ed.doctors).filter(Boolean) || [];
       setDoctors(assignedDoctors);
+      console.log('Final doctors array:', assignedDoctors);
+      
       // Extract nurses from event_nurses relationship  
       const assignedNurses = nursesData?.map(en => en.nurses).filter(Boolean) || [];
       setNurses(assignedNurses);
+      console.log('Final nurses array:', assignedNurses);
     } catch (error) {
       console.error('Error fetching assignment data:', error);
       toast({
