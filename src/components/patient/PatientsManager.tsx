@@ -39,6 +39,7 @@ type PatientFormData = z.infer<typeof patientSchema>;
 
 interface Patient {
   id: string;
+  patient_number: string | null;
   first_name: string;
   last_name: string;
   date_of_birth: string | null;
@@ -702,6 +703,7 @@ const PatientsManager = ({ selectedEventId }: PatientsManagerProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Patient #</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Date of Birth</TableHead>
                   <TableHead>Contact</TableHead>
@@ -718,6 +720,11 @@ const PatientsManager = ({ selectedEventId }: PatientsManagerProps) => {
                   
                   return (
                     <TableRow key={patient.id}>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono">
+                          {patient.patient_number || "N/A"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium text-foreground">

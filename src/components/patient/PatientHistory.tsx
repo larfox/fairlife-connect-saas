@@ -26,6 +26,7 @@ import PatientHistoryModal from "./PatientHistoryModal";
 
 interface Patient {
   id: string;
+  patient_number: string | null;
   first_name: string;
   last_name: string;
   date_of_birth: string | null;
@@ -98,20 +99,21 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
       // Fetch patient visits with location data
       let visitsQuery = supabase
         .from("patient_visits")
-        .select(`
-          *,
-          patients!inner (
-            id,
-            first_name,
-            last_name,
-            date_of_birth,
-            phone,
-            email,
-            gender,
-            medical_conditions,
-            allergies,
-            medications
-          ),
+          .select(`
+            *,
+            patients!inner (
+              id,
+              patient_number,
+              first_name,
+              last_name,
+              date_of_birth,
+              phone,
+              email,
+              gender,
+              medical_conditions,
+              allergies,
+              medications
+            ),
           events!inner (
             id,
             name,
@@ -324,6 +326,7 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Patient #</TableHead>
                   <TableHead>Patient</TableHead>
                   <TableHead>Event</TableHead>
                   <TableHead>Visit Date</TableHead>
@@ -336,6 +339,11 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
               <TableBody>
                 {filteredVisits.map((visit) => (
                   <TableRow key={visit.id}>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono">
+                        {visit.patient.patient_number || "N/A"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium text-foreground">
