@@ -35,6 +35,7 @@ type ServiceReport = {
   service_name: string;
   patient_count: number;
   patients: PatientWithDetails[];
+  showAll?: boolean;
 };
 
 type LocationReport = {
@@ -48,6 +49,7 @@ type ParishReport = {
   parish_name: string;
   patient_count: number;
   patients: PatientWithDetails[];
+  showAll?: boolean;
 };
 
 const Reports = ({ onBack }: ReportsProps) => {
@@ -216,30 +218,41 @@ const Reports = ({ onBack }: ReportsProps) => {
   };
 
   const generateParishReport = async () => {
+    if (!selectedEvent) {
+      toast({
+        title: "Please select an event",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const { data: patients, error } = await supabase
-        .from("patients")
+      // First get patient visits for the selected event
+      const { data: patientVisits, error } = await supabase
+        .from("patient_visits")
         .select(`
           *,
-          parish:parishes(name),
-          town:towns(name),
-          patient_visits(
+          patient:patients!inner(
             *,
-            event:events(
-              *,
-              locations(name, address)
-            )
+            parish:parishes(name),
+            town:towns(name)
+          ),
+          event:events(
+            *,
+            locations(name, address)
           )
         `)
-        .not("parish_id", "is", null);
+        .eq("event_id", selectedEvent)
+        .not("patient.parish_id", "is", null);
 
       if (error) throw error;
 
       // Group by parish
       const parishGroups: { [key: string]: ParishReport } = {};
       
-      patients?.forEach(patient => {
+      patientVisits?.forEach(visit => {
+        const patient = visit.patient;
         const parishName = patient.parish?.name || "Unknown Parish";
         if (!parishGroups[parishName]) {
           parishGroups[parishName] = {
@@ -248,8 +261,15 @@ const Reports = ({ onBack }: ReportsProps) => {
             patients: []
           };
         }
-        parishGroups[parishName].patients.push(patient as PatientWithDetails);
-        parishGroups[parishName].patient_count++;
+        // Avoid duplicates by checking if patient already exists
+        const existingPatient = parishGroups[parishName].patients.find(p => p.id === patient.id);
+        if (!existingPatient) {
+          parishGroups[parishName].patients.push({
+            ...patient,
+            patient_visits: [visit]
+          } as PatientWithDetails);
+          parishGroups[parishName].patient_count++;
+        }
       });
 
       setParishReport(Object.values(parishGroups));
@@ -512,10 +532,27 @@ const Reports = ({ onBack }: ReportsProps) => {
                               </div>
                             ))}
                             {service.patients.length > 5 && (
-                              <p className="text-sm text-muted-foreground text-center">
-                                ... and {service.patients.length - 5} more patients
-                              </p>
+                              <button 
+                                className="text-sm text-primary hover:underline cursor-pointer w-full text-center py-1"
+                                onClick={() => {
+                                  // Show all patients by replacing the slice with full array temporarily
+                                  const updatedReport = [...serviceReport];
+                                  updatedReport[index] = {
+                                    ...service,
+                                    showAll: true
+                                  };
+                                  setServiceReport(updatedReport);
+                                }}
+                              >
+                                ... and {service.patients.length - 5} more patients (click to view all {service.patient_count})
+                              </button>
                             )}
+                            {service.showAll && service.patients.slice(5).map((patient) => (
+                              <div key={patient.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                                <span className="font-medium">{patient.first_name} {patient.last_name}</span>
+                                <span className="text-sm text-muted-foreground">{patient.parish?.name}</span>
+                              </div>
+                            ))}
                           </div>
                         </CardContent>
                       </Card>
@@ -536,10 +573,26 @@ const Reports = ({ onBack }: ReportsProps) => {
                 Patient Reports by Parish & Town
               </CardTitle>
               <CardDescription>
-                Analyze patient distribution by geographic location
+                Analyze patient distribution by geographic location for specific health fair events
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Select Event</Label>
+                <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.name} - {event.locations?.name} ({format(new Date(event.event_date), "MMM dd, yyyy")})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Button onClick={generateParishReport} disabled={loading} className="gap-2">
                 <FileText className="h-4 w-4" />
                 Generate Parish Report
@@ -593,10 +646,27 @@ const Reports = ({ onBack }: ReportsProps) => {
                               </div>
                             ))}
                             {parish.patients.length > 5 && (
-                              <p className="text-sm text-muted-foreground text-center">
-                                ... and {parish.patients.length - 5} more patients
-                              </p>
+                              <button 
+                                className="text-sm text-primary hover:underline cursor-pointer w-full text-center py-1"
+                                onClick={() => {
+                                  // Show all patients by replacing the slice with full array temporarily
+                                  const updatedReport = [...parishReport];
+                                  updatedReport[index] = {
+                                    ...parish,
+                                    showAll: true
+                                  };
+                                  setParishReport(updatedReport);
+                                }}
+                              >
+                                ... and {parish.patients.length - 5} more patients (click to view all {parish.patient_count})
+                              </button>
                             )}
+                            {parish.showAll && parish.patients.slice(5).map((patient) => (
+                              <div key={patient.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                                <span className="font-medium">{patient.first_name} {patient.last_name}</span>
+                                <span className="text-sm text-muted-foreground">{patient.town?.name}</span>
+                              </div>
+                            ))}
                           </div>
                         </CardContent>
                       </Card>
