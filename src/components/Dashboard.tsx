@@ -25,7 +25,8 @@ import {
   CalendarDays,
   ClipboardList,
   Eye,
-  X
+  X,
+  FileText
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,7 @@ import FoundationManagement from "@/components/FoundationManagement";
 import PatientManagement from "@/components/PatientManagement";
 import EventsManagement from "@/components/EventsManagement";
 import QueueManagement from "@/components/queue/QueueManagement";
+import Reports from "@/components/Reports";
 
 
 interface DashboardProps {
@@ -40,7 +42,7 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ selectedEventId }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue" | "reports">("dashboard");
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,6 +208,9 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
     return <EventsManagement onBack={() => setCurrentView("dashboard")} />;
   }
 
+  if (currentView === "reports") {
+    return <Reports onBack={() => setCurrentView("dashboard")} />;
+  }
 
   if (currentView === "queue" && selectedEvent) {
     return (
@@ -257,6 +262,15 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
             >
               <CalendarDays className="h-5 w-5" />
               Events
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              onClick={() => setCurrentView("reports")}
+              className="gap-2"
+            >
+              <FileText className="h-5 w-5" />
+              Reports
             </Button>
             <Button 
               size="lg" 
