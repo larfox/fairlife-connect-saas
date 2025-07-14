@@ -243,6 +243,16 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         .single();
 
       if (visitData && !visitError) {
+        // Check if patient has completed "Know Your Numbers" before deleting
+        const { data: kynStatus } = await supabase
+          .from("service_queue")
+          .select("status")
+          .eq("patient_visit_id", visitData.id)
+          .eq("service_id", knowYourNumbersServiceId)
+          .maybeSingle();
+          
+        const kynCompleted = kynStatus?.status === 'completed';
+
         // Delete existing service queue entries
         const { error: deleteError } = await supabase
           .from("service_queue")
@@ -252,22 +262,34 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         if (deleteError) throw deleteError;
 
         // Add new service queue entries
-        const servicesToAdd = [...selectedServices];
+        // First, always add "Know Your Numbers" service
+        const queueEntriesToAdd = [];
         
-        // Always include "Know Your Numbers" service
-        if (knowYourNumbersServiceId && !servicesToAdd.includes(knowYourNumbersServiceId)) {
-          servicesToAdd.push(knowYourNumbersServiceId);
+        if (knowYourNumbersServiceId) {
+          queueEntriesToAdd.push({
+            patient_visit_id: visitData.id,
+            service_id: knowYourNumbersServiceId,
+            status: kynCompleted ? 'completed' : 'waiting'
+          });
         }
-
-        if (servicesToAdd.length > 0) {
-          const { error: insertError } = await supabase
-            .from("service_queue")
-            .insert(
-              servicesToAdd.map(serviceId => ({
+        
+        // Add other services only if "Know Your Numbers" is completed or not required
+        if (kynCompleted || !knowYourNumbersServiceId) {
+          selectedServices.forEach(serviceId => {
+            if (serviceId !== knowYourNumbersServiceId) {
+              queueEntriesToAdd.push({
                 patient_visit_id: visitData.id,
                 service_id: serviceId,
                 status: 'waiting'
-              }))
+              });
+            }
+          });
+        }
+
+        if (queueEntriesToAdd.length > 0) {
+          const { error: insertError } = await supabase
+            .from("service_queue")
+            .insert(queueEntriesToAdd
             );
 
           if (insertError) throw insertError;
