@@ -400,6 +400,66 @@ export type Database = {
           },
         ]
       }
+      immunizations: {
+        Row: {
+          administered_by: string | null
+          created_at: string
+          dose_number: number | null
+          expiration_date: string | null
+          id: string
+          lot_number: string | null
+          notes: string | null
+          patient_visit_id: string
+          site_of_injection: string | null
+          updated_at: string
+          vaccine_date: string | null
+          vaccine_name: string
+        }
+        Insert: {
+          administered_by?: string | null
+          created_at?: string
+          dose_number?: number | null
+          expiration_date?: string | null
+          id?: string
+          lot_number?: string | null
+          notes?: string | null
+          patient_visit_id: string
+          site_of_injection?: string | null
+          updated_at?: string
+          vaccine_date?: string | null
+          vaccine_name: string
+        }
+        Update: {
+          administered_by?: string | null
+          created_at?: string
+          dose_number?: number | null
+          expiration_date?: string | null
+          id?: string
+          lot_number?: string | null
+          notes?: string | null
+          patient_visit_id?: string
+          site_of_injection?: string | null
+          updated_at?: string
+          vaccine_date?: string | null
+          vaccine_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "immunizations_administered_by_fkey"
+            columns: ["administered_by"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "immunizations_patient_visit_id_fkey"
+            columns: ["patient_visit_id"]
+            isOneToOne: false
+            referencedRelation: "patient_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           address: string | null

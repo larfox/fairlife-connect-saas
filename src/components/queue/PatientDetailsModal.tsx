@@ -22,7 +22,8 @@ import {
   Pill,
   Zap,
   Eye,
-  Smile
+  Smile,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +75,16 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     interpretation: "",
     notes: ""
   });
+  const [immunizations, setImmunizations] = useState<any[]>([]);
+  const [newImmunization, setNewImmunization] = useState({
+    vaccine_name: "",
+    dose_number: "",
+    vaccine_date: "",
+    lot_number: "",
+    expiration_date: "",
+    site_of_injection: "",
+    notes: ""
+  });
   
   // Health professionals and assignments
   const [availableDoctors, setAvailableDoctors] = useState<any[]>([]);
@@ -85,7 +96,8 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     prescriptions_doctor: "",
     ecg_doctor: "",
     optician: "",
-    dental_professional: ""
+    dental_professional: "",
+    immunizations_administrator: ""
   });
   
   const [loading, setLoading] = useState(true);
@@ -301,6 +313,54 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
             notes: userNotes
           });
         }
+
+        // Fetch immunizations for current visit
+        const { data: immunizationsData, error: immunizationsError } = await supabase
+          .from("immunizations")
+          .select(`
+            *,
+            doctors (first_name, last_name)
+          `)
+          .eq("patient_visit_id", currentEventVisit.id)
+          .order("created_at", { ascending: false });
+
+        if (immunizationsError) {
+          console.error("Error fetching immunizations:", immunizationsError);
+        } else {
+          setImmunizations(immunizationsData || []);
+        }
+
+        // Fetch ECG results for current visit
+        const { data: ecgData, error: ecgError } = await supabase
+          .from("ecg_results")
+          .select(`
+            *,
+            doctors (first_name, last_name)
+          `)
+          .eq("patient_visit_id", currentEventVisit.id)
+          .order("created_at", { ascending: false });
+
+        if (ecgError) {
+          console.error("Error fetching ECG results:", ecgError);
+        } else {
+          setEcgResults(ecgData || []);
+        }
+
+        // Fetch prescriptions for current visit
+        const { data: prescriptionsData, error: prescriptionsError } = await supabase
+          .from("prescriptions")
+          .select(`
+            *,
+            doctors (first_name, last_name)
+          `)
+          .eq("patient_visit_id", currentEventVisit.id)
+          .order("created_at", { ascending: false });
+
+        if (prescriptionsError) {
+          console.error("Error fetching prescriptions:", prescriptionsError);
+        } else {
+          setPrescriptions(prescriptionsData || []);
+        }
       }
 
     } catch (error) {
@@ -476,6 +536,54 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
       toast({
         title: "Save failed",
         description: `Failed to save prognosis: ${error.message || error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveImmunization = async () => {
+    if (!newImmunization.vaccine_name.trim() || !currentVisit) return;
+
+    try {
+      const immunizationData = {
+        patient_visit_id: currentVisit.id,
+        vaccine_name: newImmunization.vaccine_name,
+        dose_number: newImmunization.dose_number ? parseInt(newImmunization.dose_number) : null,
+        vaccine_date: newImmunization.vaccine_date || null,
+        lot_number: newImmunization.lot_number || null,
+        expiration_date: newImmunization.expiration_date || null,
+        site_of_injection: newImmunization.site_of_injection || null,
+        notes: newImmunization.notes || null,
+        administered_by: healthProfessionalAssignments.immunizations_administrator || null
+      };
+
+      const { error } = await supabase
+        .from("immunizations")
+        .insert([immunizationData]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Immunization recorded",
+        description: "Immunization has been successfully recorded.",
+      });
+
+      setNewImmunization({
+        vaccine_name: "",
+        dose_number: "",
+        vaccine_date: "",
+        lot_number: "",
+        expiration_date: "",
+        site_of_injection: "",
+        notes: ""
+      });
+
+      fetchPatientData();
+    } catch (error) {
+      console.error("Error saving immunization:", error);
+      toast({
+        title: "Save failed",
+        description: `Failed to save immunization: ${error.message || error}`,
         variant: "destructive",
       });
     }
@@ -706,7 +814,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-9">
+            <TabsList className="grid w-full grid-cols-10">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="complaints">Complaints</TabsTrigger>
@@ -715,6 +823,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               <TabsTrigger value="ecg">ECG Results</TabsTrigger>
               <TabsTrigger value="optician">Optician</TabsTrigger>
               <TabsTrigger value="dental">Dental</TabsTrigger>
+              <TabsTrigger value="immunizations">Immunizations</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -1459,6 +1568,141 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                      label="Assigned Dental Professional" 
                      type="doctor" 
                    />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="immunizations" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Immunizations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="vaccine_name">Vaccine Name *</Label>
+                          <Input
+                            id="vaccine_name"
+                            placeholder="Enter vaccine name"
+                            value={newImmunization.vaccine_name}
+                            onChange={(e) => setNewImmunization({...newImmunization, vaccine_name: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dose_number">Dose Number</Label>
+                          <Input
+                            id="dose_number"
+                            type="number"
+                            placeholder="Enter dose number"
+                            value={newImmunization.dose_number}
+                            onChange={(e) => setNewImmunization({...newImmunization, dose_number: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="vaccine_date">Vaccine Date</Label>
+                          <Input
+                            id="vaccine_date"
+                            type="date"
+                            value={newImmunization.vaccine_date}
+                            onChange={(e) => setNewImmunization({...newImmunization, vaccine_date: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="lot_number">Lot Number</Label>
+                          <Input
+                            id="lot_number"
+                            placeholder="Enter lot number"
+                            value={newImmunization.lot_number}
+                            onChange={(e) => setNewImmunization({...newImmunization, lot_number: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="expiration_date">Expiration Date</Label>
+                          <Input
+                            id="expiration_date"
+                            type="date"
+                            value={newImmunization.expiration_date}
+                            onChange={(e) => setNewImmunization({...newImmunization, expiration_date: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="site_of_injection">Site of Injection</Label>
+                          <Input
+                            id="site_of_injection"
+                            placeholder="e.g., Left arm, Right thigh"
+                            value={newImmunization.site_of_injection}
+                            onChange={(e) => setNewImmunization({...newImmunization, site_of_injection: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="immunization_notes">Notes</Label>
+                        <Textarea
+                          id="immunization_notes"
+                          placeholder="Additional notes about the immunization..."
+                          value={newImmunization.notes}
+                          onChange={(e) => setNewImmunization({...newImmunization, notes: e.target.value})}
+                        />
+                      </div>
+
+                      <Button onClick={saveImmunization} className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save Immunization
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Previous Immunizations</h4>
+                    {immunizations.length > 0 ? (
+                      immunizations.map((immunization, index) => (
+                        <div key={index} className="p-3 border rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">{immunization.vaccine_name}</span>
+                            <Badge variant="outline">
+                              {immunization.vaccine_date ? new Date(immunization.vaccine_date).toLocaleDateString() : 'No date'}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            {immunization.dose_number && (
+                              <p>Dose: {immunization.dose_number}</p>
+                            )}
+                            {immunization.lot_number && (
+                              <p>Lot: {immunization.lot_number}</p>
+                            )}
+                            {immunization.site_of_injection && (
+                              <p>Site: {immunization.site_of_injection}</p>
+                            )}
+                            {immunization.notes && (
+                              <p className="mt-2">{immunization.notes}</p>
+                            )}
+                            {immunization.doctors && (
+                              <p className="text-xs mt-2">
+                                Administered by: Dr. {immunization.doctors.first_name} {immunization.doctors.last_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No immunizations recorded.</p>
+                    )}
+                  </div>
+                  
+                  {/* Health Professional Selector */}
+                  <HealthProfessionalSelector 
+                    field="immunizations_administrator" 
+                    label="Administered By" 
+                    type="doctor" 
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
