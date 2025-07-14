@@ -305,6 +305,10 @@ const StaffManager = () => {
   };
 
   const getStaffPermissions = (staffId: string) => {
+    const staffMember = staff.find(s => s.id === staffId);
+    if (staffMember?.is_admin) {
+      return ["Admin"];
+    }
     return staffPermissions
       .filter(p => p.staff_id === staffId)
       .map(p => p.services.name);
@@ -459,12 +463,14 @@ const StaffManager = () => {
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        {staffMember.is_admin ? (
-                          <Badge variant="outline">All Access</Badge>
-                        ) : permissions.length > 0 ? (
+                        {permissions.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {permissions.slice(0, 2).map((permission) => (
-                              <Badge key={permission} variant="outline" className="text-xs">
+                              <Badge 
+                                key={permission} 
+                                variant={permission === "Admin" ? "destructive" : "outline"} 
+                                className="text-xs"
+                              >
                                 {permission}
                               </Badge>
                             ))}
