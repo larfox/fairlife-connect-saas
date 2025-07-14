@@ -9,6 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import PatientDetailsModal from "./PatientDetailsModal";
 import { PatientEditModal } from "./PatientEditModal";
 import { PatientQueueItem } from "./PatientQueueItem";
+import { StatusBadge } from "./StatusBadge";
+import { updateServiceStatusInDB } from "@/services/serviceQueueService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ServicePatientSearchProps {
   selectedEvent: any;
@@ -46,7 +49,7 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
   const [loading, setLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [queueData, setQueueData] = useState<any[]>([]);
-  const [queueStats, setQueueStats] = useState({ waiting: 0, inProgress: 0, completed: 0 });
+  const [queueStats, setQueueStats] = useState({ waiting: 0, inProgress: 0, completed: 0, unavailable: 0 });
   const { toast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -140,12 +143,13 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
 
       setQueueData(data || []);
       
-      // Calculate stats
+      // Calculate stats including unavailable status
       const waiting = data?.filter(q => q.status === 'waiting').length || 0;
       const inProgress = data?.filter(q => q.status === 'in_progress').length || 0;
       const completed = data?.filter(q => q.status === 'completed').length || 0;
+      const unavailable = data?.filter(q => q.status === 'unavailable').length || 0;
       
-      setQueueStats({ waiting, inProgress, completed });
+      setQueueStats({ waiting, inProgress, completed, unavailable });
     } catch (error) {
       console.error("Error fetching queue data:", error);
     }
@@ -367,7 +371,7 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
   return (
     <div className="space-y-6">
       {/* Service Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
@@ -391,6 +395,20 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
               <div>
                 <p className="text-xl font-bold text-foreground">{queueStats.inProgress}</p>
                 <p className="text-sm text-muted-foreground">In Progress</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-gray-500/10 p-2 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">{queueStats.unavailable}</p>
+                <p className="text-sm text-muted-foreground">Unavailable</p>
               </div>
             </div>
           </CardContent>
@@ -560,37 +578,30 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
                   patient={queueItem}
                   index={index}
                   onViewDetails={(patient) => setSelectedPatient(patient)}
-                  onUpdateStatus={(queueItemId, newStatus) => {
-                    // Handle status update
-                    const updateStatus = async () => {
-                      try {
-                        const { error } = await supabase
-                          .from("service_queue")
-                          .update({ 
-                            status: newStatus,
-                            ...(newStatus === 'in_progress' ? { started_at: new Date().toISOString() } : {}),
-                            ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {})
-                          })
-                          .eq("id", queueItemId);
-
-                        if (error) throw error;
-
-                        fetchQueueData();
-                        toast({
-                          title: "Status updated",
-                          description: `Patient status updated to ${newStatus}.`,
-                        });
-                      } catch (error) {
-                        console.error("Error updating status:", error);
-                        toast({
-                          title: "Error",
-                          description: "Failed to update patient status.",
-                          variant: "destructive",
-                        });
-                      }
-                    };
-                    updateStatus();
-                  }}
+                   onUpdateStatus={async (queueItemId, newStatus) => {
+                     console.log('=== ServicePatientSearch updateStatus CALLED ===');
+                     console.log('Queue Item ID:', queueItemId);
+                     console.log('New Status:', newStatus);
+                     
+                     try {
+                       console.log('Calling updateServiceStatusInDB...');
+                       await updateServiceStatusInDB(queueItemId, newStatus);
+                       console.log('updateServiceStatusInDB completed, refreshing data...');
+                       
+                       fetchQueueData();
+                       toast({
+                         title: "Status updated",
+                         description: `Patient status updated to ${newStatus}. Cross-service updates applied.`,
+                       });
+                     } catch (error) {
+                       console.error("Error updating status:", error);
+                       toast({
+                         title: "Error",
+                         description: "Failed to update patient status.",
+                         variant: "destructive",
+                       });
+                     }
+                   }}
                 />
               ))}
             </div>

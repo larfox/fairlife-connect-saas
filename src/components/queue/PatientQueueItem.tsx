@@ -1,7 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, MoreHorizontal } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface QueueItem {
   id: string;
@@ -92,6 +94,44 @@ export function PatientQueueItem({
     return null;
   };
 
+  const getStatusChangeDropdown = (patient: QueueItem) => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-1 p-1 h-7 w-7"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {patient.status !== 'waiting' && (
+            <DropdownMenuItem onClick={() => onUpdateStatus(patient.id, 'waiting')}>
+              Change to Waiting
+            </DropdownMenuItem>
+          )}
+          {patient.status !== 'in_progress' && (
+            <DropdownMenuItem onClick={() => onUpdateStatus(patient.id, 'in_progress')}>
+              Change to In Progress
+            </DropdownMenuItem>
+          )}
+          {patient.status !== 'completed' && (
+            <DropdownMenuItem onClick={() => onUpdateStatus(patient.id, 'completed')}>
+              Change to Completed
+            </DropdownMenuItem>
+          )}
+          {patient.status !== 'unavailable' && (
+            <DropdownMenuItem onClick={() => onUpdateStatus(patient.id, 'unavailable')}>
+              Change to Unavailable
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
   return (
     <div
       className={`flex items-center justify-between p-3 rounded-lg border ${
@@ -132,6 +172,9 @@ export function PatientQueueItem({
         </Button>
         
         {getNextAvailableAction(patient)}
+        
+        {/* Status correction dropdown */}
+        {getStatusChangeDropdown(patient)}
       </div>
     </div>
   );
