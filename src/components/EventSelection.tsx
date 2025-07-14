@@ -58,14 +58,10 @@ const EventSelection = ({ onEventSelect, onBack }: EventSelectionProps) => {
 
       if (error) throw error;
 
-      // Filter events that have at least one doctor, nurse, and service assigned
-      const fullySetupEvents = data?.filter(event => 
-        event.event_doctors && event.event_doctors.length > 0 &&
-        event.event_nurses && event.event_nurses.length > 0 &&
-        event.event_services && event.event_services.length > 0
-      ) || [];
+      // Show all active events, regardless of staff assignment
+      const availableEvents = data || [];
 
-      const formattedEvents = fullySetupEvents?.map(event => ({
+      const formattedEvents = availableEvents?.map(event => ({
         id: event.id,
         name: event.name,
         description: event.description,
