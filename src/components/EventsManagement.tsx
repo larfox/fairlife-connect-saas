@@ -322,31 +322,42 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
 
   const addResourceToEvent = async (eventId: string, resourceType: 'doctor' | 'nurse' | 'service', resourceId: string, role?: string) => {
     try {
+      console.log(`Adding ${resourceType} ${resourceId} to event ${eventId}`);
+      
       if (resourceType === 'doctor') {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('event_doctors')
           .insert([{ 
             event_id: eventId, 
             doctor_id: resourceId,
             role: role || 'attending'
-          }]);
+          }])
+          .select();
+        
+        console.log('Doctor insert result:', data, 'Error:', error);
         if (error) throw error;
       } else if (resourceType === 'nurse') {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('event_nurses')
           .insert([{ 
             event_id: eventId, 
             nurse_id: resourceId,
             role: role || 'staff'
-          }]);
+          }])
+          .select();
+        
+        console.log('Nurse insert result:', data, 'Error:', error);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('event_services')
           .insert([{ 
             event_id: eventId, 
             service_id: resourceId
-          }]);
+          }])
+          .select();
+        
+        console.log('Service insert result:', data, 'Error:', error);
         if (error) throw error;
       }
 
@@ -357,6 +368,7 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
 
       fetchEvents(); // Refresh the events to show the new resource
     } catch (error) {
+      console.error('Error adding resource:', error);
       toast({
         title: "Error adding resource",
         description: `Failed to add ${resourceType} to event. Please try again.`,
