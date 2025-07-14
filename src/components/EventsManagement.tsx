@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Calendar, MapPin, Clock, Plus, Pencil, ArrowLeft, Filter, Users, Stethoscope, HeartHandshake, ChevronDown, ChevronRight, UserPlus, Activity } from "lucide-react";
+import { Calendar, MapPin, Clock, Plus, Pencil, ArrowLeft, Users, Stethoscope, HeartHandshake, ChevronDown, ChevronRight, UserPlus, Activity, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { EventCard } from "./EventCard";
 
 interface EventsManagementProps {
   onBack: () => void;
@@ -28,13 +29,13 @@ type Event = Tables<"events"> & {
 
 const EventsManagement = ({ onBack }: EventsManagementProps) => {
   const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [openEvents, setOpenEvents] = useState<Event[]>([]);
+  const [closedEvents, setClosedEvents] = useState<Event[]>([]);
   const [locations, setLocations] = useState<Tables<"locations">[]>([]);
   const [doctors, setDoctors] = useState<Tables<"doctors">[]>([]);
   const [nurses, setNurses] = useState<Tables<"nurses">[]>([]);
   const [services, setServices] = useState<Tables<"services">[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "open" | "pending" | "closed">("open");
   const [searchTerm, setSearchTerm] = useState("");
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -61,23 +62,24 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
   }, []);
 
   useEffect(() => {
-    let filtered = events;
+    // Separate events into open and closed
+    const openEventsFiltered = events.filter(event => event.status !== 'closed');
+    const closedEventsFiltered = events.filter(event => event.status === 'closed');
 
-    // Filter by status
-    if (filter !== "all") {
-      filtered = filtered.filter(event => event.status === filter);
-    }
+    // Apply search filter to both open and closed events
+    const applySearchFilter = (eventsList: Event[]) => {
+      if (searchTerm) {
+        return eventsList.filter(event =>
+          event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (event.locations?.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      }
+      return eventsList;
+    };
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(event =>
-        event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (event.locations?.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    setFilteredEvents(filtered);
-  }, [events, filter, searchTerm]);
+    setOpenEvents(applySearchFilter(openEventsFiltered));
+    setClosedEvents(applySearchFilter(closedEventsFiltered));
+  }, [events, searchTerm]);
 
   const fetchEvents = async () => {
     try {
@@ -421,6 +423,30 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
         {statusText}
       </Badge>
     );
+  };
+
+  const reopenEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ status: "open" })
+        .eq("id", eventId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Event reopened",
+        description: "The event has been reopened successfully.",
+      });
+
+      fetchEvents();
+    } catch (error) {
+      toast({
+        title: "Error reopening event",
+        description: "Failed to reopen event. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
