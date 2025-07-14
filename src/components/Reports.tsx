@@ -14,6 +14,8 @@ import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { PrintableReport } from "@/components/PrintableReport";
+import { createRoot } from "react-dom/client";
 
 interface ReportsProps {
   onBack: () => void;
@@ -306,7 +308,109 @@ const Reports = ({ onBack }: ReportsProps) => {
   };
 
   const printReport = (reportType: string) => {
-    window.print();
+    let reportData: { section_name: string; patient_count: number; patients: any[] }[] = [];
+    let title = "";
+    let subtitle = "";
+    let eventInfo = events.find(e => e.id === selectedEvent);
+    
+    switch (reportType) {
+      case "location":
+        if (locationReport.length > 0) {
+          title = "Patient Report by Location";
+          subtitle = "Health Fair Patient Attendance Report";
+          reportData = locationReport.map(report => ({
+            section_name: report.location_name,
+            patient_count: report.patient_count,
+            patients: report.patients
+          }));
+        }
+        break;
+      case "service":
+        if (serviceReport.length > 0) {
+          title = "Patient Report by Service";
+          subtitle = "Service Utilization Report";
+          reportData = serviceReport.map(service => ({
+            section_name: service.service_name,
+            patient_count: service.patient_count,
+            patients: service.patients
+          }));
+        }
+        break;
+      case "parish":
+        if (parishReport.length > 0) {
+          title = "Patient Report by Parish";
+          subtitle = "Geographic Distribution Report";
+          reportData = parishReport.map(parish => ({
+            section_name: parish.parish_name,
+            patient_count: parish.patient_count,
+            patients: parish.patients
+          }));
+        }
+        break;
+    }
+
+    if (reportData.length === 0) {
+      toast({
+        title: "No data to print",
+        description: "Please generate a report first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (!printWindow) {
+      toast({
+        title: "Print failed",
+        description: "Please allow popups and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set up the print window document
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title}</title>
+          <meta charset="utf-8">
+        </head>
+        <body>
+          <div id="print-root"></div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+
+    // Create a container for the React component
+    const printContainer = printWindow.document.getElementById('print-root');
+    if (!printContainer) return;
+
+    // Render the printable component
+    const root = createRoot(printContainer);
+    const printElement = (
+      <PrintableReport
+        title={title}
+        subtitle={subtitle}
+        data={reportData}
+        eventName={eventInfo?.name}
+        locationName={eventInfo?.locations?.name}
+        eventDate={eventInfo?.event_date}
+      />
+    );
+
+    root.render(printElement);
+
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      setTimeout(() => {
+        printWindow.close();
+      }, 100);
+    }, 1000);
   };
 
   return (
