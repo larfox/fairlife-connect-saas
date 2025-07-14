@@ -457,7 +457,7 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
                 Create Event
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Event</DialogTitle>
                 <DialogDescription>
@@ -467,12 +467,21 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="name">Event Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    placeholder="Enter event name"
-                  />
+                  <Select value={formData.name} onValueChange={(value) => setFormData({...formData, name: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select event name from location" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px] overflow-y-auto">
+                      {locations.map(location => (
+                        <SelectItem key={location.id} value={location.name}>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            {location.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="description">Description</Label>
