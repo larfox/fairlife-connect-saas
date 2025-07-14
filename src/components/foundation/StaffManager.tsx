@@ -64,6 +64,7 @@ const StaffManager = () => {
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedAdminStatus, setSelectedAdminStatus] = useState(false);
   
   const [formData, setFormData] = useState({
     first_name: "",
@@ -244,6 +245,7 @@ const StaffManager = () => {
       .filter(p => p.staff_id === staffMember.id)
       .map(p => p.service_id);
     setSelectedServiceIds(currentPermissions);
+    setSelectedAdminStatus(staffMember.is_admin);
     setPermissionsDialogOpen(true);
   };
 
@@ -251,14 +253,20 @@ const StaffManager = () => {
     if (!selectedStaff) return;
 
     try {
+      // Update admin status
+      await supabase
+        .from("staff")
+        .update({ is_admin: selectedAdminStatus })
+        .eq("id", selectedStaff.id);
+
       // Delete existing permissions
       await supabase
         .from("staff_service_permissions")
         .delete()
         .eq("staff_id", selectedStaff.id);
 
-      // Insert new permissions
-      if (selectedServiceIds.length > 0) {
+      // Insert new permissions (only if not admin)
+      if (!selectedAdminStatus && selectedServiceIds.length > 0) {
         const permissions = selectedServiceIds.map(serviceId => ({
           staff_id: selectedStaff.id,
           service_id: serviceId,
@@ -548,53 +556,73 @@ const StaffManager = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 max-h-96 overflow-y-auto">
-            {selectedStaff?.is_admin ? (
-              <div className="text-center py-8">
-                <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  Admin users have access to all services automatically.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Select the services this staff member can access:
-                </p>
-                {services.map((service) => (
-                  <div key={service.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={service.id}
-                      checked={selectedServiceIds.includes(service.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedServiceIds([...selectedServiceIds, service.id]);
-                        } else {
-                          setSelectedServiceIds(
-                            selectedServiceIds.filter((id) => id !== service.id)
-                          );
-                        }
-                      }}
-                    />
-                    <Label htmlFor={service.id} className="flex-1">
-                      <div>
-                        <div className="font-medium">{service.name}</div>
-                        {service.description && (
-                          <div className="text-sm text-muted-foreground">
-                            {service.description}
-                          </div>
-                        )}
-                      </div>
-                    </Label>
+            <div className="space-y-4">
+              {/* Admin Toggle */}
+              <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+                <Checkbox
+                  id="admin-access"
+                  checked={selectedAdminStatus}
+                  onCheckedChange={(checked) => {
+                    setSelectedAdminStatus(checked as boolean);
+                    // Clear service selections when admin is toggled on
+                    if (checked) {
+                      setSelectedServiceIds([]);
+                    }
+                  }}
+                />
+                <Label htmlFor="admin-access" className="flex items-center gap-2 flex-1">
+                  <Shield className="h-4 w-4 text-destructive" />
+                  <div>
+                    <div className="font-medium">Administrator Access</div>
+                    <div className="text-sm text-muted-foreground">
+                      Full access to all services and admin functions
+                    </div>
                   </div>
-                ))}
+                </Label>
               </div>
-            )}
+
+              {/* Service Permissions (only show if not admin) */}
+              {!selectedAdminStatus && (
+                <>
+                  <div className="border-t pt-4">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Or select specific services this staff member can access:
+                    </p>
+                    {services.map((service) => (
+                      <div key={service.id} className="flex items-center space-x-2 mb-3">
+                        <Checkbox
+                          id={service.id}
+                          checked={selectedServiceIds.includes(service.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedServiceIds([...selectedServiceIds, service.id]);
+                            } else {
+                              setSelectedServiceIds(
+                                selectedServiceIds.filter((id) => id !== service.id)
+                              );
+                            }
+                          }}
+                        />
+                        <Label htmlFor={service.id} className="flex-1">
+                          <div>
+                            <div className="font-medium">{service.name}</div>
+                            {service.description && (
+                              <div className="text-sm text-muted-foreground">
+                                {service.description}
+                              </div>
+                            )}
+                          </div>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          {!selectedStaff?.is_admin && (
-            <DialogFooter>
-              <Button onClick={handleSavePermissions}>Save Permissions</Button>
-            </DialogFooter>
-          )}
+          <DialogFooter>
+            <Button onClick={handleSavePermissions}>Save Permissions</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
