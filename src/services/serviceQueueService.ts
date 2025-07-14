@@ -143,16 +143,21 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
 
   // Handle cross-service status updates
   if (newStatus === 'in_progress') {
+    console.log('Setting other services to unavailable for patient_visit_id:', currentItem.patient_visit_id, 'excluding service_id:', currentItem.service_id);
+    
     // When a patient starts a service, mark them as unavailable in other waiting services
-    const { error: unavailableError } = await supabase
+    const { data: updatedRows, error: unavailableError } = await supabase
       .from('service_queue')
       .update({ status: 'unavailable' })
       .eq('patient_visit_id', currentItem.patient_visit_id)
       .neq('service_id', currentItem.service_id)
-      .eq('status', 'waiting');
+      .eq('status', 'waiting')
+      .select();
 
     if (unavailableError) {
       console.error('Error updating other services to unavailable:', unavailableError);
+    } else {
+      console.log('Successfully updated', updatedRows?.length || 0, 'services to unavailable:', updatedRows);
     }
   } else if (newStatus === 'completed') {
     // When a patient completes a service, mark them as waiting in other unavailable services
