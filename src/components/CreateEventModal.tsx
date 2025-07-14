@@ -193,7 +193,7 @@ export function CreateEventModal() {
           Create Event
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -205,21 +205,17 @@ export function CreateEventModal() {
           {/* Basic Event Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Event Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Community Health Fair"
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
               <Select 
                 value={formData.location_id} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}
+                onValueChange={(value) => {
+                  const selectedLocation = locations.find(loc => loc.id === value);
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    location_id: value,
+                    name: selectedLocation ? `Health Fair at ${selectedLocation.name}` : ""
+                  }));
+                }}
                 required
               >
                 <SelectTrigger>
@@ -239,6 +235,19 @@ export function CreateEventModal() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Event Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Will be auto-generated based on location"
+                required
+                readOnly
+                className="bg-muted"
+              />
             </div>
           </div>
 
