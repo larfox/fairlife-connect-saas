@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Search, 
   Eye, 
@@ -15,7 +16,8 @@ import {
   Heart,
   Stethoscope,
   Pill,
-  Syringe
+  Syringe,
+  Filter
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +47,7 @@ interface PatientVisit {
     id: string;
     name: string;
     event_date: string;
+    location_id?: string;
     location: {
       name: string;
     };
@@ -71,21 +74,29 @@ interface ServiceHistory {
   };
 }
 
+interface Location {
+  id: string;
+  name: string;
+}
+
 interface PatientHistoryProps {
   selectedEventId?: string;
 }
 
 const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
   const [patientVisits, setPatientVisits] = useState<PatientVisit[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [selectedPatientVisit, setSelectedPatientVisit] = useState<PatientVisit | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchPatientHistory = async () => {
     try {
-      let query = supabase
+      // Fetch patient visits with location data
+      let visitsQuery = supabase
         .from("patient_visits")
         .select(`
           *,
@@ -105,7 +116,9 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
             id,
             name,
             event_date,
+            location_id,
             locations (
+              id,
               name
             )
           )
@@ -114,15 +127,20 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
 
       // If a specific event is selected, filter by it
       if (selectedEventId) {
-        query = query.eq("event_id", selectedEventId);
+        visitsQuery = visitsQuery.eq("event_id", selectedEventId);
       }
 
-      const { data, error } = await query;
+      // Fetch all locations for the filter dropdown
+      const [visitsResult, locationsResult] = await Promise.all([
+        visitsQuery,
+        supabase.from("locations").select("id, name").eq("is_active", true).order("name")
+      ]);
 
-      if (error) throw error;
+      if (visitsResult.error) throw visitsResult.error;
+      if (locationsResult.error) throw locationsResult.error;
 
-      // Transform the data to match our interface
-      const transformedData: PatientVisit[] = (data || []).map(visit => ({
+      // Transform the visits data to match our interface
+      const transformedData: PatientVisit[] = (visitsResult.data || []).map(visit => ({
         id: visit.id,
         visit_date: visit.visit_date,
         status: visit.status,
@@ -132,6 +150,7 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
           id: visit.events.id,
           name: visit.events.name,
           event_date: visit.events.event_date,
+          location_id: visit.events.location_id,
           location: {
             name: visit.events.locations?.name || 'Unknown Location'
           }
@@ -140,6 +159,7 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
       }));
 
       setPatientVisits(transformedData);
+      setLocations(locationsResult.data || []);
     } catch (error) {
       console.error("Error fetching patient history:", error);
       toast({
@@ -161,14 +181,18 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
     setIsDetailModalOpen(true);
   };
 
-  const filteredVisits = patientVisits.filter(
-    (visit) =>
+  const filteredVisits = patientVisits.filter((visit) => {
+    const matchesSearch = 
       visit.patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       visit.patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       visit.patient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       visit.patient.phone?.includes(searchTerm) ||
-      visit.event.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      visit.event.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesLocation = !selectedLocationId || visit.event.location_id === selectedLocationId;
+
+    return matchesSearch && matchesLocation;
+  });
 
   // Calculate statistics
   const totalVisits = patientVisits.length;
@@ -196,15 +220,47 @@ const PatientHistory = ({ selectedEventId }: PatientHistoryProps) => {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by patient name, email, phone, or event..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
+      {/* Search and Filters */}
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by patient name, email, phone, or event..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Locations</SelectItem>
+              {locations.map((location) => (
+                <SelectItem key={location.id} value={location.id}>
+                  {location.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {(searchTerm || selectedLocationId) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearchTerm("");
+              setSelectedLocationId("");
+            }}
+          >
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       {/* Statistics */}
