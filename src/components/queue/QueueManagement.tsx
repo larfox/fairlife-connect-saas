@@ -184,64 +184,6 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
           </div>
         </div>
 
-        {/* Queue Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="bg-gradient-primary/10 p-3 rounded-lg">
-                  <UserPlus className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{queueStats.totalPatients}</p>
-                  <p className="text-sm text-muted-foreground">Total Patients</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="bg-yellow-500/10 p-3 rounded-lg">
-                  <Clock className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{queueStats.waiting}</p>
-                  <p className="text-sm text-muted-foreground">Waiting</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="bg-blue-500/10 p-3 rounded-lg">
-                  <Activity className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{queueStats.inProgress}</p>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="bg-green-500/10 p-3 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{queueStats.completed}</p>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Main Queue Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

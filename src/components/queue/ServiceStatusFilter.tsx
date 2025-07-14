@@ -31,7 +31,7 @@ export function ServiceStatusFilter({
           <SelectItem value="waiting">Waiting</SelectItem>
           <SelectItem value="in_progress">In Progress</SelectItem>
           <SelectItem value="unavailable">Unavailable</SelectItem>
-          <SelectItem value="completed">Completed</SelectItem>
+          <SelectItem value="completed">Complete</SelectItem>
         </SelectContent>
       </Select>
       <Badge variant="outline">

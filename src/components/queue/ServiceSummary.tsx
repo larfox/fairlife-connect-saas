@@ -134,6 +134,65 @@ export function ServiceSummary({ selectedEvent, onStatsUpdate }: ServiceSummaryP
 
   return (
     <div className="space-y-6">
+      {/* Queue Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-primary/10 p-3 rounded-lg">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{serviceStats.reduce((acc, service) => acc + service.totalRegistered, 0)}</p>
+                <p className="text-sm text-muted-foreground">Total Patients</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-yellow-500/10 p-3 rounded-lg">
+                <Clock className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{serviceStats.reduce((acc, service) => acc + service.waiting, 0)}</p>
+                <p className="text-sm text-muted-foreground">Waiting</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-blue-500/10 p-3 rounded-lg">
+                <Activity className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{serviceStats.reduce((acc, service) => acc + service.inProgress, 0)}</p>
+                <p className="text-sm text-muted-foreground">In Progress</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-card transition-[var(--transition-smooth)]">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-green-500/10 p-3 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{serviceStats.reduce((acc, service) => acc + service.completed, 0)}</p>
+                <p className="text-sm text-muted-foreground">Completed</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex items-center gap-2 mb-6">
         <Activity className="h-6 w-6 text-primary" />
         <h2 className="text-2xl font-bold">Service Queue Summary</h2>
