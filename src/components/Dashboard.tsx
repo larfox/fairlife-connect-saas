@@ -46,48 +46,73 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalPatients: 0,
+    inProgress: 0,
+    completed: 0,
+    waitingServices: 0
+  });
   const { toast } = useToast();
 
-  // Mock data for demonstration
-  const stats = [
-    {
-      title: "Total Events",
-      value: "12",
-      change: "+3 this month",
-      trend: "up",
-      icon: Calendar,
-      color: "text-primary"
-    },
-    {
-      title: "Total Attendees",
-      value: "2,847",
-      change: "+12% vs last month",
-      trend: "up",
-      icon: Users,
-      color: "text-secondary"
-    },
-    {
-      title: "Active Vendors",
-      value: "67",
-      change: "+5 new vendors",
-      trend: "up",
-      icon: MapPin,
-      color: "text-accent"
-    },
-    {
-      title: "Revenue",
-      value: "$24,500",
-      change: "+18% growth",
-      trend: "up",
-      icon: BarChart3,
-      color: "text-primary"
-    }
-  ];
-
-  // Fetch events from database
+  // Fetch events and stats from database
   useEffect(() => {
     fetchEvents();
+    fetchDashboardStats();
   }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      // Get all open events
+      const { data: openEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('status', 'open');
+
+      if (eventsError) throw eventsError;
+
+      if (!openEvents || openEvents.length === 0) {
+        setDashboardStats({
+          totalPatients: 0,
+          inProgress: 0,
+          completed: 0,
+          waitingServices: 0
+        });
+        return;
+      }
+
+      const eventIds = openEvents.map(e => e.id);
+
+      // Get patient visits for open events
+      const { data: patientVisits, error: visitsError } = await supabase
+        .from('patient_visits')
+        .select('id, status')
+        .in('event_id', eventIds);
+
+      if (visitsError) throw visitsError;
+
+      // Get service queue statistics
+      const { data: serviceQueue, error: queueError } = await supabase
+        .from('service_queue')
+        .select('status, patient_visit_id')
+        .in('patient_visit_id', (patientVisits || []).map(pv => pv.id));
+
+      if (queueError) throw queueError;
+
+      const totalPatients = patientVisits?.length || 0;
+      const inProgress = serviceQueue?.filter(sq => sq.status === 'in_progress').length || 0;
+      const completed = serviceQueue?.filter(sq => sq.status === 'completed').length || 0;
+      const waiting = serviceQueue?.filter(sq => sq.status === 'waiting').length || 0;
+
+      setDashboardStats({
+        totalPatients,
+        inProgress,
+        completed,
+        waitingServices: waiting
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -295,34 +320,101 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => {
-            const IconComponent = stat.icon;
-            return (
-              <Card key={index} className="shadow-card hover:shadow-medical transition-[var(--transition-smooth)]">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {stat.title}
-                      </p>
-                      <p className="text-2xl font-bold text-foreground mt-1">
-                        {stat.value}
-                      </p>
-                      <div className="flex items-center mt-2 text-sm">
-                        <TrendingUp className="h-4 w-4 text-secondary mr-1" />
-                        <span className="text-secondary font-medium">
-                          {stat.change}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={`p-3 rounded-lg bg-gradient-primary/10 ${stat.color}`}>
-                      <IconComponent className="h-6 w-6" />
-                    </div>
+          <Card className="shadow-card hover:shadow-medical transition-[var(--transition-smooth)]">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Total Patients
+                  </p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    {dashboardStats.totalPatients}
+                  </p>
+                  <div className="flex items-center mt-2 text-sm">
+                    <Users className="h-4 w-4 text-secondary mr-1" />
+                    <span className="text-secondary font-medium">
+                      Across all open events
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                </div>
+                <div className="p-3 rounded-lg bg-gradient-primary/10 text-primary">
+                  <Users className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card hover:shadow-medical transition-[var(--transition-smooth)]">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    In Progress
+                  </p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    {dashboardStats.inProgress}
+                  </p>
+                  <div className="flex items-center mt-2 text-sm">
+                    <Clock className="h-4 w-4 text-secondary mr-1" />
+                    <span className="text-secondary font-medium">
+                      Currently being served
+                    </span>
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-gradient-primary/10 text-secondary">
+                  <Clock className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card hover:shadow-medical transition-[var(--transition-smooth)]">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Completed
+                  </p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    {dashboardStats.completed}
+                  </p>
+                  <div className="flex items-center mt-2 text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-secondary mr-1" />
+                    <span className="text-secondary font-medium">
+                      Services finished
+                    </span>
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-gradient-primary/10 text-accent">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card hover:shadow-medical transition-[var(--transition-smooth)]">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Waiting
+                  </p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    {dashboardStats.waitingServices}
+                  </p>
+                  <div className="flex items-center mt-2 text-sm">
+                    <AlertCircle className="h-4 w-4 text-secondary mr-1" />
+                    <span className="text-secondary font-medium">
+                      In queue for services
+                    </span>
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-gradient-primary/10 text-primary">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Events Table */}
