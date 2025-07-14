@@ -33,14 +33,14 @@ import FoundationManagement from "@/components/FoundationManagement";
 import PatientManagement from "@/components/PatientManagement";
 import EventsManagement from "@/components/EventsManagement";
 import QueueManagement from "@/components/queue/QueueManagement";
-import EventSelection from "@/components/EventSelection";
+
 
 interface DashboardProps {
   selectedEventId?: string;
 }
 
 const Dashboard = ({ selectedEventId }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue" | "event_selection">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue">("dashboard");
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,14 +205,6 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
     return <EventsManagement onBack={() => setCurrentView("dashboard")} />;
   }
 
-  if (currentView === "event_selection") {
-    return (
-      <EventSelection 
-        onBack={() => setCurrentView("dashboard")}
-        onEventSelect={handleEventSelect}
-      />
-    );
-  }
 
   if (currentView === "queue" && selectedEvent) {
     return (
@@ -267,7 +259,18 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
             </Button>
             <Button 
               size="lg" 
-              onClick={() => setCurrentView("event_selection")}
+              onClick={() => {
+                if (events.length === 0) {
+                  toast({
+                    title: "No Events Available",
+                    description: "Please create an event first before accessing the queue system.",
+                    variant: "destructive",
+                  });
+                } else {
+                  // Scroll to events table or highlight it
+                  document.getElementById('events-table')?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
               className="gap-2"
             >
               <ClipboardList className="h-5 w-5" />
@@ -309,7 +312,7 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
         </div>
 
         {/* Events Table */}
-        <Card className="shadow-card">
+        <Card id="events-table" className="shadow-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
