@@ -66,7 +66,7 @@ export function CreateEventModal() {
   const fetchData = async () => {
     try {
       const [locationsResult, doctorsResult, nursesResult, servicesResult] = await Promise.all([
-        supabase.from("locations").select("id, name, address").eq("is_active", true),
+        supabase.from("locations").select("id, name, address").eq("is_active", true).order("name"),
         supabase.from("doctors").select("id, first_name, last_name, specialization").eq("is_active", true),
         supabase.from("nurses").select("id, first_name, last_name, certification_level").eq("is_active", true),
         supabase.from("services").select("id, name, description").eq("is_active", true)
@@ -193,16 +193,16 @@ export function CreateEventModal() {
           Create Event
         </Button>
       </DialogTrigger>
-      <DialogContent className="fixed inset-0 m-4 max-w-none max-h-none overflow-y-auto z-[100] bg-background border shadow-lg rounded-lg">
-        <div className="p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl mb-6">
-              <Calendar className="h-5 w-5" />
+      <DialogContent className="w-screen h-screen max-w-none max-h-none overflow-y-auto z-[100] bg-background border-0 rounded-none p-0">
+        <div className="h-full p-8 overflow-y-auto">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Calendar className="h-6 w-6" />
               Create New Health Fair Event
             </DialogTitle>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8 pb-8">
             {/* Basic Event Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
