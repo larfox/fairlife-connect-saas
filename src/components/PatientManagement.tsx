@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, 
   ArrowLeft,
-  UserCheck
+  UserCheck,
+  History
 } from "lucide-react";
 import PatientsManager from "@/components/patient/PatientsManager";
+import PatientHistory from "@/components/patient/PatientHistory";
 
 interface PatientManagementProps {
   onBack?: () => void;
@@ -48,13 +51,32 @@ const PatientManagement = ({ onBack, selectedEventId }: PatientManagementProps) 
                 <UserCheck className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-xl">Patient Registry</CardTitle>
-                <CardDescription>Comprehensive patient information management</CardDescription>
+                <CardTitle className="text-xl">Patient Management System</CardTitle>
+                <CardDescription>Comprehensive patient information and history management</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <PatientsManager selectedEventId={selectedEventId} />
+            <Tabs defaultValue="registry" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="registry" className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  Patient Registry
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Patient History
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="registry" className="mt-6">
+                <PatientsManager selectedEventId={selectedEventId} />
+              </TabsContent>
+              
+              <TabsContent value="history" className="mt-6">
+                <PatientHistory selectedEventId={selectedEventId} />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
