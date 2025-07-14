@@ -62,8 +62,8 @@ const EventsManagement = ({ onBack }: EventsManagementProps) => {
   }, []);
 
   useEffect(() => {
-    // Separate events into open and closed
-    const openEventsFiltered = events.filter(event => event.status !== 'closed');
+    // Separate events: only "open" status for open events, "closed" status for closed events
+    const openEventsFiltered = events.filter(event => event.status === 'open');
     const closedEventsFiltered = events.filter(event => event.status === 'closed');
 
     // Apply search filter to both open and closed events
