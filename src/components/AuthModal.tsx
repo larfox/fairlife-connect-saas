@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock, User, Building } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Mail, Lock, User, Building, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -62,6 +63,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: Au
     const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
     const organization = formData.get('organization') as string;
+    const professionalCapacity = formData.get('professionalCapacity') as string;
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -72,11 +74,30 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: Au
           data: {
             full_name: fullName,
             organization: organization,
+            professional_capacity: professionalCapacity,
           }
         }
       });
 
       if (error) throw error;
+
+      // Add user to staff table
+      if (data.user) {
+        const { error: staffError } = await supabase
+          .from('staff')
+          .insert({
+            first_name: fullName.split(' ')[0] || fullName,
+            last_name: fullName.split(' ').slice(1).join(' ') || '',
+            email: email,
+            professional_capacity: professionalCapacity as "doctor" | "nurse" | "optician" | "dentist" | "dental_technician" | "registration_technician" | "administration",
+            is_admin: false,
+            is_active: true,
+          });
+
+        if (staffError) {
+          console.error('Error adding to staff:', staffError);
+        }
+      }
 
       toast({
         title: "Account created!",
@@ -190,6 +211,24 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: Au
                       required
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="professionalCapacity">Professional Capacity</Label>
+                  <Select name="professionalCapacity" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your professional capacity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="doctor">Doctor</SelectItem>
+                      <SelectItem value="nurse">Nurse</SelectItem>
+                      <SelectItem value="optician">Optician</SelectItem>
+                      <SelectItem value="dentist">Dentist</SelectItem>
+                      <SelectItem value="dental_technician">Dental Technician</SelectItem>
+                      <SelectItem value="registration_technician">Registration Technician</SelectItem>
+                      <SelectItem value="administration">Administration</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="space-y-2">

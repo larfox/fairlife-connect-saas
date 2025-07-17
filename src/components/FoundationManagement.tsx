@@ -55,10 +55,17 @@ const FoundationManagement = ({ onBack }: FoundationManagementProps) => {
       component: NursesManager
     },
     {
-      id: "staff",
-      label: "Staff",
+      id: "admin",
+      label: "Admin",
+      icon: UserCheck,
+      description: "Manage administrative permissions and roles",
+      component: StaffManager
+    },
+    {
+      id: "security",
+      label: "Security",
       icon: Users,
-      description: "Manage staff access and permissions",
+      description: "Manage staff access and security permissions",
       component: StaffManager
     }
   ];
@@ -91,7 +98,7 @@ const FoundationManagement = ({ onBack }: FoundationManagementProps) => {
 
         {/* Management Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl mx-auto">
+          <TabsList className="grid grid-cols-6 w-full max-w-4xl mx-auto">
             {tabs.map((tab) => {
               const IconComponent = tab.icon;
               return (

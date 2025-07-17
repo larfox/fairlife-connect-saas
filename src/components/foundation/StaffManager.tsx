@@ -26,6 +26,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, UserCheck, Shield } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type ProfessionalCapacity = "doctor" | "nurse" | "optician" | "dentist" | "dental_technician" | "registration_technician" | "administration";
 
 interface Staff {
   id: string;
@@ -33,6 +36,7 @@ interface Staff {
   last_name: string;
   email: string;
   phone: string | null;
+  professional_capacity: ProfessionalCapacity;
   is_admin: boolean;
   is_active: boolean;
   created_at: string;
@@ -71,6 +75,7 @@ const StaffManager = () => {
     last_name: "",
     email: "",
     phone: "",
+    professional_capacity: "administration" as ProfessionalCapacity,
     is_admin: false,
   });
 
@@ -136,6 +141,7 @@ const StaffManager = () => {
         last_name: formData.last_name,
         email: formData.email,
         phone: formData.phone || null,
+        professional_capacity: formData.professional_capacity,
         is_admin: formData.is_admin,
       };
 
@@ -184,6 +190,7 @@ const StaffManager = () => {
       last_name: staffMember.last_name,
       email: staffMember.email,
       phone: staffMember.phone || "",
+      professional_capacity: staffMember.professional_capacity,
       is_admin: staffMember.is_admin,
     });
     setIsDialogOpen(true);
@@ -302,6 +309,7 @@ const StaffManager = () => {
       last_name: "",
       email: "",
       phone: "",
+      professional_capacity: "administration" as ProfessionalCapacity,
       is_admin: false,
     });
     setEditingStaff(null);
@@ -401,6 +409,26 @@ const StaffManager = () => {
                     }
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="professional_capacity">Professional Capacity</Label>
+                  <Select 
+                    value={formData.professional_capacity} 
+                    onValueChange={(value: ProfessionalCapacity) => setFormData({ ...formData, professional_capacity: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select professional capacity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="doctor">Doctor</SelectItem>
+                      <SelectItem value="nurse">Nurse</SelectItem>
+                      <SelectItem value="optician">Optician</SelectItem>
+                      <SelectItem value="dentist">Dentist</SelectItem>
+                      <SelectItem value="dental_technician">Dental Technician</SelectItem>
+                      <SelectItem value="registration_technician">Registration Technician</SelectItem>
+                      <SelectItem value="administration">Administration</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="is_admin"
@@ -439,6 +467,7 @@ const StaffManager = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead>Professional Capacity</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Permissions</TableHead>
                 <TableHead>Status</TableHead>
@@ -459,6 +488,11 @@ const StaffManager = () => {
                     </TableCell>
                     <TableCell>{staffMember.email}</TableCell>
                     <TableCell>{staffMember.phone || "N/A"}</TableCell>
+                    <TableCell>
+                      <div className="capitalize">
+                        {staffMember.professional_capacity?.replace('_', ' ') || 'N/A'}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {staffMember.is_admin ? (
                         <Badge variant="destructive" className="gap-1">
