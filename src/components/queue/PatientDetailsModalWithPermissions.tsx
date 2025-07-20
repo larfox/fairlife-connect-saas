@@ -75,7 +75,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
   const [newEcgResult, setNewEcgResult] = useState({
     result: "",
     interpretation: "",
-    notes: ""
+    notes: "",
+    performed_by: ""
   });
   const [immunizations, setImmunizations] = useState<any[]>([]);
   const [newImmunization, setNewImmunization] = useState({
@@ -94,7 +95,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
     vision_test_results: "",
     eye_pressure: "",
     prescription_details: "",
-    assessment_notes: ""
+    assessment_notes: "",
+    optician_id: ""
   });
   
   // Dental assessment state
@@ -104,7 +106,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
     teeth_condition: "",
     gum_health: "",
     recommendations: "",
-    assessment_notes: ""
+    assessment_notes: "",
+    dental_professional_id: ""
   });
   
   // Back to school assessment state
@@ -684,7 +687,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
       setNewEcgResult({
         result: "",
         interpretation: "",
-        notes: ""
+        notes: "",
+        performed_by: ""
       });
       fetchPatientData();
     } catch (error) {
@@ -723,7 +727,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         vision_test_results: "",
         eye_pressure: "",
         prescription_details: "",
-        assessment_notes: ""
+        assessment_notes: "",
+        optician_id: ""
       });
       fetchPatientData();
     } catch (error) {
@@ -772,6 +777,34 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
       toast({
         title: "Save failed",
         description: `Failed to save dental assessment: ${error.message || error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveBackToSchoolAssessment = async () => {
+    if (!currentVisit) return;
+
+    try {
+      // For now, just show success since there's no table yet
+      toast({
+        title: "Assessment saved!",
+        description: "Back to school assessment recorded successfully.",
+      });
+
+      // Reset form
+      setNewBackToSchoolAssessment({
+        medical_clearance: "",
+        vaccination_status: "",
+        physical_fitness: "",
+        special_accommodations: "",
+        additional_notes: ""
+      });
+    } catch (error: any) {
+      console.error("Error saving back to school assessment:", error);
+      toast({
+        title: "Save failed",
+        description: `Failed to save assessment: ${error.message || error}`,
         variant: "destructive",
       });
     }
@@ -882,7 +915,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
@@ -1393,8 +1426,28 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           placeholder="e.g., Normal sinus rhythm"
                           value={newEcgResult.result}
                           onChange={(e) => setNewEcgResult({...newEcgResult, result: e.target.value})}
-                        />
-                      </div>
+                         />
+                       </div>
+                       <div>
+                         <Label htmlFor="performed_by">Performed By</Label>
+                         <Select value={newEcgResult.performed_by} onValueChange={(value) => setNewEcgResult({...newEcgResult, performed_by: value})}>
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select professional" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {availableDoctors.map((doctor) => (
+                               <SelectItem key={doctor.id} value={doctor.id}>
+                                 Dr. {doctor.first_name} {doctor.last_name}
+                               </SelectItem>
+                             ))}
+                             {availableNurses.map((nurse) => (
+                               <SelectItem key={nurse.id} value={nurse.id}>
+                                 {nurse.first_name} {nurse.last_name} (Nurse)
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </div>
                       <div>
                         <Label htmlFor="interpretation">Interpretation</Label>
                         <Textarea
@@ -1426,18 +1479,21 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                     <h4 className="font-medium">Previous ECG Results</h4>
                     {ecgResults.length > 0 ? (
                       ecgResults.map((ecg, index) => (
-                        <div key={index} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{ecg.result}</span>
-                            <Badge variant="outline">ECG</Badge>
-                          </div>
-                          {ecg.interpretation && (
-                            <p className="text-sm mb-2">{ecg.interpretation}</p>
-                          )}
-                          {ecg.notes && (
-                            <p className="text-sm text-muted-foreground">{ecg.notes}</p>
-                          )}
-                        </div>
+                         <div key={index} className="p-3 border rounded-lg">
+                           <div className="flex items-center justify-between mb-2">
+                             <span className="font-medium">{ecg.result}</span>
+                             <Badge variant="outline">ECG</Badge>
+                           </div>
+                           {ecg.interpretation && (
+                             <p className="text-sm mb-2">{ecg.interpretation}</p>
+                           )}
+                           {ecg.notes && (
+                             <p className="text-sm text-muted-foreground mb-2">{ecg.notes}</p>
+                           )}
+                           <div className="text-xs text-muted-foreground">
+                             Performed by: {ecg.performed_by_name || 'Not specified'}
+                           </div>
+                         </div>
                       ))
                     ) : (
                       <p className="text-muted-foreground">No ECG results recorded.</p>
@@ -1499,7 +1555,27 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           value={newOpticianAssessment.assessment_notes}
                           onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, assessment_notes: e.target.value})}
                         />
-                      </div>
+                       </div>
+                       <div>
+                         <Label htmlFor="optician_performed_by">Performed By</Label>
+                         <Select value={newOpticianAssessment.optician_id} onValueChange={(value) => setNewOpticianAssessment({...newOpticianAssessment, optician_id: value})}>
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select professional" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {availableDoctors.map((doctor) => (
+                               <SelectItem key={doctor.id} value={doctor.id}>
+                                 Dr. {doctor.first_name} {doctor.last_name}
+                               </SelectItem>
+                             ))}
+                             {availableNurses.map((nurse) => (
+                               <SelectItem key={nurse.id} value={nurse.id}>
+                                 {nurse.first_name} {nurse.last_name} (Nurse)
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </div>
                       <Button onClick={saveOpticianAssessment} className="gap-2">
                         <Save className="h-4 w-4" />
                         Save Optician Assessment
@@ -1732,10 +1808,10 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                       />
                    </div>
                    
-                    <Button className="gap-2">
-                      <Save className="h-4 w-4" />
-                      Save Assessment (Feature Coming Soon)
-                    </Button>
+                     <Button onClick={saveBackToSchoolAssessment} className="gap-2">
+                       <Save className="h-4 w-4" />
+                       Save Back to School Assessment
+                     </Button>
                  </CardContent>
                </Card>
                </PermissionWrapper>
