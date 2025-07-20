@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useServiceQueue } from '@/hooks/useServiceQueue';
 import { ServiceQueueCard } from './ServiceQueueCard';
-import PatientDetailsModal from './PatientDetailsModal';
+import PatientDetailsModal from './PatientDetailsModalWithPermissions';
 
 interface PatientServiceQueueProps {
   selectedEvent: any;

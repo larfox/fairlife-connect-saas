@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, User, Calendar, AlertTriangle, History, Edit, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import PatientDetailsModal from "./PatientDetailsModal";
+import PatientDetailsModal from "./PatientDetailsModalWithPermissions";
 import { PatientEditModal } from "./PatientEditModal";
 
 interface AutocompletePatientSearchProps {

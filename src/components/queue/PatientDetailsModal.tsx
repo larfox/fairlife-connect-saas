@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useStaffPermissions } from "@/hooks/useStaffPermissions";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 import PapSmearTab from "../patient/PapSmearTab";
 
 interface PatientDetailsModalProps {
@@ -37,6 +39,7 @@ interface PatientDetailsModalProps {
 }
 
 const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetailsModalProps) => {
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [visitHistory, setVisitHistory] = useState<any[]>([]);
   const [currentVisit, setCurrentVisit] = useState<any>(null);
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -85,6 +88,8 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     notes: ""
   });
   
+  const permissions = useStaffPermissions(user);
+  
   // Health professionals and assignments
   const [availableDoctors, setAvailableDoctors] = useState<any[]>([]);
   const [availableNurses, setAvailableNurses] = useState<any[]>([]);
@@ -101,6 +106,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
   
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Get current user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
 
   useEffect(() => {
     if (isOpen && patient) {
@@ -783,6 +795,41 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     );
   };
 
+  // Calculate the number of visible tabs to adjust grid columns
+  const getTabsGridCols = () => {
+    const tabs = [
+      'overview', 'screening', 'complaints-prognosis', 'prescriptions', 
+      'ecg', 'optician', 'dental', 'pap-smears', 'back-to-school', 
+      'immunizations', 'history'
+    ];
+    const visibleTabsCount = tabs.filter(tab => permissions.canAccessTab(tab)).length;
+    
+    if (visibleTabsCount <= 6) return 'grid-cols-6';
+    if (visibleTabsCount <= 8) return 'grid-cols-8';
+    if (visibleTabsCount <= 10) return 'grid-cols-10';
+    return 'grid-cols-11';
+  };
+
+  // Component to wrap tab content with permission check
+  const PermissionWrapper = ({ tabName, children }: { tabName: string; children: React.ReactNode }) => {
+    if (!permissions.canAccessTab(tabName)) {
+      return (
+        <div className="flex items-center justify-center p-8">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-6 text-center">
+              <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Access Restricted</h3>
+              <p className="text-muted-foreground">
+                You don't have permission to access this section. Please contact your administrator if you believe this is an error.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    return <>{children}</>;
+  };
+
   if (loading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -813,22 +860,45 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-11 text-xs h-auto">
-              <TabsTrigger value="overview" className="text-xs px-2 py-1 text-center whitespace-normal">Overview</TabsTrigger>
-              <TabsTrigger value="screening" className="text-xs px-2 py-1 text-center whitespace-normal">Screening</TabsTrigger>
-              <TabsTrigger value="complaints-prognosis" className="text-xs px-2 py-1 text-center whitespace-normal">Complaints & Prognosis</TabsTrigger>
-              <TabsTrigger value="prescriptions" className="text-xs px-2 py-1 text-center whitespace-normal">Prescriptions</TabsTrigger>
-              <TabsTrigger value="ecg" className="text-xs px-2 py-1 text-center whitespace-normal">ECG Results</TabsTrigger>
-              <TabsTrigger value="optician" className="text-xs px-2 py-1 text-center whitespace-normal">Optician</TabsTrigger>
-              <TabsTrigger value="dental" className="text-xs px-2 py-1 text-center whitespace-normal">Dental</TabsTrigger>
-              <TabsTrigger value="pap-smears" className="text-xs px-2 py-1 text-center whitespace-normal">PAP Smears</TabsTrigger>
-              <TabsTrigger value="back-to-school" className="text-xs px-2 py-1 text-center whitespace-normal">Back to School</TabsTrigger>
-              <TabsTrigger value="immunizations" className="text-xs px-2 py-1 text-center whitespace-normal">Immunizations</TabsTrigger>
-              <TabsTrigger value="history" className="text-xs px-2 py-1 text-center whitespace-normal">History</TabsTrigger>
+            <TabsList className={`grid w-full text-xs h-auto ${getTabsGridCols()}`}>
+              {permissions.canAccessTab('overview') && (
+                <TabsTrigger value="overview" className="text-xs px-2 py-1 text-center whitespace-normal">Overview</TabsTrigger>
+              )}
+              {permissions.canAccessTab('screening') && (
+                <TabsTrigger value="screening" className="text-xs px-2 py-1 text-center whitespace-normal">Screening</TabsTrigger>
+              )}
+              {permissions.canAccessTab('complaints-prognosis') && (
+                <TabsTrigger value="complaints-prognosis" className="text-xs px-2 py-1 text-center whitespace-normal">Complaints & Prognosis</TabsTrigger>
+              )}
+              {permissions.canAccessTab('prescriptions') && (
+                <TabsTrigger value="prescriptions" className="text-xs px-2 py-1 text-center whitespace-normal">Prescriptions</TabsTrigger>
+              )}
+              {permissions.canAccessTab('ecg') && (
+                <TabsTrigger value="ecg" className="text-xs px-2 py-1 text-center whitespace-normal">ECG Results</TabsTrigger>
+              )}
+              {permissions.canAccessTab('optician') && (
+                <TabsTrigger value="optician" className="text-xs px-2 py-1 text-center whitespace-normal">Optician</TabsTrigger>
+              )}
+              {permissions.canAccessTab('dental') && (
+                <TabsTrigger value="dental" className="text-xs px-2 py-1 text-center whitespace-normal">Dental</TabsTrigger>
+              )}
+              {permissions.canAccessTab('pap-smears') && (
+                <TabsTrigger value="pap-smears" className="text-xs px-2 py-1 text-center whitespace-normal">PAP Smears</TabsTrigger>
+              )}
+              {permissions.canAccessTab('back-to-school') && (
+                <TabsTrigger value="back-to-school" className="text-xs px-2 py-1 text-center whitespace-normal">Back to School</TabsTrigger>
+              )}
+              {permissions.canAccessTab('immunizations') && (
+                <TabsTrigger value="immunizations" className="text-xs px-2 py-1 text-center whitespace-normal">Immunizations</TabsTrigger>
+              )}
+              {permissions.canAccessTab('history') && (
+                <TabsTrigger value="history" className="text-xs px-2 py-1 text-center whitespace-normal">History</TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <PermissionWrapper tabName="overview">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">Patient Information</CardTitle>
@@ -892,7 +962,8 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     )}
                   </CardContent>
                 </Card>
-              </div>
+                 </div>
+              </PermissionWrapper>
             </TabsContent>
 
             <TabsContent value="screening" className="space-y-4">
@@ -1251,10 +1322,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                      />
                   </CardContent>
                 </Card>
-              </div>
+               </div>
+              </PermissionWrapper>
             </TabsContent>
 
             <TabsContent value="prescriptions" className="space-y-4">
+              <PermissionWrapper tabName="prescriptions">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
