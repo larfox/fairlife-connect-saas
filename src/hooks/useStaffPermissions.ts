@@ -23,9 +23,10 @@ const SERVICE_TAB_MAPPING = {
   'history': 'History'
 };
 
-// Cache to avoid repeated API calls for the same user
+// Global cache and request deduplication
 const permissionsCache = new Map<string, { data: StaffPermissions; timestamp: number }>();
-const CACHE_DURATION = 30 * 1000; // 30 seconds
+const activeRequests = new Map<string, Promise<StaffPermissions>>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes - longer cache to prevent rate limiting
 
 export const useStaffPermissions = (user: User | null): StaffPermissions => {
   const [permissions, setPermissions] = useState<StaffPermissions>({
@@ -46,7 +47,6 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
         isActive: false,
         allowedServices: [],
         canAccessTab: (tabName: string) => {
-          // Default: allow overview and screening for all authenticated users
           return tabName === 'overview' || tabName === 'screening';
         }
       });
@@ -60,10 +60,24 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
       return;
     }
 
-    // Use a flag to prevent multiple simultaneous requests
-    let isMounted = true;
-    
-    const fetchPermissions = async () => {
+    // Check if there's already an active request for this user
+    const existingRequest = activeRequests.get(user.email);
+    if (existingRequest) {
+      // Wait for the existing request to complete
+      existingRequest.then(setPermissions).catch(() => {
+        // Fallback to default permissions on error
+        setPermissions({
+          isAdmin: false,
+          isActive: false,
+          allowedServices: [],
+          canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
+        });
+      });
+      return;
+    }
+
+    // Create new request promise
+    const fetchPermissions = async (): Promise<StaffPermissions> => {
       try {
         // Get staff member by email and their permissions in a single optimized query
         const { data: staffData, error: staffError } = await supabase
@@ -79,24 +93,17 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           .eq('is_active', true)
           .maybeSingle();
 
-        // Only update state if component is still mounted
-        if (!isMounted) return;
-
         if (staffError || !staffData) {
           const defaultPermissions = {
             isAdmin: false,
             isActive: false,
             allowedServices: [],
-            canAccessTab: (tabName: string) => {
-              // Default: allow overview and screening for all authenticated users
-              return tabName === 'overview' || tabName === 'screening';
-            }
+            canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
           };
-          setPermissions(defaultPermissions);
           
-          // Cache the default permissions to avoid repeated failed lookups
+          // Cache the default permissions
           permissionsCache.set(user.email, { data: defaultPermissions, timestamp: Date.now() });
-          return;
+          return defaultPermissions;
         }
 
         const allowedServices = staffData.staff_service_permissions
@@ -104,17 +111,14 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           .filter(Boolean) || [];
 
         const canAccessTab = (tabName: string): boolean => {
-          // Overview and Know Your Numbers are always accessible to active staff
           if (tabName === 'overview' || tabName === 'screening') {
             return true;
           }
 
-          // Admins have access to all tabs
           if (staffData.is_admin) {
             return true;
           }
 
-          // Check if the tab corresponds to a service the staff has permission for
           const serviceName = SERVICE_TAB_MAPPING[tabName as keyof typeof SERVICE_TAB_MAPPING];
           return allowedServices.includes(serviceName);
         };
@@ -126,39 +130,40 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           canAccessTab
         };
 
-        setPermissions(newPermissions);
-        
         // Cache the results
         permissionsCache.set(user.email, { data: newPermissions, timestamp: Date.now() });
+        return newPermissions;
 
       } catch (error) {
         console.error('Error fetching staff permissions:', error);
-        
-        // Only update state if component is still mounted
-        if (!isMounted) return;
-        
-        // Set safe default permissions on error
         const defaultPermissions = {
           isAdmin: false,
           isActive: false,
           allowedServices: [],
-          canAccessTab: (tabName: string) => {
-            // Default: allow overview and screening for all authenticated users
-            return tabName === 'overview' || tabName === 'screening';
-          }
+          canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
         };
-        setPermissions(defaultPermissions);
+        return defaultPermissions;
+      } finally {
+        // Remove from active requests when done
+        activeRequests.delete(user.email);
       }
     };
 
-    // Debounce the fetch to prevent rapid-fire requests
-    const timeoutId = setTimeout(fetchPermissions, 100);
+    // Store the request promise and execute
+    const requestPromise = fetchPermissions();
+    activeRequests.set(user.email, requestPromise);
+    
+    // Set permissions when request completes
+    requestPromise.then(setPermissions).catch(() => {
+      setPermissions({
+        isAdmin: false,
+        isActive: false,
+        allowedServices: [],
+        canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
+      });
+    });
 
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-    };
-  }, [user?.email]); // Only depend on email, not the entire user object
+  }, [user?.email]);
 
   return permissions;
 };
