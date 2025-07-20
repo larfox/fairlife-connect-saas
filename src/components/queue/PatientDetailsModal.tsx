@@ -29,8 +29,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import PapSmearTab from "../patient/PapSmearTab";
 
-
-
 interface PatientDetailsModalProps {
   patient: any;
   eventId: string;
@@ -1576,7 +1574,10 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
             <TabsContent value="pap-smears" className="space-y-4">
               {currentVisit && (
-                <PapSmearTab patientVisitId={currentVisit.id} />
+                <PapSmearTab 
+                  patientVisitId={currentVisit.id} 
+                  eventDate={currentVisit.visit_date}
+                />
               )}
             </TabsContent>
 

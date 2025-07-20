@@ -1,15 +1,18 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Plus, Edit, Trash2 } from "lucide-react";
+import { FileText, Edit, Trash2, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface PapSmearAssessment {
   id: string;
@@ -44,19 +47,18 @@ interface Nurse {
 
 interface PapSmearTabProps {
   patientVisitId: string;
+  eventDate?: string;
 }
 
-const PapSmearTab = ({ patientVisitId }: PapSmearTabProps) => {
+const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
   const [assessments, setAssessments] = useState<PapSmearAssessment[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [nurses, setNurses] = useState<Nurse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     comments: "",
-    findings: "",
-    recommendations: "",
+    date: eventDate ? new Date(eventDate) : new Date(),
     performed_by_doctor_id: "",
     performed_by_nurse_id: "",
   });
@@ -134,12 +136,10 @@ const PapSmearTab = ({ patientVisitId }: PapSmearTabProps) => {
   const resetForm = () => {
     setFormData({
       comments: "",
-      findings: "",
-      recommendations: "",
+      date: eventDate ? new Date(eventDate) : new Date(),
       performed_by_doctor_id: "",
       performed_by_nurse_id: "",
     });
-    setIsAddingNew(false);
     setEditingId(null);
   };
 
@@ -151,8 +151,7 @@ const PapSmearTab = ({ patientVisitId }: PapSmearTabProps) => {
           .from("pap_smear_assessments")
           .update({
             comments: formData.comments || null,
-            findings: formData.findings || null,
-            recommendations: formData.recommendations || null,
+            assessment_date: formData.date.toISOString(),
             performed_by_doctor_id: formData.performed_by_doctor_id || null,
             performed_by_nurse_id: formData.performed_by_nurse_id || null,
           })
@@ -171,8 +170,7 @@ const PapSmearTab = ({ patientVisitId }: PapSmearTabProps) => {
           .insert({
             patient_visit_id: patientVisitId,
             comments: formData.comments || null,
-            findings: formData.findings || null,
-            recommendations: formData.recommendations || null,
+            assessment_date: formData.date.toISOString(),
             performed_by_doctor_id: formData.performed_by_doctor_id || null,
             performed_by_nurse_id: formData.performed_by_nurse_id || null,
           });
@@ -200,13 +198,11 @@ const PapSmearTab = ({ patientVisitId }: PapSmearTabProps) => {
   const handleEdit = (assessment: PapSmearAssessment) => {
     setFormData({
       comments: assessment.comments || "",
-      findings: assessment.findings || "",
-      recommendations: assessment.recommendations || "",
+      date: new Date(assessment.assessment_date),
       performed_by_doctor_id: assessment.performed_by_doctor_id || "",
       performed_by_nurse_id: assessment.performed_by_nurse_id || "",
     });
     setEditingId(assessment.id);
-    setIsAddingNew(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -246,194 +242,168 @@ const PapSmearTab = ({ patientVisitId }: PapSmearTabProps) => {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-4 w-4" />
-              <span>PAP Smear Assessments</span>
-            </CardTitle>
-            <Button
-              onClick={() => setIsAddingNew(true)}
-              disabled={isAddingNew}
-              size="sm"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Assessment
-            </Button>
-          </div>
+          <CardTitle className="flex items-center space-x-2">
+            <FileText className="h-4 w-4" />
+            <span>PAP Smear Assessment</span>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isAddingNew && (
-            <div className="border rounded-lg p-4 space-y-4 bg-muted/10">
-              <h4 className="font-medium">
-                {editingId ? "Edit" : "New"} PAP Smear Assessment
-              </h4>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="doctor">Performing Doctor</Label>
-                  <Select
-                    value={formData.performed_by_doctor_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, performed_by_doctor_id: value })
-                    }
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Assessment Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.date && "text-muted-foreground"
+                    )}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select doctor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No doctor selected</SelectItem>
-                      {doctors.map((doctor) => (
-                        <SelectItem key={doctor.id} value={doctor.id}>
-                          {doctor.first_name} {doctor.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="nurse">Performing Nurse</Label>
-                  <Select
-                    value={formData.performed_by_nurse_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, performed_by_nurse_id: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select nurse" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No nurse selected</SelectItem>
-                      {nurses.map((nurse) => (
-                        <SelectItem key={nurse.id} value={nurse.id}>
-                          {nurse.first_name} {nurse.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="comments">Comments</Label>
-                <Textarea
-                  id="comments"
-                  placeholder="Enter comments about the PAP smear procedure..."
-                  value={formData.comments}
-                  onChange={(e) =>
-                    setFormData({ ...formData, comments: e.target.value })
-                  }
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="findings">Findings</Label>
-                <Textarea
-                  id="findings"
-                  placeholder="Enter assessment findings..."
-                  value={formData.findings}
-                  onChange={(e) =>
-                    setFormData({ ...formData, findings: e.target.value })
-                  }
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="recommendations">Recommendations</Label>
-                <Textarea
-                  id="recommendations"
-                  placeholder="Enter recommendations..."
-                  value={formData.recommendations}
-                  onChange={(e) =>
-                    setFormData({ ...formData, recommendations: e.target.value })
-                  }
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex space-x-2">
-                <Button onClick={handleSave}>
-                  {editingId ? "Update" : "Save"} Assessment
-                </Button>
-                <Button variant="outline" onClick={resetForm}>
-                  Cancel
-                </Button>
-              </div>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.date ? format(formData.date, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.date}
+                    onSelect={(date) => date && setFormData({ ...formData, date })}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-          )}
 
-          {assessments.length > 0 ? (
-            <div className="space-y-3">
-              {assessments.map((assessment) => (
-                <div key={assessment.id} className="border rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">PAP Smear Assessment</h4>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">
-                        {format(new Date(assessment.assessment_date), "MMM dd, yyyy")}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(assessment)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(assessment.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
+            <div className="space-y-2">
+              <Label htmlFor="doctor">Performing Doctor</Label>
+              <Select
+                value={formData.performed_by_doctor_id}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, performed_by_doctor_id: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select doctor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No doctor selected</SelectItem>
+                  {doctors.map((doctor) => (
+                    <SelectItem key={doctor.id} value={doctor.id}>
+                      {doctor.first_name} {doctor.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                  <div className="space-y-2 text-sm">
-                    {assessment.doctor && (
-                      <div>
-                        <span className="font-medium">Doctor:</span> {assessment.doctor.first_name} {assessment.doctor.last_name}
-                      </div>
-                    )}
-                    {assessment.nurse && (
-                      <div>
-                        <span className="font-medium">Nurse:</span> {assessment.nurse.first_name} {assessment.nurse.last_name}
-                      </div>
-                    )}
-                    {assessment.comments && (
-                      <div>
-                        <span className="font-medium">Comments:</span>
-                        <p className="text-muted-foreground mt-1">{assessment.comments}</p>
-                      </div>
-                    )}
-                    {assessment.findings && (
-                      <div>
-                        <span className="font-medium">Findings:</span>
-                        <p className="text-muted-foreground mt-1">{assessment.findings}</p>
-                      </div>
-                    )}
-                    {assessment.recommendations && (
-                      <div>
-                        <span className="font-medium">Recommendations:</span>
-                        <p className="text-muted-foreground mt-1">{assessment.recommendations}</p>
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground">
-                      Recorded: {format(new Date(assessment.created_at), "MMM dd, yyyy 'at' h:mm a")}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <Label htmlFor="nurse">Performing Nurse</Label>
+              <Select
+                value={formData.performed_by_nurse_id}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, performed_by_nurse_id: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select nurse" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No nurse selected</SelectItem>
+                  {nurses.map((nurse) => (
+                    <SelectItem key={nurse.id} value={nurse.id}>
+                      {nurse.first_name} {nurse.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <div className="text-center py-4 text-muted-foreground">
-              No PAP smear assessments recorded for this visit
-            </div>
-          )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="comments">Comments</Label>
+            <Textarea
+              id="comments"
+              placeholder="Enter comments about the PAP smear assessment..."
+              value={formData.comments}
+              onChange={(e) =>
+                setFormData({ ...formData, comments: e.target.value })
+              }
+              rows={3}
+            />
+          </div>
+
+          <div className="flex space-x-2">
+            <Button onClick={handleSave}>
+              {editingId ? "Update" : "Save"} Assessment
+            </Button>
+            {editingId && (
+              <Button variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {assessments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Previous Assessments</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {assessments.map((assessment) => (
+              <div key={assessment.id} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">PAP Smear Assessment</h4>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline">
+                      {format(new Date(assessment.assessment_date), "MMM dd, yyyy")}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(assessment)}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(assessment.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  {assessment.doctor && (
+                    <div>
+                      <span className="font-medium">Doctor:</span> {assessment.doctor.first_name} {assessment.doctor.last_name}
+                    </div>
+                  )}
+                  {assessment.nurse && (
+                    <div>
+                      <span className="font-medium">Nurse:</span> {assessment.nurse.first_name} {assessment.nurse.last_name}
+                    </div>
+                  )}
+                  {assessment.comments && (
+                    <div>
+                      <span className="font-medium">Comments:</span>
+                      <p className="text-muted-foreground mt-1">{assessment.comments}</p>
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground">
+                    Recorded: {format(new Date(assessment.created_at), "MMM dd, yyyy 'at' h:mm a")}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
