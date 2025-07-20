@@ -622,7 +622,9 @@ const StaffManager = () => {
                     <p className="text-sm text-muted-foreground mb-3">
                       Or select specific services this staff member can access:
                     </p>
-                    {services.map((service) => (
+                    {services.filter(service => 
+                      !service.name.toLowerCase().includes('general consultation')
+                    ).map((service) => (
                       <div key={service.id} className="flex items-center space-x-2 mb-3">
                         <Checkbox
                           id={service.id}
@@ -649,6 +651,44 @@ const StaffManager = () => {
                         </Label>
                       </div>
                     ))}
+                    
+                    {/* Additional Data Access Permissions */}
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Data access permissions:
+                      </p>
+                      {[
+                        { id: 'immunizations', name: 'Immunizations', description: 'Access to patient immunization records' },
+                        { id: 'history', name: 'History', description: 'Access to patient history and records' },
+                        { id: 'complaints', name: 'Complaints', description: 'Access to patient complaints' },
+                        { id: 'prognosis', name: 'Prognosis', description: 'Access to patient prognosis data' },
+                        { id: 'prescriptions', name: 'Prescriptions', description: 'Access to patient prescriptions' }
+                      ].map((permission) => (
+                        <div key={permission.id} className="flex items-center space-x-2 mb-3">
+                          <Checkbox
+                            id={permission.id}
+                            checked={selectedServiceIds.includes(permission.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedServiceIds([...selectedServiceIds, permission.id]);
+                              } else {
+                                setSelectedServiceIds(
+                                  selectedServiceIds.filter((id) => id !== permission.id)
+                                );
+                              }
+                            }}
+                          />
+                          <Label htmlFor={permission.id} className="flex-1">
+                            <div>
+                              <div className="font-medium">{permission.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {permission.description}
+                              </div>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
