@@ -20,7 +20,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Stethoscope, Mail, Phone } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Edit, Trash2, Stethoscope, Mail, Phone, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,11 +43,24 @@ interface Doctor {
   created_at: string;
 }
 
+interface Staff {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  professional_capacity: string;
+  is_active: boolean;
+}
+
 const DoctorsManager = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [availableStaff, setAvailableStaff] = useState<Staff[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [createFromStaff, setCreateFromStaff] = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState<string>("");
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -55,6 +75,7 @@ const DoctorsManager = () => {
 
   useEffect(() => {
     fetchDoctors();
+    fetchAvailableStaff();
   }, []);
 
   const fetchDoctors = async () => {
@@ -75,49 +96,101 @@ const DoctorsManager = () => {
     }
   };
 
+  const fetchAvailableStaff = async () => {
+    try {
+      // Get existing doctor emails to exclude them
+      const { data: doctors } = await supabase
+        .from("doctors")
+        .select("email");
+      
+      const doctorEmails = doctors?.map(d => d.email).filter(Boolean) || [];
+      
+      // Get staff members who could be doctors
+      const { data, error } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("is_active", true)
+        .in("professional_capacity", ["doctor", "administration"])
+        .not("email", "in", `(${doctorEmails.map(e => `"${e}"`).join(",")})`);
+
+      if (error) throw error;
+      setAvailableStaff(data || []);
+    } catch (error: any) {
+      console.error("Error fetching available staff:", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Clean up empty strings to null for optional fields
-      const cleanFormData = {
-        ...formData,
-        license_number: formData.license_number || null,
-        specialization: formData.specialization || null,
-        phone: formData.phone || null,
-        email: formData.email || null,
-      };
+      if (createFromStaff && selectedStaffId && !editingDoctor) {
+        // Create doctor from existing staff member
+        const selectedStaff = availableStaff.find(s => s.id === selectedStaffId);
+        if (!selectedStaff) throw new Error("Selected staff member not found");
 
-      if (editingDoctor) {
+        const doctorData = {
+          first_name: selectedStaff.first_name,
+          last_name: selectedStaff.last_name,
+          email: selectedStaff.email,
+          phone: selectedStaff.phone,
+          license_number: formData.license_number || null,
+          specialization: formData.specialization || null,
+          is_active: true,
+        };
+
         const { error } = await supabase
           .from("doctors")
-          .update(cleanFormData)
-          .eq("id", editingDoctor.id);
+          .insert([doctorData]);
 
         if (error) throw error;
 
         toast({
-          title: "Doctor updated",
-          description: "Doctor profile has been successfully updated.",
+          title: "Doctor created from staff",
+          description: "Staff member has been successfully added as a doctor.",
         });
       } else {
-        const { error } = await supabase
-          .from("doctors")
-          .insert([cleanFormData]);
+        // Clean up empty strings to null for optional fields
+        const cleanFormData = {
+          ...formData,
+          license_number: formData.license_number || null,
+          specialization: formData.specialization || null,
+          phone: formData.phone || null,
+          email: formData.email || null,
+        };
 
-        if (error) throw error;
+        if (editingDoctor) {
+          const { error } = await supabase
+            .from("doctors")
+            .update(cleanFormData)
+            .eq("id", editingDoctor.id);
 
-        toast({
-          title: "Doctor created",
-          description: "New doctor profile has been successfully created.",
-        });
+          if (error) throw error;
+
+          toast({
+            title: "Doctor updated",
+            description: "Doctor profile has been successfully updated.",
+          });
+        } else {
+          const { error } = await supabase
+            .from("doctors")
+            .insert([cleanFormData]);
+
+          if (error) throw error;
+
+          toast({
+            title: "Doctor created",
+            description: "New doctor profile has been successfully created.",
+          });
+        }
       }
 
       setIsDialogOpen(false);
       setEditingDoctor(null);
       resetForm();
       fetchDoctors();
+      fetchAvailableStaff();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -176,12 +249,28 @@ const DoctorsManager = () => {
       email: "",
       is_active: true,
     });
+    setCreateFromStaff(false);
+    setSelectedStaffId("");
   };
 
   const openCreateDialog = () => {
     setEditingDoctor(null);
     resetForm();
     setIsDialogOpen(true);
+  };
+
+  const handleStaffSelection = (staffId: string) => {
+    setSelectedStaffId(staffId);
+    const selectedStaff = availableStaff.find(s => s.id === staffId);
+    if (selectedStaff) {
+      setFormData(prev => ({
+        ...prev,
+        first_name: selectedStaff.first_name,
+        last_name: selectedStaff.last_name,
+        email: selectedStaff.email,
+        phone: selectedStaff.phone || "",
+      }));
+    }
   };
 
   return (
@@ -194,110 +283,181 @@ const DoctorsManager = () => {
             Manage healthcare provider profiles and specializations
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreateDialog} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Doctor
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingDoctor ? "Edit Doctor" : "Add New Doctor"}
-              </DialogTitle>
-              <DialogDescription>
-                {editingDoctor 
-                  ? "Update the doctor's profile information below."
-                  : "Create a new doctor profile for health fair services."
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-2">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreateDialog} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add New Doctor
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingDoctor ? "Edit Doctor" : "Add Doctor"}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingDoctor 
+                    ? "Update the doctor's profile information below."
+                    : createFromStaff
+                    ? "Select an existing staff member to add as a doctor."
+                    : "Create a new doctor profile or select from existing staff."
+                  }
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!editingDoctor && (
+                  <div className="flex gap-2 mb-4">
+                    <Button
+                      type="button"
+                      variant={!createFromStaff ? "default" : "outline"}
+                      onClick={() => {
+                        setCreateFromStaff(false);
+                        resetForm();
+                      }}
+                      className="flex-1"
+                    >
+                      Create New
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={createFromStaff ? "default" : "outline"}
+                      onClick={() => setCreateFromStaff(true)}
+                      className="flex-1"
+                      disabled={availableStaff.length === 0}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      From Staff
+                    </Button>
+                  </div>
+                )}
+
+                {createFromStaff && !editingDoctor && (
+                  <div className="space-y-2">
+                    <Label htmlFor="staff_select">Select Staff Member</Label>
+                    <Select value={selectedStaffId} onValueChange={handleStaffSelection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a staff member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableStaff.map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            {staff.first_name} {staff.last_name} ({staff.professional_capacity})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {(!createFromStaff || editingDoctor) && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="first_name">First Name</Label>
+                        <Input
+                          id="first_name"
+                          value={formData.first_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                          placeholder="John"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="last_name">Last Name</Label>
+                        <Input
+                          id="last_name"
+                          value={formData.last_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                          placeholder="Smith"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="(555) 123-4567"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="doctor@hospital.com"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {(createFromStaff && selectedStaffId) && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-2">Selected Staff Member:</p>
+                    <p className="font-medium">
+                      {availableStaff.find(s => s.id === selectedStaffId)?.first_name}{" "}
+                      {availableStaff.find(s => s.id === selectedStaffId)?.last_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {availableStaff.find(s => s.id === selectedStaffId)?.email}
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name</Label>
+                  <Label htmlFor="license_number">License Number</Label>
                   <Input
-                    id="first_name"
-                    value={formData.first_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
-                    placeholder="John"
-                    required
+                    id="license_number"
+                    value={formData.license_number}
+                    onChange={(e) => setFormData(prev => ({ ...prev, license_number: e.target.value }))}
+                    placeholder="MD123456"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name</Label>
+                  <Label htmlFor="specialization">Specialization</Label>
                   <Input
-                    id="last_name"
-                    value={formData.last_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
-                    placeholder="Smith"
-                    required
+                    id="specialization"
+                    value={formData.specialization}
+                    onChange={(e) => setFormData(prev => ({ ...prev, specialization: e.target.value }))}
+                    placeholder="Cardiology, Family Medicine, etc."
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="license_number">License Number</Label>
-                <Input
-                  id="license_number"
-                  value={formData.license_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, license_number: e.target.value }))}
-                  placeholder="MD123456"
-                />
-              </div>
+                {(!createFromStaff || editingDoctor) && (
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="is_active"
+                      checked={formData.is_active}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                    />
+                    <Label htmlFor="is_active">Active</Label>
+                  </div>
+                )}
 
-              <div className="space-y-2">
-                <Label htmlFor="specialization">Specialization</Label>
-                <Input
-                  id="specialization"
-                  value={formData.specialization}
-                  onChange={(e) => setFormData(prev => ({ ...prev, specialization: e.target.value }))}
-                  placeholder="Cardiology, Family Medicine, etc."
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="doctor@hospital.com"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                />
-                <Label htmlFor="is_active">Active</Label>
-              </div>
-
-              <DialogFooter>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Saving..." : (editingDoctor ? "Update" : "Create")}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading || (createFromStaff && !selectedStaffId && !editingDoctor)}
+                  >
+                    {isLoading ? "Saving..." : (editingDoctor ? "Update" : "Create")}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Doctors Table */}
