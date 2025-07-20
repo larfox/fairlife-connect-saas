@@ -1029,6 +1029,64 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="medication">Medication</Label>
+                          <Input
+                            id="medication"
+                            placeholder="Medication name"
+                            value={newPrescription.medication}
+                            onChange={(e) => setNewPrescription({...newPrescription, medication: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dosage">Dosage</Label>
+                          <Input
+                            id="dosage"
+                            placeholder="e.g., 500mg"
+                            value={newPrescription.dosage}
+                            onChange={(e) => setNewPrescription({...newPrescription, dosage: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="frequency">Frequency</Label>
+                          <Input
+                            id="frequency"
+                            placeholder="e.g., Twice daily"
+                            value={newPrescription.frequency}
+                            onChange={(e) => setNewPrescription({...newPrescription, frequency: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="duration">Duration</Label>
+                          <Input
+                            id="duration"
+                            placeholder="e.g., 7 days"
+                            value={newPrescription.duration}
+                            onChange={(e) => setNewPrescription({...newPrescription, duration: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="instructions">Instructions</Label>
+                        <Textarea
+                          id="instructions"
+                          placeholder="Special instructions..."
+                          value={newPrescription.instructions}
+                          onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Add Prescription
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
                   <div className="space-y-3">
                     <h4 className="font-medium">Current Prescriptions</h4>
                     {prescriptions.length > 0 ? (
@@ -1065,6 +1123,44 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="ecg_result">ECG Result</Label>
+                        <Input
+                          id="ecg_result"
+                          placeholder="e.g., Normal sinus rhythm"
+                          value={newEcgResult.result}
+                          onChange={(e) => setNewEcgResult({...newEcgResult, result: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="interpretation">Interpretation</Label>
+                        <Textarea
+                          id="interpretation"
+                          placeholder="Clinical interpretation..."
+                          value={newEcgResult.interpretation}
+                          onChange={(e) => setNewEcgResult({...newEcgResult, interpretation: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ecg_notes">Notes</Label>
+                        <Textarea
+                          id="ecg_notes"
+                          placeholder="Additional notes..."
+                          value={newEcgResult.notes}
+                          onChange={(e) => setNewEcgResult({...newEcgResult, notes: e.target.value})}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save ECG Result
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
                   <div className="space-y-3">
                     <h4 className="font-medium">Previous ECG Results</h4>
                     {ecgResults.length > 0 ? (
@@ -1101,6 +1197,49 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="vision_test">Vision Test Results</Label>
+                        <Textarea
+                          id="vision_test"
+                          placeholder="Enter vision test results (e.g., 20/20, 20/40)..."
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="eye_pressure">Eye Pressure (mmHg)</Label>
+                        <Input
+                          id="eye_pressure"
+                          type="number"
+                          placeholder="Enter eye pressure reading"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="prescription_needed">Prescription</Label>
+                        <Textarea
+                          id="prescription_needed"
+                          placeholder="Enter prescription details if needed..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="optician_notes">Optician Notes</Label>
+                        <Textarea
+                          id="optician_notes"
+                          placeholder="Additional assessment notes..."
+                          rows={3}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save Optician Assessment
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
                   <div className="space-y-3">
                     <h4 className="font-medium">Previous Assessments</h4>
                     <p className="text-muted-foreground">No previous optician assessments recorded.</p>
@@ -1120,6 +1259,57 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="oral_health">Oral Health Assessment</Label>
+                        <Textarea
+                          id="oral_health"
+                          placeholder="Overall oral health condition..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="teeth_condition">Teeth Condition</Label>
+                        <Textarea
+                          id="teeth_condition"
+                          placeholder="Condition of teeth, cavities, etc..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="gum_health">Gum Health</Label>
+                        <Textarea
+                          id="gum_health"
+                          placeholder="Gum condition and health assessment..."
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="dental_recommendations">Recommendations</Label>
+                        <Textarea
+                          id="dental_recommendations"
+                          placeholder="Treatment recommendations, referrals, etc..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="dental_notes">Dental Notes</Label>
+                        <Textarea
+                          id="dental_notes"
+                          placeholder="Additional dental assessment notes..."
+                          rows={3}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Save Dental Assessment
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
                   <div className="space-y-3">
                     <h4 className="font-medium">Previous Assessments</h4>
                     <p className="text-muted-foreground">No previous dental assessments recorded.</p>
@@ -1140,23 +1330,82 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                </PermissionWrapper>
              </TabsContent>
 
-            <TabsContent value="back-to-school" className="space-y-4">
-              <PermissionWrapper tabName="back-to-school">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Back to School Assessment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-muted-foreground">
-                    Back to school assessment forms and clearance documentation will be displayed here.
-                  </p>
-                </CardContent>
-              </Card>
-              </PermissionWrapper>
-            </TabsContent>
+             <TabsContent value="back-to-school" className="space-y-4">
+               <PermissionWrapper tabName="back-to-school">
+               <Card>
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2">
+                     <FileText className="h-5 w-5" />
+                     Back to School Assessment
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent className="space-y-4">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                       <Label htmlFor="school_clearance">Medical Clearance for School</Label>
+                       <Select>
+                         <SelectTrigger>
+                           <SelectValue placeholder="Select clearance status" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="cleared">Cleared for School</SelectItem>
+                           <SelectItem value="restrictions">Cleared with Restrictions</SelectItem>
+                           <SelectItem value="not_cleared">Not Cleared</SelectItem>
+                           <SelectItem value="pending">Pending Further Assessment</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </div>
+                     <div>
+                       <Label htmlFor="vaccination_status">Vaccination Status</Label>
+                       <Select>
+                         <SelectTrigger>
+                           <SelectValue placeholder="Select vaccination status" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="up_to_date">Up to Date</SelectItem>
+                           <SelectItem value="incomplete">Incomplete</SelectItem>
+                           <SelectItem value="needs_update">Needs Update</SelectItem>
+                           <SelectItem value="exemption">Medical Exemption</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </div>
+                   </div>
+                   
+                   <div>
+                     <Label htmlFor="physical_fitness">Physical Fitness Assessment</Label>
+                     <Textarea
+                       id="physical_fitness"
+                       placeholder="Assessment of student's physical fitness for school activities..."
+                       rows={3}
+                     />
+                   </div>
+                   
+                   <div>
+                     <Label htmlFor="special_accommodations">Special Accommodations Needed</Label>
+                     <Textarea
+                       id="special_accommodations"
+                       placeholder="Any special accommodations required for the student..."
+                       rows={3}
+                     />
+                   </div>
+                   
+                   <div>
+                     <Label htmlFor="school_notes">Additional Notes</Label>
+                     <Textarea
+                       id="school_notes"
+                       placeholder="Additional notes or recommendations for school..."
+                       rows={3}
+                     />
+                   </div>
+                   
+                   <Button className="gap-2">
+                     <Save className="h-4 w-4" />
+                     Save Assessment
+                   </Button>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
 
             <TabsContent value="immunizations" className="space-y-4">
               <PermissionWrapper tabName="immunizations">
@@ -1168,6 +1417,83 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {currentVisit && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="vaccine_name">Vaccine Name</Label>
+                          <Input
+                            id="vaccine_name"
+                            placeholder="e.g., MMR, Tetanus, etc."
+                            value={newImmunization.vaccine_name}
+                            onChange={(e) => setNewImmunization({...newImmunization, vaccine_name: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dose_number">Dose Number</Label>
+                          <Input
+                            id="dose_number"
+                            type="number"
+                            placeholder="e.g., 1, 2, 3"
+                            value={newImmunization.dose_number}
+                            onChange={(e) => setNewImmunization({...newImmunization, dose_number: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="vaccine_date">Vaccination Date</Label>
+                          <Input
+                            id="vaccine_date"
+                            type="date"
+                            value={newImmunization.vaccine_date}
+                            onChange={(e) => setNewImmunization({...newImmunization, vaccine_date: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="lot_number">Lot Number</Label>
+                          <Input
+                            id="lot_number"
+                            placeholder="Vaccine lot number"
+                            value={newImmunization.lot_number}
+                            onChange={(e) => setNewImmunization({...newImmunization, lot_number: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="expiration_date">Expiration Date</Label>
+                          <Input
+                            id="expiration_date"
+                            type="date"
+                            value={newImmunization.expiration_date}
+                            onChange={(e) => setNewImmunization({...newImmunization, expiration_date: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="site_of_injection">Site of Injection</Label>
+                          <Input
+                            id="site_of_injection"
+                            placeholder="e.g., Left arm, Right thigh"
+                            value={newImmunization.site_of_injection}
+                            onChange={(e) => setNewImmunization({...newImmunization, site_of_injection: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="immunization_notes">Notes</Label>
+                        <Textarea
+                          id="immunization_notes"
+                          placeholder="Any reactions, notes, or additional information..."
+                          value={newImmunization.notes}
+                          onChange={(e) => setNewImmunization({...newImmunization, notes: e.target.value})}
+                        />
+                      </div>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Record Immunization
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
                   <div className="space-y-3">
                     <h4 className="font-medium">Immunization History</h4>
                     {immunizations.length > 0 ? (
