@@ -813,18 +813,18 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-11">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="screening">Screening</TabsTrigger>
-              <TabsTrigger value="complaints">Complaints</TabsTrigger>
-              <TabsTrigger value="prognosis">Prognosis</TabsTrigger>
-              <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
-              <TabsTrigger value="ecg">ECG Results</TabsTrigger>
-              <TabsTrigger value="optician">Optician</TabsTrigger>
-              <TabsTrigger value="dental">Dental</TabsTrigger>
-              <TabsTrigger value="pap-smears">PAP Smears</TabsTrigger>
-              <TabsTrigger value="immunizations">Immunizations</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-11 text-xs h-auto">
+              <TabsTrigger value="overview" className="text-xs px-2 py-1 text-center whitespace-normal">Overview</TabsTrigger>
+              <TabsTrigger value="screening" className="text-xs px-2 py-1 text-center whitespace-normal">Screening</TabsTrigger>
+              <TabsTrigger value="complaints-prognosis" className="text-xs px-2 py-1 text-center whitespace-normal">Complaints & Prognosis</TabsTrigger>
+              <TabsTrigger value="prescriptions" className="text-xs px-2 py-1 text-center whitespace-normal">Prescriptions</TabsTrigger>
+              <TabsTrigger value="ecg" className="text-xs px-2 py-1 text-center whitespace-normal">ECG Results</TabsTrigger>
+              <TabsTrigger value="optician" className="text-xs px-2 py-1 text-center whitespace-normal">Optician</TabsTrigger>
+              <TabsTrigger value="dental" className="text-xs px-2 py-1 text-center whitespace-normal">Dental</TabsTrigger>
+              <TabsTrigger value="pap-smears" className="text-xs px-2 py-1 text-center whitespace-normal">PAP Smears</TabsTrigger>
+              <TabsTrigger value="back-to-school" className="text-xs px-2 py-1 text-center whitespace-normal">Back to School</TabsTrigger>
+              <TabsTrigger value="immunizations" className="text-xs px-2 py-1 text-center whitespace-normal">Immunizations</TabsTrigger>
+              <TabsTrigger value="history" className="text-xs px-2 py-1 text-center whitespace-normal">History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
@@ -1113,143 +1113,145 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               </Card>
             </TabsContent>
 
-            <TabsContent value="complaints" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Patient Complaints
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentVisit && (
-                    <div className="space-y-3">
-                      <Label>Add New Complaint</Label>
-                      <Textarea
-                        placeholder="Describe the patient's complaint..."
-                        value={newComplaint.text}
-                        onChange={(e) => setNewComplaint({...newComplaint, text: e.target.value})}
-                      />
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <Label>Severity:</Label>
-                          <select 
-                            value={newComplaint.severity}
-                            onChange={(e) => setNewComplaint({...newComplaint, severity: e.target.value})}
-                            className="border rounded px-2 py-1"
-                          >
-                            <option value="mild">Mild</option>
-                            <option value="moderate">Moderate</option>
-                            <option value="severe">Severe</option>
-                          </select>
-                        </div>
-                        <Button onClick={saveComplaint} className="gap-2">
-                          <Save className="h-4 w-4" />
-                          Save Complaint
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Previous Complaints</h4>
-                    {complaints.length > 0 ? (
-                      complaints.map((complaint) => (
-                        <div key={complaint.id} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <Badge variant="outline">{complaint.severity}</Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {new Date(complaint.created_at).toLocaleString()}
-                            </span>
+            <TabsContent value="complaints-prognosis" className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Complaints Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Patient Complaints
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {currentVisit && (
+                      <div className="space-y-3">
+                        <Label>Add New Complaint</Label>
+                        <Textarea
+                          placeholder="Describe the patient's complaint..."
+                          value={newComplaint.text}
+                          onChange={(e) => setNewComplaint({...newComplaint, text: e.target.value})}
+                        />
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Label>Severity:</Label>
+                            <select 
+                              value={newComplaint.severity}
+                              onChange={(e) => setNewComplaint({...newComplaint, severity: e.target.value})}
+                              className="border rounded px-2 py-1"
+                            >
+                              <option value="mild">Mild</option>
+                              <option value="moderate">Moderate</option>
+                              <option value="severe">Severe</option>
+                            </select>
                           </div>
-                          <p>{complaint.complaint_text}</p>
+                          <Button onClick={saveComplaint} className="gap-2">
+                            <Save className="h-4 w-4" />
+                            Save Complaint
+                          </Button>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No complaints recorded.</p>
+                      </div>
                     )}
-                  </div>
-                  
-                  {/* Health Professional Selector */}
-                  <HealthProfessionalSelector 
-                    field="complaints_professional" 
-                    label="Assigned Health Professional" 
-                    type="both" 
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            <TabsContent value="prognosis" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Medical Prognosis
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentVisit && (
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="diagnosis">Diagnosis</Label>
-                        <Textarea
-                          id="diagnosis"
-                          placeholder="Enter diagnosis..."
-                          value={prognosisData.diagnosis}
-                          onChange={(e) => setPrognosisData({...prognosisData, diagnosis: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="treatment_plan">Treatment Plan</Label>
-                        <Textarea
-                          id="treatment_plan"
-                          placeholder="Enter treatment plan..."
-                          value={prognosisData.treatment_plan}
-                          onChange={(e) => setPrognosisData({...prognosisData, treatment_plan: e.target.value})}
-                        />
-                      </div>
+                    <Separator />
 
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="follow_up_required"
-                          checked={prognosisData.follow_up_required}
-                          onChange={(e) => setPrognosisData({...prognosisData, follow_up_required: e.target.checked})}
-                        />
-                        <Label htmlFor="follow_up_required">Follow-up required</Label>
-                      </div>
+                    <div className="space-y-3">
+                      <h4 className="font-medium">Previous Complaints</h4>
+                      {complaints.length > 0 ? (
+                        complaints.map((complaint) => (
+                          <div key={complaint.id} className="p-3 border rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <Badge variant="outline">{complaint.severity}</Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {new Date(complaint.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <p>{complaint.complaint_text}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No complaints recorded.</p>
+                      )}
+                    </div>
+                    
+                    {/* Health Professional Selector */}
+                    <HealthProfessionalSelector 
+                      field="complaints_professional" 
+                      label="Assigned Health Professional" 
+                      type="both" 
+                    />
+                  </CardContent>
+                </Card>
 
-                      {prognosisData.follow_up_required && (
+                {/* Prognosis Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Medical Prognosis
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {currentVisit && (
+                      <div className="space-y-4">
                         <div>
-                          <Label htmlFor="follow_up_notes">Follow-up Notes</Label>
+                          <Label htmlFor="diagnosis">Diagnosis</Label>
                           <Textarea
-                            id="follow_up_notes"
-                            placeholder="Enter follow-up instructions..."
-                            value={prognosisData.follow_up_notes}
-                            onChange={(e) => setPrognosisData({...prognosisData, follow_up_notes: e.target.value})}
+                            id="diagnosis"
+                            placeholder="Enter diagnosis..."
+                            value={prognosisData.diagnosis}
+                            onChange={(e) => setPrognosisData({...prognosisData, diagnosis: e.target.value})}
                           />
                         </div>
-                      )}
+                        
+                        <div>
+                          <Label htmlFor="treatment_plan">Treatment Plan</Label>
+                          <Textarea
+                            id="treatment_plan"
+                            placeholder="Enter treatment plan..."
+                            value={prognosisData.treatment_plan}
+                            onChange={(e) => setPrognosisData({...prognosisData, treatment_plan: e.target.value})}
+                          />
+                        </div>
 
-                      <Button onClick={savePrognosis} className="gap-2">
-                        <Save className="h-4 w-4" />
-                        Save Prognosis
-                      </Button>
-                    </div>
-                  )}
-                  
-                   {/* Health Professional Selector */}
-                   <HealthProfessionalSelector 
-                     field="prognosis_doctor" 
-                     label="Assigned Doctor" 
-                     type="doctor" 
-                   />
-                </CardContent>
-              </Card>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="follow_up_required"
+                            checked={prognosisData.follow_up_required}
+                            onChange={(e) => setPrognosisData({...prognosisData, follow_up_required: e.target.checked})}
+                          />
+                          <Label htmlFor="follow_up_required">Follow-up required</Label>
+                        </div>
+
+                        {prognosisData.follow_up_required && (
+                          <div>
+                            <Label htmlFor="follow_up_notes">Follow-up Notes</Label>
+                            <Textarea
+                              id="follow_up_notes"
+                              placeholder="Enter follow-up instructions..."
+                              value={prognosisData.follow_up_notes}
+                              onChange={(e) => setPrognosisData({...prognosisData, follow_up_notes: e.target.value})}
+                            />
+                          </div>
+                        )}
+
+                        <Button onClick={savePrognosis} className="gap-2">
+                          <Save className="h-4 w-4" />
+                          Save Prognosis
+                        </Button>
+                      </div>
+                    )}
+                    
+                     {/* Health Professional Selector */}
+                     <HealthProfessionalSelector 
+                       field="prognosis_doctor" 
+                       label="Assigned Doctor" 
+                       type="doctor" 
+                     />
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="prescriptions" className="space-y-4">
@@ -1579,6 +1581,106 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                   eventDate={currentVisit.visit_date}
                 />
               )}
+            </TabsContent>
+
+            <TabsContent value="back-to-school" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Back to School Assessment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="school_clearance">Medical Clearance for School</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select clearance status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cleared">Cleared for School</SelectItem>
+                          <SelectItem value="restrictions">Cleared with Restrictions</SelectItem>
+                          <SelectItem value="not_cleared">Not Cleared</SelectItem>
+                          <SelectItem value="pending">Pending Further Assessment</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="vaccination_status">Vaccination Status</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select vaccination status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="up_to_date">Up to Date</SelectItem>
+                          <SelectItem value="incomplete">Incomplete</SelectItem>
+                          <SelectItem value="medical_exemption">Medical Exemption</SelectItem>
+                          <SelectItem value="religious_exemption">Religious Exemption</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="required_immunizations">Required Immunizations</Label>
+                    <Textarea
+                      id="required_immunizations"
+                      placeholder="List any immunizations required for school enrollment..."
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="physical_restrictions">Physical Activity Restrictions</Label>
+                    <Textarea
+                      id="physical_restrictions"
+                      placeholder="Note any restrictions for physical education or sports activities..."
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="dietary_restrictions">Dietary Restrictions/Allergies</Label>
+                    <Textarea
+                      id="dietary_restrictions"
+                      placeholder="Note any dietary restrictions or food allergies for school meals..."
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="emergency_medications">Emergency Medications</Label>
+                    <Textarea
+                      id="emergency_medications"
+                      placeholder="List any emergency medications that should be available at school (e.g., inhalers, EpiPens)..."
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="school_health_notes">Additional Health Notes for School</Label>
+                    <Textarea
+                      id="school_health_notes"
+                      placeholder="Any additional health information the school should be aware of..."
+                      rows={4}
+                    />
+                  </div>
+                  
+                  <Button className="gap-2">
+                    <Save className="h-4 w-4" />
+                    Save Back to School Assessment
+                  </Button>
+                  
+                  {/* Health Professional Selector */}
+                  <HealthProfessionalSelector 
+                    field="school_clearance_doctor" 
+                    label="Assessing Doctor" 
+                    type="doctor" 
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="immunizations" className="space-y-4">
