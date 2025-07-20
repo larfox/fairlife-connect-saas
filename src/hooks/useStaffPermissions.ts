@@ -23,10 +23,50 @@ const SERVICE_TAB_MAPPING = {
   'history': 'History'
 };
 
-// Global cache and request deduplication
+// Global cache and request deduplication with localStorage persistence
 const permissionsCache = new Map<string, { data: StaffPermissions; timestamp: number }>();
 const activeRequests = new Map<string, Promise<StaffPermissions>>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes - longer cache to prevent rate limiting
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours - persist throughout the day
+
+// Helper functions for localStorage persistence
+const getStoredPermissions = (email: string): { data: StaffPermissions; timestamp: number } | null => {
+  try {
+    const stored = localStorage.getItem(`staff_permissions_${email}`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Reconstruct the canAccessTab function
+      if (parsed.data) {
+        parsed.data.canAccessTab = (tabName: string): boolean => {
+          if (tabName === 'overview' || tabName === 'screening') return true;
+          if (parsed.data.isAdmin) return true;
+          const serviceName = SERVICE_TAB_MAPPING[tabName as keyof typeof SERVICE_TAB_MAPPING];
+          return parsed.data.allowedServices.includes(serviceName);
+        };
+      }
+      return parsed;
+    }
+  } catch (error) {
+    console.error('Error reading stored permissions:', error);
+  }
+  return null;
+};
+
+const storePermissions = (email: string, data: StaffPermissions, timestamp: number) => {
+  try {
+    // Store everything except the function
+    const toStore = {
+      data: {
+        isAdmin: data.isAdmin,
+        isActive: data.isActive,
+        allowedServices: data.allowedServices
+      },
+      timestamp
+    };
+    localStorage.setItem(`staff_permissions_${email}`, JSON.stringify(toStore));
+  } catch (error) {
+    console.error('Error storing permissions:', error);
+  }
+};
 
 export const useStaffPermissions = (user: User | null): StaffPermissions => {
   const [permissions, setPermissions] = useState<StaffPermissions>({
@@ -53,8 +93,20 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
       return;
     }
 
-    // Check cache first
-    const cached = permissionsCache.get(user.email);
+    // Check memory cache first
+    let cached = permissionsCache.get(user.email);
+    
+    // If not in memory, check localStorage
+    if (!cached) {
+      const stored = getStoredPermissions(user.email);
+      if (stored && Date.now() - stored.timestamp < CACHE_DURATION) {
+        cached = stored;
+        // Put it back in memory cache for faster access
+        permissionsCache.set(user.email, cached);
+      }
+    }
+    
+    // Use cached permissions if valid
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       setPermissions(cached.data);
       return;
@@ -130,8 +182,12 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           canAccessTab
         };
 
-        // Cache the results
-        permissionsCache.set(user.email, { data: newPermissions, timestamp: Date.now() });
+        const timestamp = Date.now();
+        
+        // Cache the results in both memory and localStorage
+        permissionsCache.set(user.email, { data: newPermissions, timestamp });
+        storePermissions(user.email, newPermissions, timestamp);
+        
         return newPermissions;
 
       } catch (error) {
