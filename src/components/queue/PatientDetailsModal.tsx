@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import PapSmearTab from "../patient/PapSmearTab";
 
 
 
@@ -814,7 +815,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-10">
+            <TabsList className="grid w-full grid-cols-11">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="complaints">Complaints</TabsTrigger>
@@ -823,6 +824,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
               <TabsTrigger value="ecg">ECG Results</TabsTrigger>
               <TabsTrigger value="optician">Optician</TabsTrigger>
               <TabsTrigger value="dental">Dental</TabsTrigger>
+              <TabsTrigger value="pap-smears">PAP Smears</TabsTrigger>
               <TabsTrigger value="immunizations">Immunizations</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
@@ -1570,6 +1572,12 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                    />
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="pap-smears" className="space-y-4">
+              {currentVisit && (
+                <PapSmearTab patientVisitId={currentVisit.id} />
+              )}
             </TabsContent>
 
             <TabsContent value="immunizations" className="space-y-4">
