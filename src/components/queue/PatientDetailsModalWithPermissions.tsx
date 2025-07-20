@@ -288,10 +288,10 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                 <TabsTrigger 
                   key={tab.id} 
                   value={tab.id}
-                  className="flex items-center gap-1 text-xs"
+                  className="flex flex-col items-center gap-1 text-xs whitespace-normal text-center p-2 min-h-[3rem]"
                 >
-                  <tab.icon className="h-3 w-3" />
-                  {tab.label}
+                  <tab.icon className="h-3 w-3 shrink-0" />
+                  <span className="leading-tight">{tab.label}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
