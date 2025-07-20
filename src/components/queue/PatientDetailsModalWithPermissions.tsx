@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   User,
   AlertTriangle,
@@ -98,11 +99,10 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
     assessment_notes: "",
     optician_id: ""
   });
-  
+
   // Dental assessment state
   const [dentalAssessments, setDentalAssessments] = useState<any[]>([]);
   const [newDentalAssessment, setNewDentalAssessment] = useState({
-    oral_health_assessment: "",
     teeth_condition: "",
     gum_health: "",
     recommendations: "",
@@ -113,537 +113,304 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
   // Back to school assessment state
   const [backToSchoolAssessments, setBackToSchoolAssessments] = useState<any[]>([]);
   const [newBackToSchoolAssessment, setNewBackToSchoolAssessment] = useState({
-    medical_clearance: "",
-    vaccination_status: "",
-    physical_fitness: "",
-    special_accommodations: "",
-    additional_notes: ""
-  });
-  
-  const permissions = useStaffPermissions(user);
-  
-  // Health professionals and assignments
-  const [availableDoctors, setAvailableDoctors] = useState<any[]>([]);
-  const [availableNurses, setAvailableNurses] = useState<any[]>([]);
-  const [healthProfessionalAssignments, setHealthProfessionalAssignments] = useState({
-    screening_nurse: "",
-    complaints_professional: "",
-    prognosis_doctor: "",
-    prescriptions_doctor: "",
-    ecg_doctor: "",
-    optician: "",
-    dental_professional: "",
-    immunizations_administrator: ""
+    height: "",
+    weight: "",
+    bmi: "",
+    vision_screening: "",
+    hearing_screening: "",
+    general_health_status: "",
+    notes: "",
+    examining_professional_id: ""
   });
   
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { 
+    userRole, 
+    canViewTab, 
+    canEditTab, 
+    canAddData,
+    canViewData,
+    checkTabAccess,
+    checkDataAccess,
+    formatTabName,
+    getTabPermissions,
+    isStaff,
+    isDoctor,
+    isNurse,
+    hasEditAccess,
+    hasViewAccess,
+    getSpecificPermissions,
+    hasPermission,
+    hasAnyPermission
+  } = useStaffPermissions();
+
+  const fetchPatientData = async () => {
+    if (!currentVisit?.id) return;
+
+    try {
+      // Fetch all the data for the current visit
+      const [
+        complaintsResult,
+        prognosisResult,
+        basicScreeningResult,
+        prescriptionsResult,
+        ecgResult,
+        immunizationsResult,
+        opticianResult,
+        dentalResult,
+        backToSchoolResult
+      ] = await Promise.all([
+        supabase.from('patient_complaints').select('*').eq('patient_visit_id', currentVisit.id),
+        supabase.from('patient_prognosis').select('*').eq('patient_visit_id', currentVisit.id).single(),
+        supabase.from('basic_screening').select('*').eq('patient_visit_id', currentVisit.id).single(),
+        supabase.from('patient_prescriptions').select('*').eq('patient_visit_id', currentVisit.id),
+        supabase.from('ecg_results').select('*').eq('patient_visit_id', currentVisit.id),
+        supabase.from('immunizations').select('*').eq('patient_visit_id', currentVisit.id),
+        supabase.from('optician_assessments').select('*').eq('patient_visit_id', currentVisit.id),
+        supabase.from('dental_assessments').select('*').eq('patient_visit_id', currentVisit.id),
+        supabase.from('back_to_school_assessments').select('*').eq('patient_visit_id', currentVisit.id)
+      ]);
+
+      if (complaintsResult.data) setComplaints(complaintsResult.data);
+      if (prognosisResult.data) setPrognosis(prognosisResult.data);
+      if (basicScreeningResult.data) {
+        setBasicScreening(basicScreeningResult.data);
+        setScreeningData({
+          weight: basicScreeningResult.data.weight || "",
+          height: basicScreeningResult.data.height || "",
+          blood_sugar: basicScreeningResult.data.blood_sugar || "",
+          heart_rate: basicScreeningResult.data.heart_rate || "",
+          oxygen_saturation: basicScreeningResult.data.oxygen_saturation || "",
+          blood_pressure_systolic: basicScreeningResult.data.blood_pressure_systolic || "",
+          blood_pressure_diastolic: basicScreeningResult.data.blood_pressure_diastolic || "",
+          cholesterol: basicScreeningResult.data.cholesterol || "",
+          notes: basicScreeningResult.data.notes || ""
+        });
+      }
+      if (prescriptionsResult.data) setPrescriptions(prescriptionsResult.data);
+      if (ecgResult.data) setEcgResults(ecgResult.data);
+      if (immunizationsResult.data) setImmunizations(immunizationsResult.data);
+      if (opticianResult.data) setOpticianAssessments(opticianResult.data);
+      if (dentalResult.data) setDentalAssessments(dentalResult.data);
+      if (backToSchoolResult.data) setBackToSchoolAssessments(backToSchoolResult.data);
+
+    } catch (error) {
+      console.error('Error fetching patient data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load patient data",
+        variant: "destructive"
+      });
+    }
+  };
 
   useEffect(() => {
-    // Get current user
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
-    });
+    };
+    getCurrentUser();
   }, []);
 
   useEffect(() => {
-    if (isOpen && patient) {
-      fetchAvailableHealthProfessionals();
+    const fetchVisitHistory = async () => {
+      if (!patient?.id) return;
+
+      try {
+        const { data: visits, error } = await supabase
+          .from('patient_visits')
+          .select(`
+            *,
+            events(name, event_date),
+            service_queue(
+              *,
+              services(name),
+              doctors(first_name, last_name),
+              nurses(first_name, last_name)
+            )
+          `)
+          .eq('patient_id', patient.id)
+          .order('visit_date', { ascending: false });
+
+        if (error) throw error;
+
+        setVisitHistory(visits || []);
+        
+        // Find current visit for this event
+        const currentEventVisit = visits?.find(visit => visit.event_id === eventId);
+        setCurrentVisit(currentEventVisit);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching visit history:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchVisitHistory();
+  }, [patient?.id, eventId]);
+
+  useEffect(() => {
+    if (currentVisit) {
       fetchPatientData();
     }
-  }, [isOpen, patient, eventId]);
+  }, [currentVisit]);
 
-  // Reset screening data when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setScreeningData({
-        weight: "",
-        height: "",
-        blood_sugar: "",
-        heart_rate: "",
-        oxygen_saturation: "",
-        blood_pressure_systolic: "",
-        blood_pressure_diastolic: "",
-        cholesterol: "",
-        notes: ""
-      });
+  const PermissionWrapper = ({ children, tabName }: { children: React.ReactNode; tabName: string }) => {
+    if (!canViewTab(tabName)) {
+      return (
+        <div className="text-center py-8">
+          <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">You don't have permission to view this section.</p>
+        </div>
+      );
     }
-  }, [isOpen]);
-
-  const fetchAvailableHealthProfessionals = async () => {
-    try {
-      console.log("Fetching health professionals for eventId:", eventId);
-      
-      // Fetch doctors assigned to this event
-      const { data: doctorsData, error: doctorsError } = await supabase
-        .from('event_doctors')
-        .select(`
-          doctors!inner(
-            id,
-            first_name,
-            last_name,
-            is_active
-          )
-        `)
-        .eq('event_id', eventId)
-        .eq('doctors.is_active', true);
-
-      console.log("Doctors data:", doctorsData, "Error:", doctorsError);
-
-      if (doctorsError) throw doctorsError;
-
-      // Fetch nurses assigned to this event
-      const { data: nursesData, error: nursesError } = await supabase
-        .from('event_nurses')
-        .select(`
-          nurses!inner(
-            id,
-            first_name,
-            last_name,
-            is_active
-          )
-        `)
-        .eq('event_id', eventId)
-        .eq('nurses.is_active', true);
-
-      console.log("Nurses data:", nursesData, "Error:", nursesError);
-
-      if (nursesError) throw nursesError;
-
-      // Extract doctors and nurses from the relationship data
-      const assignedDoctors = doctorsData?.map(ed => ed.doctors).filter(Boolean) || [];
-      const assignedNurses = nursesData?.map(en => en.nurses).filter(Boolean) || [];
-      
-      console.log("Assigned doctors:", assignedDoctors);
-      console.log("Assigned nurses:", assignedNurses);
-      
-      setAvailableDoctors(assignedDoctors);
-      setAvailableNurses(assignedNurses);
-    } catch (error) {
-      console.error("Error fetching health professionals:", error);
-    }
+    return <>{children}</>;
   };
 
-  const fetchPatientData = async () => {
+  // Helper functions for data operations
+  const saveScreeningData = async () => {
+    if (!currentVisit?.id) return;
+
     try {
-      setLoading(true);
-      
-      // Fetch visit history with service details
-      const { data: visits, error: visitsError } = await supabase
-        .from("patient_visits")
-        .select(`
-          *,
-          events (name, event_date),
-          service_queue (
-            *,
-            services (name),
-            doctors (first_name, last_name),
-            nurses (first_name, last_name)
-          ),
-          basic_screening (
-            bmi,
-            blood_pressure_systolic,
-            blood_pressure_diastolic,
-            notes
-          ),
-          patient_complaints (
-            complaint_text,
-            severity
-          ),
-          patient_prognosis (
-            diagnosis,
-            treatment_plan,
-            doctors (first_name, last_name)
-          )
-        `)
-        .eq("patient_id", patient.id)
-        .order("visit_date", { ascending: false });
+      const screeningRecord = {
+        patient_visit_id: currentVisit.id,
+        weight: screeningData.weight || null,
+        height: screeningData.height || null,
+        blood_sugar: screeningData.blood_sugar || null,
+        heart_rate: screeningData.heart_rate || null,
+        oxygen_saturation: screeningData.oxygen_saturation || null,
+        blood_pressure_systolic: screeningData.blood_pressure_systolic || null,
+        blood_pressure_diastolic: screeningData.blood_pressure_diastolic || null,
+        cholesterol: screeningData.cholesterol || null,
+        notes: screeningData.notes || null,
+        performed_by: user?.id
+      };
 
-      if (visitsError) throw visitsError;
-      setVisitHistory(visits || []);
+      if (basicScreening) {
+        const { error } = await supabase
+          .from('basic_screening')
+          .update(screeningRecord)
+          .eq('id', basicScreening.id);
 
-      // Find current visit for this event
-      const currentEventVisit = visits?.find(visit => visit.event_id === eventId);
-      setCurrentVisit(currentEventVisit);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('basic_screening')
+          .insert([screeningRecord]);
 
-      if (currentEventVisit) {
-        // Fetch complaints for current visit
-        const { data: complaintsData, error: complaintsError } = await supabase
-          .from("patient_complaints")
-          .select("*")
-          .eq("patient_visit_id", currentEventVisit.id)
-          .order("created_at", { ascending: false });
-
-        if (complaintsError) throw complaintsError;
-        setComplaints(complaintsData || []);
-
-        // Fetch prognosis for current visit
-        const { data: prognosisData, error: prognosisError } = await supabase
-          .from("patient_prognosis")
-          .select(`
-            *,
-            doctors (first_name, last_name)
-          `)
-          .eq("patient_visit_id", currentEventVisit.id)
-          .single();
-
-        if (prognosisError && prognosisError.code !== 'PGRST116') {
-          throw prognosisError;
-        }
-        
-        if (prognosisData) {
-          setPrognosis(prognosisData);
-          setPrognosisData({
-            diagnosis: prognosisData.diagnosis || "",
-            treatment_plan: prognosisData.treatment_plan || "",
-            follow_up_required: prognosisData.follow_up_required || false,
-            follow_up_notes: prognosisData.follow_up_notes || ""
-          });
-          
-          // Update health professional assignments
-          setHealthProfessionalAssignments(prev => ({
-            ...prev,
-            prognosis_doctor: prognosisData.doctor_id || ""
-          }));
-        }
-
-        // Fetch basic screening for current visit (get the latest one)
-        const { data: screeningData, error: screeningError } = await supabase
-          .from("basic_screening")
-          .select(`
-            *,
-            nurses (first_name, last_name)
-          `)
-          .eq("patient_visit_id", currentEventVisit.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (screeningError) {
-          throw screeningError;
-        }
-        
-        setBasicScreening(screeningData);
-        
-        // Update health professional assignments for screening
-        if (screeningData?.screened_by) {
-          setHealthProfessionalAssignments(prev => ({
-            ...prev,
-            screening_nurse: screeningData.screened_by
-          }));
-        }
-        
-        // Populate screening form if data exists
-        if (screeningData) {
-          // Extract user notes from saved notes (remove auto-generated parts)
-          let userNotes = screeningData.notes || "";
-          if (userNotes.includes("Additional Notes: ")) {
-            userNotes = userNotes.split("Additional Notes: ")[1] || "";
-          } else if (userNotes.includes(".") && (userNotes.includes("Blood Pressure:") || userNotes.includes("BMI:"))) {
-            // If notes only contain auto-generated content, clear them for editing
-            userNotes = "";
-          }
-          
-          setScreeningData({
-            weight: screeningData.weight?.toString() || "",
-            height: screeningData.height?.toString() || "",
-            blood_sugar: screeningData.blood_sugar?.toString() || "",
-            heart_rate: screeningData.heart_rate?.toString() || "",
-            oxygen_saturation: (screeningData as any).oxygen_saturation?.toString() || "",
-            blood_pressure_systolic: screeningData.blood_pressure_systolic?.toString() || "",
-            blood_pressure_diastolic: screeningData.blood_pressure_diastolic?.toString() || "",
-            cholesterol: (screeningData as any).cholesterol?.toString() || "",
-            notes: userNotes
-          });
-        }
-
-        // Fetch immunizations for current visit
-        const { data: immunizationsData, error: immunizationsError } = await supabase
-          .from("immunizations")
-          .select(`
-            *,
-            doctors (first_name, last_name)
-          `)
-          .eq("patient_visit_id", currentEventVisit.id)
-          .order("created_at", { ascending: false });
-
-        if (immunizationsError) {
-          console.error("Error fetching immunizations:", immunizationsError);
-        } else {
-          setImmunizations(immunizationsData || []);
-        }
-
-        // Fetch ECG results for current visit
-        const { data: ecgData, error: ecgError } = await supabase
-          .from("ecg_results")
-          .select(`
-            *,
-            doctors (first_name, last_name)
-          `)
-          .eq("patient_visit_id", currentEventVisit.id)
-          .order("created_at", { ascending: false });
-
-        if (ecgError) {
-          console.error("Error fetching ECG results:", ecgError);
-        } else {
-          setEcgResults(ecgData || []);
-        }
-
-        // Fetch prescriptions for current visit
-        const { data: prescriptionsData, error: prescriptionsError } = await supabase
-          .from("prescriptions")
-          .select(`
-            *,
-            doctors (first_name, last_name)
-          `)
-          .eq("patient_visit_id", currentEventVisit.id)
-          .order("created_at", { ascending: false });
-
-        if (prescriptionsError) {
-          console.error("Error fetching prescriptions:", prescriptionsError);
-        } else {
-          setPrescriptions(prescriptionsData || []);
-        }
-
-        // Fetch optician assessments for current visit
-        const { data: opticianData, error: opticianError } = await supabase
-          .from("optician_assessments")
-          .select("*")
-          .eq("patient_visit_id", currentEventVisit.id)
-          .order("created_at", { ascending: false });
-
-        if (opticianError) {
-          console.error("Error fetching optician assessments:", opticianError);
-        } else {
-          setOpticianAssessments(opticianData || []);
-        }
-
-        // Fetch dental assessments for current visit
-        const { data: dentalData, error: dentalError } = await supabase
-          .from("dental_assessments")
-          .select("*")
-          .eq("patient_visit_id", currentEventVisit.id)
-          .order("created_at", { ascending: false });
-
-        if (dentalError) {
-          console.error("Error fetching dental assessments:", dentalError);
-        } else {
-          setDentalAssessments(dentalData || []);
-        }
+        if (error) throw error;
       }
 
-    } catch (error) {
       toast({
-        title: "Error loading patient data",
-        description: "Failed to load patient information.",
-        variant: "destructive",
+        title: "Success",
+        description: "Screening data saved successfully"
       });
-    } finally {
-      setLoading(false);
+      
+      fetchPatientData();
+    } catch (error) {
+      console.error('Error saving screening data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save screening data",
+        variant: "destructive"
+      });
     }
   };
 
-  const saveComplaint = async () => {
-    if (!newComplaint.text.trim() || !currentVisit) return;
+  const addComplaint = async () => {
+    if (!newComplaint.text.trim() || !currentVisit?.id) return;
 
     try {
       const { error } = await supabase
-        .from("patient_complaints")
+        .from('patient_complaints')
         .insert([{
           patient_visit_id: currentVisit.id,
           complaint_text: newComplaint.text,
-          severity: newComplaint.severity
+          severity: newComplaint.severity,
+          reported_by: user?.id
         }]);
 
       if (error) throw error;
 
-      toast({
-        title: "Complaint saved",
-        description: "Patient complaint has been recorded.",
-      });
-
       setNewComplaint({ text: "", severity: "mild" });
+      toast({
+        title: "Success",
+        description: "Complaint added successfully"
+      });
+      
       fetchPatientData();
     } catch (error) {
-      console.error("Error saving complaint:", error);
+      console.error('Error adding complaint:', error);
       toast({
-        title: "Save failed",
-        description: `Failed to save complaint: ${error.message || error}`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const calculateBMI = (weight: string, height: string) => {
-    if (!weight || !height) return null;
-    const weightNum = parseFloat(weight);
-    const heightNum = parseFloat(height);
-    if (weightNum <= 0 || heightNum <= 0) return null;
-    const bmi = weightNum / (heightNum * heightNum);
-    return Math.round(bmi * 10) / 10;
-  };
-
-  const generateAutoNotes = () => {
-    const notes = [];
-    
-    if (screeningData.blood_pressure_systolic && screeningData.blood_pressure_diastolic) {
-      const systolic = parseInt(screeningData.blood_pressure_systolic);
-      const diastolic = parseInt(screeningData.blood_pressure_diastolic);
-      let bpStatus = "Normal";
-      
-      if (systolic >= 180 || diastolic >= 120) {
-        bpStatus = "Hypertensive Crisis";
-      } else if (systolic >= 140 || diastolic >= 90) {
-        bpStatus = "High Blood Pressure";
-      } else if (systolic >= 130 || diastolic >= 80) {
-        bpStatus = "Elevated";
-      }
-      
-      notes.push(`Blood Pressure: ${systolic}/${diastolic} mmHg (${bpStatus})`);
-    }
-    
-    if (screeningData.weight && screeningData.height) {
-      const bmi = calculateBMI(screeningData.weight, screeningData.height);
-      if (bmi) {
-        let bmiCategory = "Normal weight";
-        if (bmi < 18.5) bmiCategory = "Underweight";
-        else if (bmi >= 25 && bmi < 30) bmiCategory = "Overweight";
-        else if (bmi >= 30) bmiCategory = "Obese";
-        
-        notes.push(`BMI: ${bmi} (${bmiCategory})`);
-      }
-    }
-    
-    return notes.length > 0 ? notes.join(". ") + "." : "";
-  };
-
-  const saveScreening = async () => {
-    if (!currentVisit) return;
-
-    try {
-      const bmi = calculateBMI(screeningData.weight, screeningData.height);
-      const autoNotes = generateAutoNotes();
-      
-      // Combine user notes with automatic assessment
-      let finalNotes = screeningData.notes || "";
-      if (autoNotes) {
-        finalNotes = finalNotes 
-          ? `${autoNotes}\n\nAdditional Notes: ${finalNotes}`
-          : autoNotes;
-      }
-      
-      const screeningPayload = {
-        patient_visit_id: currentVisit.id,
-        weight: screeningData.weight ? parseFloat(screeningData.weight) : null,
-        height: screeningData.height ? parseFloat(screeningData.height) : null,
-        bmi: bmi,
-        blood_sugar: screeningData.blood_sugar ? parseInt(screeningData.blood_sugar) : null,
-        heart_rate: screeningData.heart_rate ? parseInt(screeningData.heart_rate) : null,
-        oxygen_saturation: screeningData.oxygen_saturation ? parseInt(screeningData.oxygen_saturation) : null,
-        blood_pressure_systolic: screeningData.blood_pressure_systolic ? parseInt(screeningData.blood_pressure_systolic) : null,
-        blood_pressure_diastolic: screeningData.blood_pressure_diastolic ? parseInt(screeningData.blood_pressure_diastolic) : null,
-        cholesterol: screeningData.cholesterol ? parseInt(screeningData.cholesterol) : null,
-        notes: finalNotes || null
-      };
-
-      // Delete existing screening records for this visit to prevent duplicates
-      await supabase
-        .from("basic_screening")
-        .delete()
-        .eq("patient_visit_id", currentVisit.id);
-
-      // Insert the new screening record
-      const { error } = await supabase
-        .from("basic_screening")
-        .insert([screeningPayload]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Screening saved",
-        description: "Basic screening data has been saved successfully.",
-      });
-
-      fetchPatientData();
-    } catch (error) {
-      console.error("Error saving screening:", error);
-      toast({
-        title: "Save failed",
-        description: `Failed to save screening data: ${error.message || error}`,
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to add complaint",
+        variant: "destructive"
       });
     }
   };
 
   const savePrognosis = async () => {
-    if (!currentVisit) return;
+    if (!currentVisit?.id) return;
 
     try {
-      const prognosisPayload = {
+      const prognosisRecord = {
         patient_visit_id: currentVisit.id,
-        diagnosis: prognosisData.diagnosis || null,
-        treatment_plan: prognosisData.treatment_plan || null,
+        diagnosis: prognosisData.diagnosis,
+        treatment_plan: prognosisData.treatment_plan,
         follow_up_required: prognosisData.follow_up_required,
-        follow_up_notes: prognosisData.follow_up_notes || null,
-        doctor_id: healthProfessionalAssignments.prognosis_doctor || null
+        follow_up_notes: prognosisData.follow_up_notes,
+        assessed_by: user?.id
       };
 
-      // Check if prognosis already exists
       if (prognosis) {
-        // Update existing prognosis
         const { error } = await supabase
-          .from("patient_prognosis")
-          .update(prognosisPayload)
-          .eq("id", prognosis.id);
+          .from('patient_prognosis')
+          .update(prognosisRecord)
+          .eq('id', prognosis.id);
 
         if (error) throw error;
       } else {
-        // Insert new prognosis
         const { error } = await supabase
-          .from("patient_prognosis")
-          .insert([prognosisPayload]);
+          .from('patient_prognosis')
+          .insert([prognosisRecord]);
 
         if (error) throw error;
       }
 
       toast({
-        title: "Prognosis saved",
-        description: "Medical prognosis has been saved successfully.",
+        title: "Success",
+        description: "Prognosis saved successfully"
       });
-
+      
       fetchPatientData();
     } catch (error) {
-      console.error("Error saving prognosis:", error);
+      console.error('Error saving prognosis:', error);
       toast({
-        title: "Save failed",
-        description: `Failed to save prognosis: ${error.message || error}`,
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to save prognosis",
+        variant: "destructive"
       });
     }
   };
 
-  const savePrescription = async () => {
-    if (!newPrescription.medication.trim() || !currentVisit) return;
+  const addPrescription = async () => {
+    if (!newPrescription.medication.trim() || !currentVisit?.id) return;
 
     try {
       const { error } = await supabase
-        .from("prescriptions")
+        .from('patient_prescriptions')
         .insert([{
           patient_visit_id: currentVisit.id,
           medication: newPrescription.medication,
-          dosage: newPrescription.dosage || null,
-          frequency: newPrescription.frequency || null,
-          duration: newPrescription.duration || null,
-          instructions: newPrescription.instructions || null,
-          prescribed_by: healthProfessionalAssignments.prescriptions_doctor || null
+          dosage: newPrescription.dosage,
+          frequency: newPrescription.frequency,
+          duration: newPrescription.duration,
+          instructions: newPrescription.instructions,
+          prescribed_by: user?.id
         }]);
 
       if (error) throw error;
-
-      toast({
-        title: "Prescription saved",
-        description: "Prescription has been recorded successfully.",
-      });
 
       setNewPrescription({
         medication: "",
@@ -652,37 +419,38 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         duration: "",
         instructions: ""
       });
+      
+      toast({
+        title: "Success",
+        description: "Prescription added successfully"
+      });
+      
       fetchPatientData();
     } catch (error) {
-      console.error("Error saving prescription:", error);
+      console.error('Error adding prescription:', error);
       toast({
-        title: "Save failed",
-        description: `Failed to save prescription: ${error.message || error}`,
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to add prescription",
+        variant: "destructive"
       });
     }
   };
 
-  const saveEcgResult = async () => {
-    if (!newEcgResult.result.trim() || !currentVisit) return;
+  const addEcgResult = async () => {
+    if (!newEcgResult.result.trim() || !currentVisit?.id) return;
 
     try {
       const { error } = await supabase
-        .from("ecg_results")
+        .from('ecg_results')
         .insert([{
           patient_visit_id: currentVisit.id,
           result: newEcgResult.result,
-          interpretation: newEcgResult.interpretation || null,
-          notes: newEcgResult.notes || null,
-          performed_by: healthProfessionalAssignments.ecg_doctor || null
+          interpretation: newEcgResult.interpretation,
+          notes: newEcgResult.notes,
+          performed_by: user?.id
         }]);
 
       if (error) throw error;
-
-      toast({
-        title: "ECG result saved",
-        description: "ECG result has been recorded successfully.",
-      });
 
       setNewEcgResult({
         result: "",
@@ -690,151 +458,42 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         notes: "",
         performed_by: ""
       });
+      
+      toast({
+        title: "Success",
+        description: "ECG result added successfully"
+      });
+      
       fetchPatientData();
     } catch (error) {
-      console.error("Error saving ECG result:", error);
+      console.error('Error adding ECG result:', error);
       toast({
-        title: "Save failed",
-        description: `Failed to save ECG result: ${error.message || error}`,
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to add ECG result",
+        variant: "destructive"
       });
     }
   };
 
-  const saveOpticianAssessment = async () => {
-    if (!currentVisit) return;
+  const addImmunization = async () => {
+    if (!newImmunization.vaccine_name.trim() || !currentVisit?.id) return;
 
     try {
       const { error } = await supabase
-        .from("optician_assessments")
-        .insert([{
-          patient_visit_id: currentVisit.id,
-          vision_test_results: newOpticianAssessment.vision_test_results || null,
-          eye_pressure: newOpticianAssessment.eye_pressure ? parseFloat(newOpticianAssessment.eye_pressure) : null,
-          prescription_details: newOpticianAssessment.prescription_details || null,
-          assessment_notes: newOpticianAssessment.assessment_notes || null,
-          optician_id: healthProfessionalAssignments.optician || null
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Optician assessment saved",
-        description: "Optician assessment has been recorded successfully.",
-      });
-
-      setNewOpticianAssessment({
-        vision_test_results: "",
-        eye_pressure: "",
-        prescription_details: "",
-        assessment_notes: "",
-        optician_id: ""
-      });
-      fetchPatientData();
-    } catch (error) {
-      console.error("Error saving optician assessment:", error);
-      toast({
-        title: "Save failed",
-        description: `Failed to save optician assessment: ${error.message || error}`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const saveDentalAssessment = async () => {
-    if (!currentVisit) return;
-
-    try {
-      const { error } = await supabase
-        .from("dental_assessments")
-        .insert([{
-          patient_visit_id: currentVisit.id,
-          oral_health_assessment: newDentalAssessment.oral_health_assessment || null,
-          teeth_condition: newDentalAssessment.teeth_condition || null,
-          gum_health: newDentalAssessment.gum_health || null,
-          recommendations: newDentalAssessment.recommendations || null,
-          assessment_notes: newDentalAssessment.assessment_notes || null,
-          dental_professional_id: healthProfessionalAssignments.dental_professional || null
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Dental assessment saved",
-        description: "Dental assessment has been recorded successfully.",
-      });
-
-      setNewDentalAssessment({
-        oral_health_assessment: "",
-        teeth_condition: "",
-        gum_health: "",
-        recommendations: "",
-        assessment_notes: "",
-        dental_professional_id: ""
-      });
-      fetchPatientData();
-    } catch (error) {
-      console.error("Error saving dental assessment:", error);
-      toast({
-        title: "Save failed",
-        description: `Failed to save dental assessment: ${error.message || error}`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const saveBackToSchoolAssessment = async () => {
-    if (!currentVisit) return;
-
-    try {
-      // For now, just show success since there's no table yet
-      toast({
-        title: "Assessment saved!",
-        description: "Back to school assessment recorded successfully.",
-      });
-
-      // Reset form
-      setNewBackToSchoolAssessment({
-        medical_clearance: "",
-        vaccination_status: "",
-        physical_fitness: "",
-        special_accommodations: "",
-        additional_notes: ""
-      });
-    } catch (error: any) {
-      console.error("Error saving back to school assessment:", error);
-      toast({
-        title: "Save failed",
-        description: `Failed to save assessment: ${error.message || error}`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const saveImmunization = async () => {
-    if (!newImmunization.vaccine_name.trim() || !currentVisit) return;
-
-    try {
-      const { error } = await supabase
-        .from("immunizations")
+        .from('immunizations')
         .insert([{
           patient_visit_id: currentVisit.id,
           vaccine_name: newImmunization.vaccine_name,
-          dose_number: newImmunization.dose_number ? parseInt(newImmunization.dose_number) : null,
-          vaccine_date: newImmunization.vaccine_date || null,
-          lot_number: newImmunization.lot_number || null,
-          expiration_date: newImmunization.expiration_date || null,
-          site_of_injection: newImmunization.site_of_injection || null,
-          notes: newImmunization.notes || null,
-          administered_by: healthProfessionalAssignments.immunizations_administrator || null
+          dose_number: newImmunization.dose_number,
+          vaccine_date: newImmunization.vaccine_date,
+          lot_number: newImmunization.lot_number,
+          expiration_date: newImmunization.expiration_date,
+          site_of_injection: newImmunization.site_of_injection,
+          notes: newImmunization.notes,
+          administered_by: user?.id
         }]);
 
       if (error) throw error;
-
-      toast({
-        title: "Immunization recorded",
-        description: "Immunization has been recorded successfully.",
-      });
 
       setNewImmunization({
         vaccine_name: "",
@@ -845,54 +504,168 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         site_of_injection: "",
         notes: ""
       });
+      
+      toast({
+        title: "Success",
+        description: "Immunization record added successfully"
+      });
+      
       fetchPatientData();
     } catch (error) {
-      console.error("Error saving immunization:", error);
+      console.error('Error adding immunization:', error);
       toast({
-        title: "Save failed",
-        description: `Failed to save immunization: ${error.message || error}`,
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to add immunization record",
+        variant: "destructive"
       });
     }
   };
 
-  // Permission wrapper component
-  const PermissionWrapper = ({ tabName, children }: { tabName: string; children: React.ReactNode }) => {
-    if (!permissions.canAccessTab(tabName)) {
-      return (
-        <div className="flex items-center justify-center p-8">
-          <Card className="w-full max-w-md">
-            <CardContent className="p-6 text-center">
-              <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">Access Restricted</h3>
-              <p className="text-muted-foreground">
-                You don't have permission to access this section. Please contact your administrator if you believe this is an error.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      );
+  const addOpticianAssessment = async () => {
+    if (!newOpticianAssessment.vision_test_results.trim() || !currentVisit?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('optician_assessments')
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          vision_test_results: newOpticianAssessment.vision_test_results,
+          eye_pressure: newOpticianAssessment.eye_pressure,
+          prescription_details: newOpticianAssessment.prescription_details,
+          assessment_notes: newOpticianAssessment.assessment_notes,
+          optician_id: user?.id
+        }]);
+
+      if (error) throw error;
+
+      setNewOpticianAssessment({
+        vision_test_results: "",
+        eye_pressure: "",
+        prescription_details: "",
+        assessment_notes: "",
+        optician_id: ""
+      });
+      
+      toast({
+        title: "Success",
+        description: "Optician assessment added successfully"
+      });
+      
+      fetchPatientData();
+    } catch (error) {
+      console.error('Error adding optician assessment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add optician assessment",
+        variant: "destructive"
+      });
     }
-    return <>{children}</>;
   };
 
-  // Calculate visible tabs for grid layout
+  const addDentalAssessment = async () => {
+    if (!newDentalAssessment.teeth_condition.trim() || !currentVisit?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('dental_assessments')
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          teeth_condition: newDentalAssessment.teeth_condition,
+          gum_health: newDentalAssessment.gum_health,
+          recommendations: newDentalAssessment.recommendations,
+          assessment_notes: newDentalAssessment.assessment_notes,
+          dental_professional_id: user?.id
+        }]);
+
+      if (error) throw error;
+
+      setNewDentalAssessment({
+        teeth_condition: "",
+        gum_health: "",
+        recommendations: "",
+        assessment_notes: "",
+        dental_professional_id: ""
+      });
+      
+      toast({
+        title: "Success",
+        description: "Dental assessment added successfully"
+      });
+      
+      fetchPatientData();
+    } catch (error) {
+      console.error('Error adding dental assessment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add dental assessment",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const addBackToSchoolAssessment = async () => {
+    if (!newBackToSchoolAssessment.height.trim() || !currentVisit?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('back_to_school_assessments')
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          height: newBackToSchoolAssessment.height,
+          weight: newBackToSchoolAssessment.weight,
+          bmi: newBackToSchoolAssessment.bmi,
+          vision_screening: newBackToSchoolAssessment.vision_screening,
+          hearing_screening: newBackToSchoolAssessment.hearing_screening,
+          general_health_status: newBackToSchoolAssessment.general_health_status,
+          notes: newBackToSchoolAssessment.notes,
+          examining_professional_id: user?.id
+        }]);
+
+      if (error) throw error;
+
+      setNewBackToSchoolAssessment({
+        height: "",
+        weight: "",
+        bmi: "",
+        vision_screening: "",
+        hearing_screening: "",
+        general_health_status: "",
+        notes: "",
+        examining_professional_id: ""
+      });
+      
+      toast({
+        title: "Success",
+        description: "Back to School assessment added successfully"
+      });
+      
+      fetchPatientData();
+    } catch (error) {
+      console.error('Error adding Back to School assessment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add Back to School assessment",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getVisibleTabs = () => {
     const allTabs = [
-      { value: 'overview', label: 'Overview' },
-      { value: 'screening', label: 'Screening' },
-      { value: 'complaints-prognosis', label: 'Complaints & Prognosis' },
-      { value: 'prescriptions', label: 'Prescriptions' },
-      { value: 'ecg', label: 'ECG Results' },
-      { value: 'optician', label: 'Optician' },
-      { value: 'dental', label: 'Dental' },
-      { value: 'pap-smears', label: 'PAP Smears' },
-      { value: 'back-to-school', label: 'Back to School' },
-      { value: 'immunizations', label: 'Immunizations' },
-      { value: 'history', label: 'History' }
+      { value: "overview", label: "Overview" },
+      { value: "screening", label: "Know Your Numbers" },
+      { value: "complaints-prognosis", label: "Complaints & Prognosis" },
+      { value: "prescriptions", label: "Prescriptions" },
+      { value: "ecg", label: "ECG Results" },
+      { value: "optician", label: "Optician Assessment" },
+      { value: "dental", label: "Dental Assessment" },
+      { value: "pap-smears", label: "Pap Smears" },
+      { value: "back-to-school", label: "Back to School" },
+      { value: "immunizations", label: "Immunizations" },
+      { value: "history", label: "Visit History" }
     ];
 
-    return allTabs.filter(tab => permissions.canAccessTab(tab.value));
+    return allTabs.filter(tab => canViewTab(tab.value));
   };
 
   const visibleTabs = getVisibleTabs();
@@ -927,1086 +700,1159 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden">
-          <Tabs defaultValue="overview" className="h-full flex flex-col">
-            <TabsList className={`grid ${gridCols} mb-4 h-auto`}>
-              {visibleTabs.map(tab => (
-                <TabsTrigger 
-                  key={tab.value} 
-                  value={tab.value} 
-                  className="text-xs px-2 py-1 text-center whitespace-normal"
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+        <ScrollArea className="flex-1">
+          <div className="space-y-4 pr-4">
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className={`grid ${gridCols} mb-4 h-auto`}>
+                {visibleTabs.map(tab => (
+                  <TabsTrigger 
+                    key={tab.value} 
+                    value={tab.value} 
+                    className="text-xs px-2 py-1 text-center whitespace-normal"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-            <TabsContent value="overview" className="space-y-4">
-              <PermissionWrapper tabName="overview">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Patient Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div><strong>Name:</strong> {patient.first_name} {patient.last_name}</div>
-                      <div><strong>Patient Number:</strong> {patient.patient_number}</div>
-                      {patient.date_of_birth && (
-                        <div><strong>Date of Birth:</strong> {new Date(patient.date_of_birth).toLocaleDateString()}</div>
-                      )}
-                      {patient.phone && (
-                        <div><strong>Phone:</strong> {patient.phone}</div>
-                      )}
-                      {patient.email && (
-                        <div><strong>Email:</strong> {patient.email}</div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5 text-red-500" />
-                        Medical Alerts
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {patient.allergies && (
-                        <div>
-                          <Badge variant="destructive" className="mb-2">Allergies</Badge>
-                          <p className="text-sm bg-red-50 dark:bg-red-950 p-2 rounded">
-                            {patient.allergies}
-                          </p>
-                        </div>
-                      )}
-                      {patient.medical_conditions && (
-                        <div>
-                          <Badge variant="outline" className="mb-2">Medical Conditions</Badge>
-                          <p className="text-sm bg-yellow-50 dark:bg-yellow-950 p-2 rounded">
-                            {patient.medical_conditions}
-                          </p>
-                        </div>
-                      )}
-                      {patient.medications && (
-                        <div>
-                          <Badge variant="outline" className="mb-2">Current Medications</Badge>
-                          <p className="text-sm bg-blue-50 dark:bg-blue-950 p-2 rounded">
-                            {patient.medications}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </PermissionWrapper>
-            </TabsContent>
-
-            <TabsContent value="screening" className="space-y-4">
-              <PermissionWrapper tabName="screening">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Heart className="h-5 w-5 text-red-500" />
-                      Basic Screening - "Know Your Numbers"
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {currentVisit && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          <div>
-                            <Label htmlFor="weight">Weight (kg)</Label>
-                            <Input
-                              id="weight"
-                              type="number"
-                              step="0.1"
-                              placeholder="Enter weight"
-                              value={screeningData.weight}
-                              onChange={(e) => setScreeningData({...screeningData, weight: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="height">Height (m)</Label>
-                            <Input
-                              id="height"
-                              type="number"
-                              step="0.01"
-                              placeholder="Enter height"
-                              value={screeningData.height}
-                              onChange={(e) => setScreeningData({...screeningData, height: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="blood_sugar">Blood Sugar (mg/dL)</Label>
-                            <Input
-                              id="blood_sugar"
-                              type="number"
-                              placeholder="Enter blood sugar"
-                              value={screeningData.blood_sugar}
-                              onChange={(e) => setScreeningData({...screeningData, blood_sugar: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="heart_rate">Heart Rate (bpm)</Label>
-                            <Input
-                              id="heart_rate"
-                              type="number"
-                              placeholder="Enter heart rate"
-                              value={screeningData.heart_rate}
-                              onChange={(e) => setScreeningData({...screeningData, heart_rate: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="oxygen_saturation">Oxygen Saturation (%)</Label>
-                            <Input
-                              id="oxygen_saturation"
-                              type="number"
-                              min="0"
-                              max="100"
-                              placeholder="Enter oxygen saturation"
-                              value={screeningData.oxygen_saturation}
-                              onChange={(e) => setScreeningData({...screeningData, oxygen_saturation: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="cholesterol">Cholesterol (mg/dL)</Label>
-                            <Input
-                              id="cholesterol"
-                              type="number"
-                              placeholder="Enter cholesterol"
-                              value={screeningData.cholesterol}
-                              onChange={(e) => setScreeningData({...screeningData, cholesterol: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="blood_pressure_systolic">Systolic BP (mmHg)</Label>
-                            <Input
-                              id="blood_pressure_systolic"
-                              type="number"
-                              placeholder="Systolic"
-                              value={screeningData.blood_pressure_systolic}
-                              onChange={(e) => setScreeningData({...screeningData, blood_pressure_systolic: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="blood_pressure_diastolic">Diastolic BP (mmHg)</Label>
-                            <Input
-                              id="blood_pressure_diastolic"
-                              type="number"
-                              placeholder="Diastolic"
-                              value={screeningData.blood_pressure_diastolic}
-                              onChange={(e) => setScreeningData({...screeningData, blood_pressure_diastolic: e.target.value})}
-                            />
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="notes">Additional Notes</Label>
-                          <Textarea
-                            id="notes"
-                            placeholder="Any additional notes or observations..."
-                            value={screeningData.notes}
-                            onChange={(e) => setScreeningData({...screeningData, notes: e.target.value})}
-                          />
-                        </div>
-                        
-                        <Button onClick={saveScreening} className="gap-2">
-                          <Save className="h-4 w-4" />
-                          Save Screening Data
-                        </Button>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    <div className="space-y-3">
-                      <h4 className="font-medium">Current Screening Results</h4>
-                      {basicScreening ? (
-                        <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-950">
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                            {basicScreening.weight && (
-                              <div>
-                                <span className="font-medium">Weight:</span> {basicScreening.weight} kg
-                              </div>
-                            )}
-                            {basicScreening.height && (
-                              <div>
-                                <span className="font-medium">Height:</span> {basicScreening.height} m
-                              </div>
-                            )}
-                            {basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic && (
-                              <div>
-                                <span className="font-medium">Blood Pressure:</span> {basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg
-                              </div>
-                            )}
-                            {basicScreening.heart_rate && (
-                              <div>
-                                <span className="font-medium">Heart Rate:</span> {basicScreening.heart_rate} bpm
-                              </div>
-                            )}
-                            {basicScreening.blood_sugar && (
-                              <div>
-                                <span className="font-medium">Blood Sugar:</span> {basicScreening.blood_sugar} mg/dL
-                              </div>
-                            )}
-                            {(basicScreening as any).oxygen_saturation && (
-                              <div>
-                                <span className="font-medium">Oxygen Saturation:</span> {(basicScreening as any).oxygen_saturation}%
-                              </div>
-                            )}
-                            {basicScreening.bmi && (
-                              <div>
-                                <span className="font-medium">BMI:</span> {basicScreening.bmi}
-                              </div>
-                            )}
-                            {(basicScreening as any).cholesterol && (
-                              <div>
-                                <span className="font-medium">Cholesterol:</span> {(basicScreening as any).cholesterol} mg/dL
-                              </div>
-                            )}
-                          </div>
-                         {basicScreening.notes && (
-                           <div className="mt-3">
-                             <span className="font-medium">Notes:</span> {basicScreening.notes}
-                           </div>
-                         )}
-                         {basicScreening.nurses && (
-                           <div className="mt-2 text-xs text-muted-foreground">
-                             Screened by: {basicScreening.nurses.first_name} {basicScreening.nurses.last_name}
-                           </div>
-                         )}
-                       </div>
-                     ) : (
-                       <p className="text-muted-foreground">No screening data recorded for this visit.</p>
-                     )}
-                   </div>
-                 </CardContent>
-               </Card>
-               </PermissionWrapper>
-             </TabsContent>
-
-            <TabsContent value="complaints-prognosis" className="space-y-4">
-              <PermissionWrapper tabName="complaints-prognosis">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Complaints Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Patient Complaints
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {currentVisit && (
-                      <div className="space-y-3">
-                        <Label>Add New Complaint</Label>
-                        <Textarea
-                          placeholder="Describe the patient's complaint..."
-                          value={newComplaint.text}
-                          onChange={(e) => setNewComplaint({...newComplaint, text: e.target.value})}
-                        />
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Label>Severity:</Label>
-                            <select 
-                              value={newComplaint.severity}
-                              onChange={(e) => setNewComplaint({...newComplaint, severity: e.target.value})}
-                              className="border rounded px-2 py-1"
-                            >
-                              <option value="mild">Mild</option>
-                              <option value="moderate">Moderate</option>
-                              <option value="severe">Severe</option>
-                            </select>
-                          </div>
-                          <Button onClick={saveComplaint} className="gap-2">
-                            <Save className="h-4 w-4" />
-                            Save Complaint
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    <div className="space-y-3">
-                      <h4 className="font-medium">Previous Complaints</h4>
-                      {complaints.length > 0 ? (
-                        complaints.map((complaint) => (
-                          <div key={complaint.id} className="p-3 border rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
-                              <Badge variant="outline">{complaint.severity}</Badge>
-                              <span className="text-sm text-muted-foreground">
-                                {new Date(complaint.created_at).toLocaleString()}
-                              </span>
-                            </div>
-                            <p>{complaint.complaint_text}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-muted-foreground">No complaints recorded.</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Prognosis Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5" />
-                      Medical Prognosis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {currentVisit && (
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="diagnosis">Diagnosis</Label>
-                          <Textarea
-                            id="diagnosis"
-                            placeholder="Enter diagnosis..."
-                            value={prognosisData.diagnosis}
-                            onChange={(e) => setPrognosisData({...prognosisData, diagnosis: e.target.value})}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="treatment_plan">Treatment Plan</Label>
-                          <Textarea
-                            id="treatment_plan"
-                            placeholder="Enter treatment plan..."
-                            value={prognosisData.treatment_plan}
-                            onChange={(e) => setPrognosisData({...prognosisData, treatment_plan: e.target.value})}
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id="follow_up_required"
-                            checked={prognosisData.follow_up_required}
-                            onChange={(e) => setPrognosisData({...prognosisData, follow_up_required: e.target.checked})}
-                          />
-                          <Label htmlFor="follow_up_required">Follow-up required</Label>
-                        </div>
-
-                        {prognosisData.follow_up_required && (
-                          <div>
-                            <Label htmlFor="follow_up_notes">Follow-up Notes</Label>
-                            <Textarea
-                              id="follow_up_notes"
-                              placeholder="Enter follow-up instructions..."
-                              value={prognosisData.follow_up_notes}
-                              onChange={(e) => setPrognosisData({...prognosisData, follow_up_notes: e.target.value})}
-                            />
-                          </div>
-                        )}
-
-                        <Button onClick={savePrognosis} className="gap-2">
-                          <Save className="h-4 w-4" />
-                          Save Prognosis
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-               </div>
-               </PermissionWrapper>
-             </TabsContent>
-
-            <TabsContent value="prescriptions" className="space-y-4">
-              <PermissionWrapper tabName="prescriptions">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Pill className="h-5 w-5" />
-                    Prescriptions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentVisit && (
-                    <div className="space-y-4">
+                  <TabsContent value="overview" className="mt-0">
+                    <PermissionWrapper tabName="overview">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="medication">Medication</Label>
-                          <Input
-                            id="medication"
-                            placeholder="Medication name"
-                            value={newPrescription.medication}
-                            onChange={(e) => setNewPrescription({...newPrescription, medication: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="dosage">Dosage</Label>
-                          <Input
-                            id="dosage"
-                            placeholder="e.g., 500mg"
-                            value={newPrescription.dosage}
-                            onChange={(e) => setNewPrescription({...newPrescription, dosage: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="frequency">Frequency</Label>
-                          <Input
-                            id="frequency"
-                            placeholder="e.g., Twice daily"
-                            value={newPrescription.frequency}
-                            onChange={(e) => setNewPrescription({...newPrescription, frequency: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="duration">Duration</Label>
-                          <Input
-                            id="duration"
-                            placeholder="e.g., 7 days"
-                            value={newPrescription.duration}
-                            onChange={(e) => setNewPrescription({...newPrescription, duration: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="instructions">Instructions</Label>
-                        <Textarea
-                          id="instructions"
-                          placeholder="Special instructions..."
-                          value={newPrescription.instructions}
-                          onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
-                        />
-                      </div>
-                      <Button onClick={savePrescription} className="gap-2">
-                        <Save className="h-4 w-4" />
-                        Add Prescription
-                      </Button>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Current Prescriptions</h4>
-                    {prescriptions.length > 0 ? (
-                      prescriptions.map((prescription, index) => (
-                        <div key={index} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{prescription.medication}</span>
-                            <Badge variant="outline">{prescription.dosage}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {prescription.frequency} for {prescription.duration}
-                          </p>
-                          {prescription.instructions && (
-                            <p className="text-sm mt-1">{prescription.instructions}</p>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No prescriptions recorded.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              </PermissionWrapper>
-            </TabsContent>
-
-            <TabsContent value="ecg" className="space-y-4">
-              <PermissionWrapper tabName="ecg">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5" />
-                    ECG Results
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentVisit && (
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="ecg_result">ECG Result</Label>
-                        <Input
-                          id="ecg_result"
-                          placeholder="e.g., Normal sinus rhythm"
-                          value={newEcgResult.result}
-                          onChange={(e) => setNewEcgResult({...newEcgResult, result: e.target.value})}
-                         />
-                       </div>
-                       <div>
-                         <Label htmlFor="performed_by">Performed By</Label>
-                         <Select value={newEcgResult.performed_by} onValueChange={(value) => setNewEcgResult({...newEcgResult, performed_by: value})}>
-                           <SelectTrigger>
-                             <SelectValue placeholder="Select professional" />
-                           </SelectTrigger>
-                           <SelectContent>
-                             {availableDoctors.map((doctor) => (
-                               <SelectItem key={doctor.id} value={doctor.id}>
-                                 Dr. {doctor.first_name} {doctor.last_name}
-                               </SelectItem>
-                             ))}
-                             {availableNurses.map((nurse) => (
-                               <SelectItem key={nurse.id} value={nurse.id}>
-                                 {nurse.first_name} {nurse.last_name} (Nurse)
-                               </SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                       </div>
-                      <div>
-                        <Label htmlFor="interpretation">Interpretation</Label>
-                        <Textarea
-                          id="interpretation"
-                          placeholder="Clinical interpretation..."
-                          value={newEcgResult.interpretation}
-                          onChange={(e) => setNewEcgResult({...newEcgResult, interpretation: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="ecg_notes">Notes</Label>
-                        <Textarea
-                          id="ecg_notes"
-                          placeholder="Additional notes..."
-                          value={newEcgResult.notes}
-                          onChange={(e) => setNewEcgResult({...newEcgResult, notes: e.target.value})}
-                        />
-                      </div>
-                      <Button onClick={saveEcgResult} className="gap-2">
-                        <Save className="h-4 w-4" />
-                        Save ECG Result
-                      </Button>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Previous ECG Results</h4>
-                    {ecgResults.length > 0 ? (
-                      ecgResults.map((ecg, index) => (
-                         <div key={index} className="p-3 border rounded-lg">
-                           <div className="flex items-center justify-between mb-2">
-                             <span className="font-medium">{ecg.result}</span>
-                             <Badge variant="outline">ECG</Badge>
-                           </div>
-                           {ecg.interpretation && (
-                             <p className="text-sm mb-2">{ecg.interpretation}</p>
-                           )}
-                           {ecg.notes && (
-                             <p className="text-sm text-muted-foreground mb-2">{ecg.notes}</p>
-                           )}
-                           <div className="text-xs text-muted-foreground">
-                             Performed by: {ecg.performed_by_name || 'Not specified'}
-                           </div>
-                         </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No ECG results recorded.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              </PermissionWrapper>
-            </TabsContent>
-
-            <TabsContent value="optician" className="space-y-4">
-              <PermissionWrapper tabName="optician">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Eye className="h-5 w-5" />
-                    Optician Assessment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentVisit && (
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="vision_test">Vision Test Results</Label>
-                        <Textarea
-                          id="vision_test"
-                          placeholder="Enter vision test results (e.g., 20/20, 20/40)..."
-                          rows={2}
-                          value={newOpticianAssessment.vision_test_results}
-                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, vision_test_results: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="eye_pressure">Eye Pressure (mmHg)</Label>
-                        <Input
-                          id="eye_pressure"
-                          type="number"
-                          placeholder="Enter eye pressure reading"
-                          value={newOpticianAssessment.eye_pressure}
-                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, eye_pressure: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="prescription_needed">Prescription</Label>
-                        <Textarea
-                          id="prescription_needed"
-                          placeholder="Enter prescription details if needed..."
-                          rows={3}
-                          value={newOpticianAssessment.prescription_details}
-                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, prescription_details: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="optician_notes">Optician Notes</Label>
-                        <Textarea
-                          id="optician_notes"
-                          placeholder="Additional assessment notes..."
-                          rows={3}
-                          value={newOpticianAssessment.assessment_notes}
-                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, assessment_notes: e.target.value})}
-                        />
-                       </div>
-                       <div>
-                         <Label htmlFor="optician_performed_by">Performed By</Label>
-                         <Select value={newOpticianAssessment.optician_id} onValueChange={(value) => setNewOpticianAssessment({...newOpticianAssessment, optician_id: value})}>
-                           <SelectTrigger>
-                             <SelectValue placeholder="Select professional" />
-                           </SelectTrigger>
-                           <SelectContent>
-                             {availableDoctors.map((doctor) => (
-                               <SelectItem key={doctor.id} value={doctor.id}>
-                                 Dr. {doctor.first_name} {doctor.last_name}
-                               </SelectItem>
-                             ))}
-                             {availableNurses.map((nurse) => (
-                               <SelectItem key={nurse.id} value={nurse.id}>
-                                 {nurse.first_name} {nurse.last_name} (Nurse)
-                               </SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                       </div>
-                      <Button onClick={saveOpticianAssessment} className="gap-2">
-                        <Save className="h-4 w-4" />
-                        Save Optician Assessment
-                      </Button>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                   <div className="space-y-3">
-                     <h4 className="font-medium">Previous Assessments</h4>
-                     {opticianAssessments.length > 0 ? (
-                       opticianAssessments.map((assessment, index) => (
-                         <div key={index} className="p-3 border rounded-lg">
-                           <div className="flex items-center justify-between mb-2">
-                             <span className="font-medium">Vision Assessment</span>
-                             <Badge variant="outline">Optician</Badge>
-                           </div>
-                           {assessment.vision_test_results && (
-                             <p className="text-sm mb-1"><strong>Vision:</strong> {assessment.vision_test_results}</p>
-                           )}
-                           {assessment.eye_pressure && (
-                             <p className="text-sm mb-1"><strong>Eye Pressure:</strong> {assessment.eye_pressure} mmHg</p>
-                           )}
-                           {assessment.prescription_details && (
-                             <p className="text-sm mb-1"><strong>Prescription:</strong> {assessment.prescription_details}</p>
-                           )}
-                           {assessment.assessment_notes && (
-                             <p className="text-sm text-muted-foreground">{assessment.assessment_notes}</p>
-                           )}
-                         </div>
-                       ))
-                     ) : (
-                       <p className="text-muted-foreground">No previous optician assessments recorded.</p>
-                     )}
-                   </div>
-                </CardContent>
-              </Card>
-              </PermissionWrapper>
-            </TabsContent>
-
-            <TabsContent value="dental" className="space-y-4">
-              <PermissionWrapper tabName="dental">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Smile className="h-5 w-5" />
-                    Dental Assessment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentVisit && (
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="oral_health">Oral Health Assessment</Label>
-                        <Textarea
-                          id="oral_health"
-                          placeholder="Overall oral health condition..."
-                          rows={3}
-                          value={newDentalAssessment.oral_health_assessment}
-                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, oral_health_assessment: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="teeth_condition">Teeth Condition</Label>
-                        <Textarea
-                          id="teeth_condition"
-                          placeholder="Condition of teeth, cavities, etc..."
-                          rows={3}
-                          value={newDentalAssessment.teeth_condition}
-                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, teeth_condition: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="gum_health">Gum Health</Label>
-                        <Textarea
-                          id="gum_health"
-                          placeholder="Gum condition and health assessment..."
-                          rows={2}
-                          value={newDentalAssessment.gum_health}
-                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, gum_health: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="dental_recommendations">Recommendations</Label>
-                        <Textarea
-                          id="dental_recommendations"
-                          placeholder="Treatment recommendations, referrals, etc..."
-                          rows={3}
-                          value={newDentalAssessment.recommendations}
-                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, recommendations: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="dental_notes">Dental Notes</Label>
-                        <Textarea
-                          id="dental_notes"
-                          placeholder="Additional dental assessment notes..."
-                          rows={3}
-                          value={newDentalAssessment.assessment_notes}
-                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, assessment_notes: e.target.value})}
-                        />
-                      </div>
-                      <Button onClick={saveDentalAssessment} className="gap-2">
-                        <Save className="h-4 w-4" />
-                        Save Dental Assessment
-                      </Button>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                   <div className="space-y-3">
-                     <h4 className="font-medium">Previous Assessments</h4>
-                     {dentalAssessments.length > 0 ? (
-                       dentalAssessments.map((assessment, index) => (
-                         <div key={index} className="p-3 border rounded-lg">
-                           <div className="flex items-center justify-between mb-2">
-                             <span className="font-medium">Dental Assessment</span>
-                             <Badge variant="outline">Dental</Badge>
-                           </div>
-                           {assessment.oral_health_assessment && (
-                             <p className="text-sm mb-1"><strong>Oral Health:</strong> {assessment.oral_health_assessment}</p>
-                           )}
-                           {assessment.teeth_condition && (
-                             <p className="text-sm mb-1"><strong>Teeth:</strong> {assessment.teeth_condition}</p>
-                           )}
-                           {assessment.gum_health && (
-                             <p className="text-sm mb-1"><strong>Gums:</strong> {assessment.gum_health}</p>
-                           )}
-                           {assessment.recommendations && (
-                             <p className="text-sm mb-1"><strong>Recommendations:</strong> {assessment.recommendations}</p>
-                           )}
-                           {assessment.assessment_notes && (
-                             <p className="text-sm text-muted-foreground">{assessment.assessment_notes}</p>
-                           )}
-                         </div>
-                       ))
-                     ) : (
-                       <p className="text-muted-foreground">No previous dental assessments recorded.</p>
-                     )}
-                   </div>
-                </CardContent>
-              </Card>
-              </PermissionWrapper>
-            </TabsContent>
-
-            <TabsContent value="pap-smears" className="space-y-4">
-              <PermissionWrapper tabName="pap-smears">
-               {currentVisit && (
-                 <PapSmearTab 
-                   patientVisitId={currentVisit.id} 
-                   eventDate={currentVisit.visit_date}
-                 />
-               )}
-               </PermissionWrapper>
-             </TabsContent>
-
-             <TabsContent value="back-to-school" className="space-y-4">
-               <PermissionWrapper tabName="back-to-school">
-               <Card>
-                 <CardHeader>
-                   <CardTitle className="flex items-center gap-2">
-                     <FileText className="h-5 w-5" />
-                     Back to School Assessment
-                   </CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-4">
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div>
-                       <Label htmlFor="school_clearance">Medical Clearance for School</Label>
-                        <Select value={newBackToSchoolAssessment.medical_clearance} onValueChange={(value) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, medical_clearance: value})}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select clearance status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cleared">Cleared for School</SelectItem>
-                            <SelectItem value="restrictions">Cleared with Restrictions</SelectItem>
-                            <SelectItem value="not_cleared">Not Cleared</SelectItem>
-                            <SelectItem value="pending">Pending Further Assessment</SelectItem>
-                          </SelectContent>
-                        </Select>
-                     </div>
-                     <div>
-                       <Label htmlFor="vaccination_status">Vaccination Status</Label>
-                        <Select value={newBackToSchoolAssessment.vaccination_status} onValueChange={(value) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, vaccination_status: value})}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select vaccination status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="up_to_date">Up to Date</SelectItem>
-                            <SelectItem value="incomplete">Incomplete</SelectItem>
-                            <SelectItem value="needs_update">Needs Update</SelectItem>
-                            <SelectItem value="exemption">Medical Exemption</SelectItem>
-                          </SelectContent>
-                        </Select>
-                     </div>
-                   </div>
-                   
-                   <div>
-                     <Label htmlFor="physical_fitness">Physical Fitness Assessment</Label>
-                      <Textarea
-                        id="physical_fitness"
-                        placeholder="Assessment of student's physical fitness for school activities..."
-                        rows={3}
-                        value={newBackToSchoolAssessment.physical_fitness}
-                        onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, physical_fitness: e.target.value})}
-                      />
-                   </div>
-                   
-                   <div>
-                     <Label htmlFor="special_accommodations">Special Accommodations Needed</Label>
-                      <Textarea
-                        id="special_accommodations"
-                        placeholder="Any special accommodations required for the student..."
-                        rows={3}
-                        value={newBackToSchoolAssessment.special_accommodations}
-                        onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, special_accommodations: e.target.value})}
-                      />
-                   </div>
-                   
-                   <div>
-                     <Label htmlFor="school_notes">Additional Notes</Label>
-                      <Textarea
-                        id="school_notes"
-                        placeholder="Additional notes or recommendations for school..."
-                        rows={3}
-                        value={newBackToSchoolAssessment.additional_notes}
-                        onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, additional_notes: e.target.value})}
-                      />
-                   </div>
-                   
-                     <Button onClick={saveBackToSchoolAssessment} className="gap-2">
-                       <Save className="h-4 w-4" />
-                       Save Back to School Assessment
-                     </Button>
-                 </CardContent>
-               </Card>
-               </PermissionWrapper>
-             </TabsContent>
-
-            <TabsContent value="immunizations" className="space-y-4">
-              <PermissionWrapper tabName="immunizations">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    Immunizations
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentVisit && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="vaccine_name">Vaccine Name</Label>
-                          <Input
-                            id="vaccine_name"
-                            placeholder="e.g., MMR, Tetanus, etc."
-                            value={newImmunization.vaccine_name}
-                            onChange={(e) => setNewImmunization({...newImmunization, vaccine_name: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="dose_number">Dose Number</Label>
-                          <Input
-                            id="dose_number"
-                            type="number"
-                            placeholder="e.g., 1, 2, 3"
-                            value={newImmunization.dose_number}
-                            onChange={(e) => setNewImmunization({...newImmunization, dose_number: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="vaccine_date">Vaccination Date</Label>
-                          <Input
-                            id="vaccine_date"
-                            type="date"
-                            value={newImmunization.vaccine_date}
-                            onChange={(e) => setNewImmunization({...newImmunization, vaccine_date: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="lot_number">Lot Number</Label>
-                          <Input
-                            id="lot_number"
-                            placeholder="Vaccine lot number"
-                            value={newImmunization.lot_number}
-                            onChange={(e) => setNewImmunization({...newImmunization, lot_number: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="expiration_date">Expiration Date</Label>
-                          <Input
-                            id="expiration_date"
-                            type="date"
-                            value={newImmunization.expiration_date}
-                            onChange={(e) => setNewImmunization({...newImmunization, expiration_date: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="site_of_injection">Site of Injection</Label>
-                          <Input
-                            id="site_of_injection"
-                            placeholder="e.g., Left arm, Right thigh"
-                            value={newImmunization.site_of_injection}
-                            onChange={(e) => setNewImmunization({...newImmunization, site_of_injection: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="immunization_notes">Notes</Label>
-                        <Textarea
-                          id="immunization_notes"
-                          placeholder="Any reactions, notes, or additional information..."
-                          value={newImmunization.notes}
-                          onChange={(e) => setNewImmunization({...newImmunization, notes: e.target.value})}
-                        />
-                      </div>
-                      <Button onClick={saveImmunization} className="gap-2">
-                        <Save className="h-4 w-4" />
-                        Record Immunization
-                      </Button>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Immunization History</h4>
-                    {immunizations.length > 0 ? (
-                      immunizations.map((immunization, index) => (
-                        <div key={index} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{immunization.vaccine_name}</span>
-                            <Badge variant="outline">Dose {immunization.dose_number}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Date: {immunization.vaccine_date ? new Date(immunization.vaccine_date).toLocaleDateString() : 'N/A'}
-                          </p>
-                          {immunization.notes && (
-                            <p className="text-sm mt-1">{immunization.notes}</p>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No immunizations recorded.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              </PermissionWrapper>
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-4">
-              <PermissionWrapper tabName="history">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Visit History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {visitHistory.length > 0 ? (
-                      visitHistory.map((visit) => (
-                        <div key={visit.id} className="border rounded-lg overflow-hidden">
-                          {/* Visit Header */}
-                          <div className="bg-muted/50 p-4 border-b">
-                            <div className="flex items-center justify-between">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Patient Information</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="font-medium text-lg">{visit.events?.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Health Fair Date: {visit.events?.event_date ? new Date(visit.events.event_date).toLocaleDateString() : 'N/A'}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  Visit Date: {new Date(visit.visit_date).toLocaleDateString()}
-                                </p>
+                                <Badge variant="outline" className="mb-2">Full Name</Badge>
+                                <p className="text-sm font-medium">{patient.first_name} {patient.last_name}</p>
                               </div>
-                              <div className="text-right">
-                                <Badge variant="outline">Queue #{visit.queue_number}</Badge>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  Status: {visit.status}
-                                </p>
+                              <div>
+                                <Badge variant="outline" className="mb-2">Date of Birth</Badge>
+                                <p className="text-sm">{patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : 'Not provided'}</p>
+                              </div>
+                              <div>
+                                <Badge variant="outline" className="mb-2">Gender</Badge>
+                                <p className="text-sm">{patient.gender || 'Not specified'}</p>
+                              </div>
+                              <div>
+                                <Badge variant="outline" className="mb-2">Phone</Badge>
+                                <p className="text-sm">{patient.phone || 'Not provided'}</p>
                               </div>
                             </div>
-                          </div>
-
-                          {/* Visit Details */}
-                          <div className="p-4 space-y-4">
-                            {/* Services Received */}
-                            {visit.service_queue && visit.service_queue.length > 0 && (
+                            
+                            <Separator />
+                            
+                            <div>
+                              <Badge variant="outline" className="mb-2">Address</Badge>
+                              <p className="text-sm">{patient.address || 'Not provided'}</p>
+                            </div>
+                            
+                            {patient.emergency_contact && (
                               <div>
-                                <h4 className="font-medium text-sm mb-2">Services Received:</h4>
+                                <Badge variant="outline" className="mb-2">Emergency Contact</Badge>
+                                <p className="text-sm">{patient.emergency_contact}</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Medical Information</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {patient.allergies && (
+                              <div>
+                                <Badge variant="destructive" className="mb-2">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Allergies
+                                </Badge>
+                                <p className="text-sm bg-red-50 dark:bg-red-950 p-2 rounded">
+                                  {patient.allergies}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {patient.medical_history && (
+                              <div>
+                                <Badge variant="outline" className="mb-2">Medical History</Badge>
+                                <p className="text-sm bg-blue-50 dark:bg-blue-950 p-2 rounded">
+                                  {patient.medical_history}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {patient.medications && (
+                              <div>
+                                <Badge variant="outline" className="mb-2">Current Medications</Badge>
+                                <p className="text-sm bg-blue-50 dark:bg-blue-950 p-2 rounded">
+                                  {patient.medications}
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="screening" className="mt-0">
+                    <PermissionWrapper tabName="screening">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Heart className="h-5 w-5 text-red-500" />
+                            Basic Screening - "Know Your Numbers"
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {currentVisit && (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                  <Label>Weight (kg)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.weight}
+                                    onChange={(e) => setScreeningData({...screeningData, weight: e.target.value})}
+                                    placeholder="Enter weight"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Height (cm)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.height}
+                                    onChange={(e) => setScreeningData({...screeningData, height: e.target.value})}
+                                    placeholder="Enter height"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Blood Sugar (mg/dL)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.blood_sugar}
+                                    onChange={(e) => setScreeningData({...screeningData, blood_sugar: e.target.value})}
+                                    placeholder="Enter blood sugar"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Heart Rate (BPM)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.heart_rate}
+                                    onChange={(e) => setScreeningData({...screeningData, heart_rate: e.target.value})}
+                                    placeholder="Enter heart rate"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Oxygen Saturation (%)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.oxygen_saturation}
+                                    onChange={(e) => setScreeningData({...screeningData, oxygen_saturation: e.target.value})}
+                                    placeholder="Enter oxygen saturation"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Cholesterol (mg/dL)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.cholesterol}
+                                    onChange={(e) => setScreeningData({...screeningData, cholesterol: e.target.value})}
+                                    placeholder="Enter cholesterol"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Blood Pressure (Systolic)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.blood_pressure_systolic}
+                                    onChange={(e) => setScreeningData({...screeningData, blood_pressure_systolic: e.target.value})}
+                                    placeholder="Enter systolic BP"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Blood Pressure (Diastolic)</Label>
+                                  <Input
+                                    type="number"
+                                    value={screeningData.blood_pressure_diastolic}
+                                    onChange={(e) => setScreeningData({...screeningData, blood_pressure_diastolic: e.target.value})}
+                                    placeholder="Enter diastolic BP"
+                                    disabled={!canEditTab('screening')}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <Label>Notes</Label>
+                                <Textarea
+                                  value={screeningData.notes}
+                                  onChange={(e) => setScreeningData({...screeningData, notes: e.target.value})}
+                                  placeholder="Additional notes or observations"
+                                  disabled={!canEditTab('screening')}
+                                />
+                              </div>
+
+                              {canEditTab('screening') && (
+                                <Button onClick={saveScreeningData} className="flex items-center gap-2">
+                                  <Save className="h-4 w-4" />
+                                  Save Screening Data
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          
+                          {basicScreening && (
+                            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                              <h4 className="font-medium mb-2">Professional Attribution</h4>
+                              <p className="text-sm text-muted-foreground">
+                                Recorded by professional ID: {basicScreening.performed_by}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Last updated: {new Date(basicScreening.updated_at || basicScreening.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="complaints-prognosis" className="mt-0">
+                    <PermissionWrapper tabName="complaints-prognosis">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Complaints Section */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <FileText className="h-5 w-5 text-orange-500" />
+                              Patient Complaints
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {currentVisit && (
+                              <div className="space-y-4">
+                                {canEditTab('complaints-prognosis') && (
+                                  <div className="space-y-2">
+                                    <Label>New Complaint</Label>
+                                    <Textarea
+                                      value={newComplaint.text}
+                                      onChange={(e) => setNewComplaint({...newComplaint, text: e.target.value})}
+                                      placeholder="Describe the patient's complaint"
+                                    />
+                                    <Select
+                                      value={newComplaint.severity}
+                                      onValueChange={(value) => setNewComplaint({...newComplaint, severity: value})}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="mild">Mild</SelectItem>
+                                        <SelectItem value="moderate">Moderate</SelectItem>
+                                        <SelectItem value="severe">Severe</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button onClick={addComplaint} className="flex items-center gap-2">
+                                      <Save className="h-4 w-4" />
+                                      Add Complaint
+                                    </Button>
+                                  </div>
+                                )}
+                                
                                 <div className="space-y-2">
-                                  {visit.service_queue.map((service) => (
-                                    <div key={service.id} className="bg-muted/30 p-2 rounded text-sm">
-                                      <div className="flex items-center justify-between">
-                                        <span className="font-medium">{service.services?.name}</span>
-                                        <Badge variant={service.status === 'completed' ? 'default' : 'outline'} className="text-xs">
-                                          {service.status}
-                                        </Badge>
+                                  <h4 className="font-medium">Recorded Complaints</h4>
+                                  {complaints.length > 0 ? (
+                                    complaints.map((complaint) => (
+                                      <div key={complaint.id} className="p-3 border rounded-lg">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <Badge variant={
+                                            complaint.severity === 'severe' ? 'destructive' :
+                                            complaint.severity === 'moderate' ? 'default' : 'secondary'
+                                          }>
+                                            {complaint.severity}
+                                          </Badge>
+                                          <span className="text-xs text-muted-foreground">
+                                            {new Date(complaint.created_at).toLocaleString()}
+                                          </span>
+                                        </div>
+                                        <p className="text-sm">{complaint.complaint_text}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          Reported by: {complaint.reported_by}
+                                        </p>
                                       </div>
-                                      {service.doctors && (
-                                        <p className="text-muted-foreground mt-1">
-                                          Doctor: Dr. {service.doctors.first_name} {service.doctors.last_name}
-                                        </p>
-                                      )}
-                                      {service.nurses && (
-                                        <p className="text-muted-foreground">
-                                          Nurse: {service.nurses.first_name} {service.nurses.last_name}
-                                        </p>
-                                      )}
-                                    </div>
-                                  ))}
+                                    ))
+                                  ) : (
+                                    <p className="text-muted-foreground text-sm">No complaints recorded</p>
+                                  )}
                                 </div>
                               </div>
                             )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Prognosis Section */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Activity className="h-5 w-5 text-green-500" />
+                              Prognosis & Treatment
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {currentVisit && (
+                              <div className="space-y-4">
+                                <div>
+                                  <Label>Diagnosis</Label>
+                                  <Textarea
+                                    value={prognosisData.diagnosis}
+                                    onChange={(e) => setPrognosisData({...prognosisData, diagnosis: e.target.value})}
+                                    placeholder="Enter diagnosis"
+                                    disabled={!canEditTab('complaints-prognosis')}
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <Label>Treatment Plan</Label>
+                                  <Textarea
+                                    value={prognosisData.treatment_plan}
+                                    onChange={(e) => setPrognosisData({...prognosisData, treatment_plan: e.target.value})}
+                                    placeholder="Enter treatment plan"
+                                    disabled={!canEditTab('complaints-prognosis')}
+                                  />
+                                </div>
+                                
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    id="followUp"
+                                    checked={prognosisData.follow_up_required}
+                                    onChange={(e) => setPrognosisData({...prognosisData, follow_up_required: e.target.checked})}
+                                    disabled={!canEditTab('complaints-prognosis')}
+                                  />
+                                  <Label htmlFor="followUp">Follow-up Required</Label>
+                                </div>
+                                
+                                {prognosisData.follow_up_required && (
+                                  <div>
+                                    <Label>Follow-up Notes</Label>
+                                    <Textarea
+                                      value={prognosisData.follow_up_notes}
+                                      onChange={(e) => setPrognosisData({...prognosisData, follow_up_notes: e.target.value})}
+                                      placeholder="Enter follow-up instructions"
+                                      disabled={!canEditTab('complaints-prognosis')}
+                                    />
+                                  </div>
+                                )}
+
+                                {canEditTab('complaints-prognosis') && (
+                                  <Button onClick={savePrognosis} className="flex items-center gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Save Prognosis
+                                  </Button>
+                                )}
+
+                                {prognosis && (
+                                  <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                                    <h4 className="font-medium mb-2">Professional Attribution</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      Assessed by professional ID: {prognosis.assessed_by}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      Last updated: {new Date(prognosis.updated_at || prognosis.created_at).toLocaleString()}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="prescriptions" className="mt-0">
+                    <PermissionWrapper tabName="prescriptions">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Pill className="h-5 w-5 text-blue-500" />
+                            Prescriptions
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {currentVisit && (
+                            <div className="space-y-4">
+                              {canEditTab('prescriptions') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+                                  <div className="col-span-full">
+                                    <h4 className="font-medium mb-2">Add New Prescription</h4>
+                                  </div>
+                                  <div>
+                                    <Label>Medication</Label>
+                                    <Input
+                                      value={newPrescription.medication}
+                                      onChange={(e) => setNewPrescription({...newPrescription, medication: e.target.value})}
+                                      placeholder="Enter medication name"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Dosage</Label>
+                                    <Input
+                                      value={newPrescription.dosage}
+                                      onChange={(e) => setNewPrescription({...newPrescription, dosage: e.target.value})}
+                                      placeholder="e.g., 500mg"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Frequency</Label>
+                                    <Input
+                                      value={newPrescription.frequency}
+                                      onChange={(e) => setNewPrescription({...newPrescription, frequency: e.target.value})}
+                                      placeholder="e.g., Twice daily"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Duration</Label>
+                                    <Input
+                                      value={newPrescription.duration}
+                                      onChange={(e) => setNewPrescription({...newPrescription, duration: e.target.value})}
+                                      placeholder="e.g., 7 days"
+                                    />
+                                  </div>
+                                  <div className="col-span-full">
+                                    <Label>Instructions</Label>
+                                    <Textarea
+                                      value={newPrescription.instructions}
+                                      onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
+                                      placeholder="Special instructions for the patient"
+                                    />
+                                  </div>
+                                  <Button onClick={addPrescription} className="flex items-center gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Add Prescription
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              <div className="space-y-2">
+                                <h4 className="font-medium">Current Prescriptions</h4>
+                                {prescriptions.length > 0 ? (
+                                  prescriptions.map((prescription) => (
+                                    <div key={prescription.id} className="p-4 border rounded-lg">
+                                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Medication</Badge>
+                                          <p className="font-medium">{prescription.medication}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Dosage</Badge>
+                                          <p className="text-sm">{prescription.dosage}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Frequency</Badge>
+                                          <p className="text-sm">{prescription.frequency}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Duration</Badge>
+                                          <p className="text-sm">{prescription.duration}</p>
+                                        </div>
+                                      </div>
+                                      {prescription.instructions && (
+                                        <div className="mt-2">
+                                          <Badge variant="outline" className="mb-1">Instructions</Badge>
+                                          <p className="text-sm">{prescription.instructions}</p>
+                                        </div>
+                                      )}
+                                      <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                                        <span>Prescribed by: {prescription.prescribed_by}</span>
+                                        <span>{new Date(prescription.created_at).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground text-sm">No prescriptions recorded</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="ecg" className="mt-0">
+                    <PermissionWrapper tabName="ecg">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Zap className="h-5 w-5 text-yellow-500" />
+                            ECG Results
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {currentVisit && (
+                            <div className="space-y-4">
+                              {canEditTab('ecg') && (
+                                <div className="grid grid-cols-1 gap-4 p-4 border rounded-lg">
+                                  <h4 className="font-medium">Add New ECG Result</h4>
+                                  <div>
+                                    <Label>ECG Result</Label>
+                                    <Textarea
+                                      value={newEcgResult.result}
+                                      onChange={(e) => setNewEcgResult({...newEcgResult, result: e.target.value})}
+                                      placeholder="Enter ECG findings"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Interpretation</Label>
+                                    <Textarea
+                                      value={newEcgResult.interpretation}
+                                      onChange={(e) => setNewEcgResult({...newEcgResult, interpretation: e.target.value})}
+                                      placeholder="Clinical interpretation of results"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Additional Notes</Label>
+                                    <Textarea
+                                      value={newEcgResult.notes}
+                                      onChange={(e) => setNewEcgResult({...newEcgResult, notes: e.target.value})}
+                                      placeholder="Any additional observations"
+                                    />
+                                  </div>
+                                  <Button onClick={addEcgResult} className="flex items-center gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Add ECG Result
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              <div className="space-y-2">
+                                <h4 className="font-medium">Recorded ECG Results</h4>
+                                {ecgResults.length > 0 ? (
+                                  ecgResults.map((result) => (
+                                    <div key={result.id} className="p-4 border rounded-lg">
+                                      <div className="space-y-2">
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Result</Badge>
+                                          <p className="text-sm">{result.result}</p>
+                                        </div>
+                                        {result.interpretation && (
+                                          <div>
+                                            <Badge variant="outline" className="mb-1">Interpretation</Badge>
+                                            <p className="text-sm">{result.interpretation}</p>
+                                          </div>
+                                        )}
+                                        {result.notes && (
+                                          <div>
+                                            <Badge variant="outline" className="mb-1">Notes</Badge>
+                                            <p className="text-sm">{result.notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                                        <span>Performed by: {result.performed_by}</span>
+                                        <span>{new Date(result.created_at).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground text-sm">No ECG results recorded</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="optician" className="mt-0">
+                    <PermissionWrapper tabName="optician">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Eye className="h-5 w-5 text-purple-500" />
+                            Optician Assessment
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {currentVisit && (
+                            <div className="space-y-4">
+                              {canEditTab('optician') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+                                  <div className="col-span-full">
+                                    <h4 className="font-medium mb-2">Add New Assessment</h4>
+                                  </div>
+                                  <div>
+                                    <Label>Vision Test Results</Label>
+                                    <Textarea
+                                      value={newOpticianAssessment.vision_test_results}
+                                      onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, vision_test_results: e.target.value})}
+                                      placeholder="Enter vision test results"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Eye Pressure</Label>
+                                    <Input
+                                      value={newOpticianAssessment.eye_pressure}
+                                      onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, eye_pressure: e.target.value})}
+                                      placeholder="Eye pressure measurements"
+                                    />
+                                  </div>
+                                  <div className="col-span-full">
+                                    <Label>Prescription Details</Label>
+                                    <Textarea
+                                      value={newOpticianAssessment.prescription_details}
+                                      onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, prescription_details: e.target.value})}
+                                      placeholder="Prescription details if needed"
+                                    />
+                                  </div>
+                                  <div className="col-span-full">
+                                    <Label>Assessment Notes</Label>
+                                    <Textarea
+                                      value={newOpticianAssessment.assessment_notes}
+                                      onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, assessment_notes: e.target.value})}
+                                      placeholder="Additional assessment notes"
+                                    />
+                                  </div>
+                                  <Button onClick={addOpticianAssessment} className="flex items-center gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Add Assessment
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              <div className="space-y-2">
+                                <h4 className="font-medium">Recorded Assessments</h4>
+                                {opticianAssessments.length > 0 ? (
+                                  opticianAssessments.map((assessment) => (
+                                    <div key={assessment.id} className="p-4 border rounded-lg">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Vision Test Results</Badge>
+                                          <p className="text-sm">{assessment.vision_test_results}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Eye Pressure</Badge>
+                                          <p className="text-sm">{assessment.eye_pressure}</p>
+                                        </div>
+                                        {assessment.prescription_details && (
+                                          <div className="col-span-full">
+                                            <Badge variant="outline" className="mb-1">Prescription Details</Badge>
+                                            <p className="text-sm">{assessment.prescription_details}</p>
+                                          </div>
+                                        )}
+                                        {assessment.assessment_notes && (
+                                          <div className="col-span-full">
+                                            <Badge variant="outline" className="mb-1">Notes</Badge>
+                                            <p className="text-sm">{assessment.assessment_notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                                        <span>Assessed by: {assessment.optician_id}</span>
+                                        <span>{new Date(assessment.created_at).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground text-sm">No optician assessments recorded</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="dental" className="mt-0">
+                    <PermissionWrapper tabName="dental">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Smile className="h-5 w-5 text-green-500" />
+                            Dental Assessment
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {currentVisit && (
+                            <div className="space-y-4">
+                              {canEditTab('dental') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+                                  <div className="col-span-full">
+                                    <h4 className="font-medium mb-2">Add New Dental Assessment</h4>
+                                  </div>
+                                  <div>
+                                    <Label>Teeth Condition</Label>
+                                    <Textarea
+                                      value={newDentalAssessment.teeth_condition}
+                                      onChange={(e) => setNewDentalAssessment({...newDentalAssessment, teeth_condition: e.target.value})}
+                                      placeholder="Describe teeth condition"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Gum Health</Label>
+                                    <Textarea
+                                      value={newDentalAssessment.gum_health}
+                                      onChange={(e) => setNewDentalAssessment({...newDentalAssessment, gum_health: e.target.value})}
+                                      placeholder="Describe gum health"
+                                    />
+                                  </div>
+                                  <div className="col-span-full">
+                                    <Label>Recommendations</Label>
+                                    <Textarea
+                                      value={newDentalAssessment.recommendations}
+                                      onChange={(e) => setNewDentalAssessment({...newDentalAssessment, recommendations: e.target.value})}
+                                      placeholder="Treatment recommendations"
+                                    />
+                                  </div>
+                                  <div className="col-span-full">
+                                    <Label>Assessment Notes</Label>
+                                    <Textarea
+                                      value={newDentalAssessment.assessment_notes}
+                                      onChange={(e) => setNewDentalAssessment({...newDentalAssessment, assessment_notes: e.target.value})}
+                                      placeholder="Additional notes"
+                                    />
+                                  </div>
+                                  <Button onClick={addDentalAssessment} className="flex items-center gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Add Assessment
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              <div className="space-y-2">
+                                <h4 className="font-medium">Recorded Assessments</h4>
+                                {dentalAssessments.length > 0 ? (
+                                  dentalAssessments.map((assessment) => (
+                                    <div key={assessment.id} className="p-4 border rounded-lg">
+                                      <div className="space-y-2">
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Teeth Condition</Badge>
+                                          <p className="text-sm">{assessment.teeth_condition}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Gum Health</Badge>
+                                          <p className="text-sm">{assessment.gum_health}</p>
+                                        </div>
+                                        {assessment.recommendations && (
+                                          <div>
+                                            <Badge variant="outline" className="mb-1">Recommendations</Badge>
+                                            <p className="text-sm">{assessment.recommendations}</p>
+                                          </div>
+                                        )}
+                                        {assessment.assessment_notes && (
+                                          <div>
+                                            <Badge variant="outline" className="mb-1">Notes</Badge>
+                                            <p className="text-sm">{assessment.assessment_notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                                        <span>Assessed by: {assessment.dental_professional_id}</span>
+                                        <span>{new Date(assessment.created_at).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground text-sm">No dental assessments recorded</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="pap-smears" className="mt-0">
+                    <PermissionWrapper tabName="pap-smears">
+                      {currentVisit && (
+                        <PapSmearTab 
+                          patientVisitId={currentVisit.id} 
+                          canEdit={canEditTab('pap-smears')} 
+                        />
+                      )}
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="back-to-school" className="mt-0">
+                    <PermissionWrapper tabName="back-to-school">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <UserCog className="h-5 w-5 text-indigo-500" />
+                            Back to School Assessment
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {currentVisit && (
+                            <div className="space-y-4">
+                              {canEditTab('back-to-school') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+                                  <div className="col-span-full">
+                                    <h4 className="font-medium mb-2">Add New Back to School Assessment</h4>
+                                  </div>
+                                  <div>
+                                    <Label>Height (cm)</Label>
+                                    <Input
+                                      type="number"
+                                      value={newBackToSchoolAssessment.height}
+                                      onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, height: e.target.value})}
+                                      placeholder="Enter height"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Weight (kg)</Label>
+                                    <Input
+                                      type="number"
+                                      value={newBackToSchoolAssessment.weight}
+                                      onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, weight: e.target.value})}
+                                      placeholder="Enter weight"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>BMI</Label>
+                                    <Input
+                                      value={newBackToSchoolAssessment.bmi}
+                                      onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, bmi: e.target.value})}
+                                      placeholder="Enter BMI"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Vision Screening</Label>
+                                    <Input
+                                      value={newBackToSchoolAssessment.vision_screening}
+                                      onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, vision_screening: e.target.value})}
+                                      placeholder="Vision screening results"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Hearing Screening</Label>
+                                    <Input
+                                      value={newBackToSchoolAssessment.hearing_screening}
+                                      onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, hearing_screening: e.target.value})}
+                                      placeholder="Hearing screening results"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>General Health Status</Label>
+                                    <Select
+                                      value={newBackToSchoolAssessment.general_health_status}
+                                      onValueChange={(value) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, general_health_status: value})}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select health status" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="excellent">Excellent</SelectItem>
+                                        <SelectItem value="good">Good</SelectItem>
+                                        <SelectItem value="fair">Fair</SelectItem>
+                                        <SelectItem value="poor">Poor</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="col-span-full">
+                                    <Label>Notes</Label>
+                                    <Textarea
+                                      value={newBackToSchoolAssessment.notes}
+                                      onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, notes: e.target.value})}
+                                      placeholder="Additional notes"
+                                    />
+                                  </div>
+                                  <Button onClick={addBackToSchoolAssessment} className="flex items-center gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Add Assessment
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              <div className="space-y-2">
+                                <h4 className="font-medium">Recorded Assessments</h4>
+                                {backToSchoolAssessments.length > 0 ? (
+                                  backToSchoolAssessments.map((assessment) => (
+                                    <div key={assessment.id} className="p-4 border rounded-lg">
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Height</Badge>
+                                          <p className="text-sm">{assessment.height} cm</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Weight</Badge>
+                                          <p className="text-sm">{assessment.weight} kg</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">BMI</Badge>
+                                          <p className="text-sm">{assessment.bmi}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Vision</Badge>
+                                          <p className="text-sm">{assessment.vision_screening}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Hearing</Badge>
+                                          <p className="text-sm">{assessment.hearing_screening}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Health Status</Badge>
+                                          <Badge variant={
+                                            assessment.general_health_status === 'excellent' ? 'default' :
+                                            assessment.general_health_status === 'good' ? 'secondary' :
+                                            assessment.general_health_status === 'fair' ? 'outline' : 'destructive'
+                                          }>
+                                            {assessment.general_health_status}
+                                          </Badge>
+                                        </div>
+                                        {assessment.notes && (
+                                          <div className="col-span-full">
+                                            <Badge variant="outline" className="mb-1">Notes</Badge>
+                                            <p className="text-sm">{assessment.notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                                        <span>Assessed by: {assessment.examining_professional_id}</span>
+                                        <span>{new Date(assessment.created_at).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground text-sm">No back to school assessments recorded</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="immunizations" className="mt-0">
+                    <PermissionWrapper tabName="immunizations">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-blue-500" />
+                            Immunizations
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {currentVisit && (
+                            <div className="space-y-4">
+                              {canEditTab('immunizations') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+                                  <div className="col-span-full">
+                                    <h4 className="font-medium mb-2">Add New Immunization Record</h4>
+                                  </div>
+                                  <div>
+                                    <Label>Vaccine Name</Label>
+                                    <Input
+                                      value={newImmunization.vaccine_name}
+                                      onChange={(e) => setNewImmunization({...newImmunization, vaccine_name: e.target.value})}
+                                      placeholder="Enter vaccine name"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Dose Number</Label>
+                                    <Input
+                                      value={newImmunization.dose_number}
+                                      onChange={(e) => setNewImmunization({...newImmunization, dose_number: e.target.value})}
+                                      placeholder="e.g., 1st dose, 2nd dose"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Vaccine Date</Label>
+                                    <Input
+                                      type="date"
+                                      value={newImmunization.vaccine_date}
+                                      onChange={(e) => setNewImmunization({...newImmunization, vaccine_date: e.target.value})}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Lot Number</Label>
+                                    <Input
+                                      value={newImmunization.lot_number}
+                                      onChange={(e) => setNewImmunization({...newImmunization, lot_number: e.target.value})}
+                                      placeholder="Vaccine lot number"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Expiration Date</Label>
+                                    <Input
+                                      type="date"
+                                      value={newImmunization.expiration_date}
+                                      onChange={(e) => setNewImmunization({...newImmunization, expiration_date: e.target.value})}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Site of Injection</Label>
+                                    <Input
+                                      value={newImmunization.site_of_injection}
+                                      onChange={(e) => setNewImmunization({...newImmunization, site_of_injection: e.target.value})}
+                                      placeholder="e.g., Left arm"
+                                    />
+                                  </div>
+                                  <div className="col-span-full">
+                                    <Label>Notes</Label>
+                                    <Textarea
+                                      value={newImmunization.notes}
+                                      onChange={(e) => setNewImmunization({...newImmunization, notes: e.target.value})}
+                                      placeholder="Additional notes or reactions"
+                                    />
+                                  </div>
+                                  <Button onClick={addImmunization} className="flex items-center gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Add Immunization
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              <div className="space-y-2">
+                                <h4 className="font-medium">Immunization Records</h4>
+                                {immunizations.length > 0 ? (
+                                  immunizations.map((immunization) => (
+                                    <div key={immunization.id} className="p-4 border rounded-lg">
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Vaccine</Badge>
+                                          <p className="font-medium">{immunization.vaccine_name}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Dose</Badge>
+                                          <p className="text-sm">{immunization.dose_number}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Date</Badge>
+                                          <p className="text-sm">{new Date(immunization.vaccine_date).toLocaleDateString()}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Lot Number</Badge>
+                                          <p className="text-sm">{immunization.lot_number}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Expiry</Badge>
+                                          <p className="text-sm">{new Date(immunization.expiration_date).toLocaleDateString()}</p>
+                                        </div>
+                                        <div>
+                                          <Badge variant="outline" className="mb-1">Site</Badge>
+                                          <p className="text-sm">{immunization.site_of_injection}</p>
+                                        </div>
+                                        {immunization.notes && (
+                                          <div className="col-span-full">
+                                            <Badge variant="outline" className="mb-1">Notes</Badge>
+                                            <p className="text-sm">{immunization.notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                                        <span>Administered by: {immunization.administered_by}</span>
+                                        <span>{new Date(immunization.created_at).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground text-sm">No immunization records found</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                  <TabsContent value="history" className="mt-0">
+                    <PermissionWrapper tabName="history">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-gray-500" />
+                            Visit History
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {visitHistory.length > 0 ? (
+                              visitHistory.map((visit) => (
+                                <div key={visit.id} className="border rounded-lg">
+                                  {/* Visit Header */}
+                                  <div className="bg-muted/30 p-4 rounded-t-lg">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <p className="font-medium text-lg">{visit.events?.name}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                          Health Fair Date: {visit.events?.event_date ? new Date(visit.events.event_date).toLocaleDateString() : 'N/A'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                          Visit Date: {new Date(visit.visit_date).toLocaleDateString()}
+                                        </p>
+                                      </div>
+                                      <div className="text-right">
+                                        <Badge variant="outline">Queue #{visit.queue_number}</Badge>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                          Status: {visit.status}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Visit Details */}
+                                  <div className="p-4 space-y-4">
+                                    {/* Services Received */}
+                                    {visit.service_queue && visit.service_queue.length > 0 && (
+                                      <div>
+                                        <h4 className="font-medium text-sm mb-2">Services Received:</h4>
+                                        <div className="space-y-2">
+                                          {visit.service_queue.map((service) => (
+                                            <div key={service.id} className="bg-muted/30 p-2 rounded text-sm">
+                                              <div className="flex items-center justify-between">
+                                                <span className="font-medium">{service.services?.name}</span>
+                                                <Badge variant={service.status === 'completed' ? 'default' : 'outline'} className="text-xs">
+                                                  {service.status}
+                                                </Badge>
+                                              </div>
+                                              {service.doctors && (
+                                                <p className="text-muted-foreground mt-1">
+                                                  Doctor: Dr. {service.doctors.first_name} {service.doctors.last_name}
+                                                </p>
+                                              )}
+                                              {service.nurses && (
+                                                <p className="text-muted-foreground">
+                                                  Nurse: {service.nurses.first_name} {service.nurses.last_name}
+                                                </p>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-muted-foreground text-center py-8">No previous visits found.</p>
+                            )}
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground text-center py-8">No previous visits found.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              </PermissionWrapper>
-            </TabsContent>
+                        </CardContent>
+                      </Card>
+                    </PermissionWrapper>
+                  </TabsContent>
+
+                </div>
+              </ScrollArea>
+            </div>
           </Tabs>
         </div>
       </DialogContent>
