@@ -24,6 +24,11 @@ import { User as SupabaseUser } from "@supabase/supabase-js";
 import PapSmearTab from "../patient/PapSmearTab";
 import BasicScreeningTab from "../patient/BasicScreeningTab";
 import ServiceRecordsTab from "../patient/ServiceRecordsTab";
+import PrognosisAndComplaintsTab from "../patient/PrognosisAndComplaintsTab";
+import PrescriptionsTab from "../patient/PrescriptionsTab";
+import ECGTab from "../patient/ECGTab";
+import OpticianTab from "../patient/OpticianTab";
+import DentalTab from "../patient/DentalTab";
 
 interface PatientDetailsModalProps {
   patient: any;
@@ -205,123 +210,53 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
       )
     },
     {
-      id: "complaints",
-      label: "Complaints",
-      icon: FileText,
-      component: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Patient Complaints
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Patient complaints functionality will be implemented here
-            </div>
-          </CardContent>
-        </Card>
-      )
-    },
-    {
       id: "prognosis",
-      label: "Prognosis",
+      label: "Prognosis & Complaints",
       icon: Activity,
-      component: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Patient Prognosis
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Patient prognosis functionality will be implemented here
-            </div>
-          </CardContent>
-        </Card>
+      component: currentVisit ? <PrognosisAndComplaintsTab patientVisitId={currentVisit.id} /> : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
       )
     },
     {
       id: "prescriptions",
       label: "Prescriptions",
       icon: Pill,
-      component: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Pill className="h-5 w-5" />
-              Prescriptions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Prescriptions functionality will be implemented here
-            </div>
-          </CardContent>
-        </Card>
+      component: currentVisit ? <PrescriptionsTab patientVisitId={currentVisit.id} /> : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
       )
     },
     {
       id: "ecg",
       label: "ECG",
       icon: Zap,
-      component: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
-              ECG Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              ECG results functionality will be implemented here
-            </div>
-          </CardContent>
-        </Card>
+      component: currentVisit ? <ECGTab patientVisitId={currentVisit.id} /> : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
       )
     },
     {
       id: "optician",
       label: "Optician",
       icon: Eye,
-      component: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
-              Optician Assessment
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Optician assessment functionality will be implemented here
-            </div>
-          </CardContent>
-        </Card>
+      component: currentVisit ? <OpticianTab patientVisitId={currentVisit.id} /> : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
       )
     },
     {
       id: "dental",
       label: "Dental",
       icon: Smile,
-      component: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Smile className="h-5 w-5" />
-              Dental Assessment
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Dental assessment functionality will be implemented here
-            </div>
-          </CardContent>
-        </Card>
+      component: currentVisit ? <DentalTab patientVisitId={currentVisit.id} /> : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
       )
     },
     {
@@ -348,7 +283,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         
         <div className="flex-1 min-h-0">
           <Tabs defaultValue="basic-info" className="h-full flex flex-col">
-            <TabsList className="grid grid-cols-10 w-full shrink-0">
+            <TabsList className="grid grid-cols-9 w-full shrink-0">
               {tabs.map((tab) => (
                 <TabsTrigger 
                   key={tab.id} 
