@@ -275,10 +275,18 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            {patient.first_name} {patient.last_name}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {patient.first_name} {patient.last_name}
+            </DialogTitle>
+            {user && (
+              <div className="flex items-center gap-2 bg-muted px-3 py-1 rounded text-sm">
+                <User className="h-3 w-3" />
+                {user.email}
+              </div>
+            )}
+          </div>
         </DialogHeader>
         
         <div className="flex-1 min-h-0">

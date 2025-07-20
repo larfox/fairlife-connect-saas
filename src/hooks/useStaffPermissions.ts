@@ -17,7 +17,7 @@ const SERVICE_TAB_MAPPING = {
   'prescriptions': 'prescriptions',
   'ecg': 'ECG screening',
   'optician': 'Optical',
-  'dental': 'Dental',
+  'dental': 'Dental ',
   'pap-smear': 'Paps Smears'
 };
 
