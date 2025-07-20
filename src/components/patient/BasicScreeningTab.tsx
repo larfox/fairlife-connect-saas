@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Heart, Edit, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,11 +36,32 @@ interface BasicScreeningTabProps {
 const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   const [basicScreening, setBasicScreening] = useState<BasicScreening | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    height: "",
+    weight: "",
+    blood_pressure_systolic: "",
+    blood_pressure_diastolic: "",
+    heart_rate: "",
+    temperature: "",
+    blood_sugar: "",
+    cholesterol: "",
+    oxygen_saturation: "",
+    notes: ""
+  });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchBasicScreening();
+    getCurrentUser();
   }, [patientVisitId]);
+
+  const getCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+  };
 
   const fetchBasicScreening = async () => {
     try {
@@ -61,6 +86,26 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         screened_by: screeningData.nurses
       } : null;
       
+      
+      // If no screening data exists, set editing mode to true
+      if (!transformedScreeningData) {
+        setIsEditing(true);
+      } else {
+        // Populate form data with existing values
+        setFormData({
+          height: transformedScreeningData.height?.toString() || "",
+          weight: transformedScreeningData.weight?.toString() || "",
+          blood_pressure_systolic: transformedScreeningData.blood_pressure_systolic?.toString() || "",
+          blood_pressure_diastolic: transformedScreeningData.blood_pressure_diastolic?.toString() || "",
+          heart_rate: transformedScreeningData.heart_rate?.toString() || "",
+          temperature: transformedScreeningData.temperature?.toString() || "",
+          blood_sugar: transformedScreeningData.blood_sugar?.toString() || "",
+          cholesterol: transformedScreeningData.cholesterol?.toString() || "",
+          oxygen_saturation: transformedScreeningData.oxygen_saturation?.toString() || "",
+          notes: transformedScreeningData.notes || ""
+        });
+      }
+      
       setBasicScreening(transformedScreeningData);
     } catch (error) {
       console.error("Error fetching basic screening:", error);
@@ -74,6 +119,112 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     }
   };
 
+  const calculateBMI = (height: number, weight: number): number => {
+    if (height > 0 && weight > 0) {
+      const heightInMeters = height / 100;
+      return parseFloat((weight / (heightInMeters * heightInMeters)).toFixed(1));
+    }
+    return 0;
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      
+      const height = parseFloat(formData.height) || null;
+      const weight = parseFloat(formData.weight) || null;
+      const bmi = height && weight ? calculateBMI(height, weight) : null;
+      
+      const screeningData = {
+        patient_visit_id: patientVisitId,
+        height,
+        weight,
+        bmi,
+        blood_pressure_systolic: parseFloat(formData.blood_pressure_systolic) || null,
+        blood_pressure_diastolic: parseFloat(formData.blood_pressure_diastolic) || null,
+        heart_rate: parseInt(formData.heart_rate) || null,
+        temperature: parseFloat(formData.temperature) || null,
+        blood_sugar: parseInt(formData.blood_sugar) || null,
+        cholesterol: parseInt(formData.cholesterol) || null,
+        oxygen_saturation: parseInt(formData.oxygen_saturation) || null,
+        notes: formData.notes || null,
+        screened_by: currentUser?.id || null
+      };
+
+      if (basicScreening) {
+        // Update existing record
+        const { error } = await supabase
+          .from("basic_screening")
+          .update(screeningData)
+          .eq("id", basicScreening.id);
+        
+        if (error) throw error;
+      } else {
+        // Create new record
+        const { error } = await supabase
+          .from("basic_screening")
+          .insert(screeningData);
+        
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Basic screening data saved successfully",
+      });
+
+      setIsEditing(false);
+      fetchBasicScreening();
+    } catch (error) {
+      console.error("Error saving basic screening:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save basic screening data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (basicScreening) {
+      // Reset form to current data
+      setFormData({
+        height: basicScreening.height?.toString() || "",
+        weight: basicScreening.weight?.toString() || "",
+        blood_pressure_systolic: basicScreening.blood_pressure_systolic?.toString() || "",
+        blood_pressure_diastolic: basicScreening.blood_pressure_diastolic?.toString() || "",
+        heart_rate: basicScreening.heart_rate?.toString() || "",
+        temperature: basicScreening.temperature?.toString() || "",
+        blood_sugar: basicScreening.blood_sugar?.toString() || "",
+        cholesterol: basicScreening.cholesterol?.toString() || "",
+        oxygen_saturation: basicScreening.oxygen_saturation?.toString() || "",
+        notes: basicScreening.notes || ""
+      });
+    } else {
+      // Clear form for new entry
+      setFormData({
+        height: "",
+        weight: "",
+        blood_pressure_systolic: "",
+        blood_pressure_diastolic: "",
+        heart_rate: "",
+        temperature: "",
+        blood_sugar: "",
+        cholesterol: "",
+        oxygen_saturation: "",
+        notes: ""
+      });
+    }
+    setIsEditing(false);
+  };
+
   if (loading) {
     return (
       <div className="text-center py-4 text-muted-foreground">
@@ -85,13 +236,144 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Heart className="h-5 w-5" />
-          Basic Health Screening
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Heart className="h-5 w-5" />
+            Basic Health Screening
+          </CardTitle>
+          {!isEditing && basicScreening && (
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        {basicScreening ? (
+        {isEditing ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="height">Height (cm)</Label>
+                <Input
+                  id="height"
+                  type="number"
+                  placeholder="Enter height in cm"
+                  value={formData.height}
+                  onChange={(e) => handleInputChange("height", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="weight">Weight (kg)</Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  placeholder="Enter weight in kg"
+                  value={formData.weight}
+                  onChange={(e) => handleInputChange("weight", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="systolic">Blood Pressure - Systolic (mmHg)</Label>
+                <Input
+                  id="systolic"
+                  type="number"
+                  placeholder="Systolic pressure"
+                  value={formData.blood_pressure_systolic}
+                  onChange={(e) => handleInputChange("blood_pressure_systolic", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="diastolic">Blood Pressure - Diastolic (mmHg)</Label>
+                <Input
+                  id="diastolic"
+                  type="number"
+                  placeholder="Diastolic pressure"
+                  value={formData.blood_pressure_diastolic}
+                  onChange={(e) => handleInputChange("blood_pressure_diastolic", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="heart_rate">Heart Rate (bpm)</Label>
+                <Input
+                  id="heart_rate"
+                  type="number"
+                  placeholder="Beats per minute"
+                  value={formData.heart_rate}
+                  onChange={(e) => handleInputChange("heart_rate", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="temperature">Temperature (°C)</Label>
+                <Input
+                  id="temperature"
+                  type="number"
+                  step="0.1"
+                  placeholder="Body temperature"
+                  value={formData.temperature}
+                  onChange={(e) => handleInputChange("temperature", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="blood_sugar">Blood Sugar (mg/dL)</Label>
+                <Input
+                  id="blood_sugar"
+                  type="number"
+                  placeholder="Blood sugar level"
+                  value={formData.blood_sugar}
+                  onChange={(e) => handleInputChange("blood_sugar", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cholesterol">Cholesterol (mg/dL)</Label>
+                <Input
+                  id="cholesterol"
+                  type="number"
+                  placeholder="Cholesterol level"
+                  value={formData.cholesterol}
+                  onChange={(e) => handleInputChange("cholesterol", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="oxygen_saturation">Oxygen Saturation (%)</Label>
+                <Input
+                  id="oxygen_saturation"
+                  type="number"
+                  placeholder="Oxygen saturation percentage"
+                  value={formData.oxygen_saturation}
+                  onChange={(e) => handleInputChange("oxygen_saturation", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                placeholder="Additional notes or observations"
+                value={formData.notes}
+                onChange={(e) => handleInputChange("notes", e.target.value)}
+                rows={3}
+              />
+            </div>
+            {formData.height && formData.weight && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm font-medium">
+                  Calculated BMI: {calculateBMI(parseFloat(formData.height), parseFloat(formData.weight))}
+                </p>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button onClick={handleSave} disabled={isSaving}>
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? "Saving..." : "Save"}
+              </Button>
+              <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : basicScreening ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {basicScreening.height && (
               <div className="space-y-1">
@@ -161,8 +443,12 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
             )}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            No basic screening data recorded for this visit
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">No basic screening data recorded for this visit</p>
+            <Button onClick={() => setIsEditing(true)}>
+              <Heart className="h-4 w-4 mr-2" />
+              Start Screening
+            </Button>
           </div>
         )}
       </CardContent>
