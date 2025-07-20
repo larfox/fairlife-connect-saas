@@ -10,17 +10,15 @@ interface StaffPermissions {
 }
 
 const SERVICE_TAB_MAPPING = {
-  'overview': 'overview',
-  'screening': 'Know Your Numbers',
-  'complaints-prognosis': 'Complaints',
-  'prescriptions': 'Prescriptions',
-  'ecg': 'ECG Results',
-  'optician': 'Vision Testing',
-  'dental': 'Dental Assessment',
-  'pap-smears': 'PAP Smears',
-  'back-to-school': 'Back to School',
-  'immunizations': 'Immunizations',
-  'history': 'History'
+  'basic-info': 'overview',
+  'screening': 'know your numbers',
+  'services': 'services',
+  'prognosis': 'General Consultation',
+  'prescriptions': 'prescriptions',
+  'ecg': 'ECG screening',
+  'optician': 'Optical',
+  'dental': 'Dental',
+  'pap-smear': 'Paps Smears'
 };
 
 // Global cache and request deduplication with localStorage persistence
@@ -37,10 +35,11 @@ const getStoredPermissions = (email: string): { data: StaffPermissions; timestam
       // Reconstruct the canAccessTab function
       if (parsed.data) {
         parsed.data.canAccessTab = (tabName: string): boolean => {
-          if (tabName === 'overview' || tabName === 'screening') return true;
+          if (tabName === 'basic-info' || tabName === 'screening') return true;
           if (parsed.data.isAdmin) return true;
+          if (parsed.data.allowedServices.includes(tabName)) return true;
           const serviceName = SERVICE_TAB_MAPPING[tabName as keyof typeof SERVICE_TAB_MAPPING];
-          return parsed.data.allowedServices.includes(serviceName);
+          return serviceName && parsed.data.allowedServices.includes(serviceName);
         };
       }
       return parsed;
@@ -74,8 +73,8 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
     isActive: false,
     allowedServices: [],
     canAccessTab: (tabName: string) => {
-      // Default: allow overview and screening for all authenticated users
-      return tabName === 'overview' || tabName === 'screening';
+      // Default: allow basic-info and screening for all authenticated users
+      return tabName === 'basic-info' || tabName === 'screening';
     }
   });
 
@@ -87,7 +86,7 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
         isActive: false,
         allowedServices: [],
         canAccessTab: (tabName: string) => {
-          return tabName === 'overview' || tabName === 'screening';
+          return tabName === 'basic-info' || tabName === 'screening';
         }
       });
       return;
@@ -122,7 +121,7 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           isAdmin: false,
           isActive: false,
           allowedServices: [],
-          canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
+          canAccessTab: (tabName: string) => tabName === 'basic-info' || tabName === 'screening'
         });
       });
       return;
@@ -150,7 +149,7 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
             isAdmin: false,
             isActive: false,
             allowedServices: [],
-            canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
+            canAccessTab: (tabName: string) => tabName === 'basic-info' || tabName === 'screening'
           };
           
           // Cache the default permissions
@@ -163,16 +162,28 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           .filter(Boolean) || [];
 
         const canAccessTab = (tabName: string): boolean => {
-          if (tabName === 'overview' || tabName === 'screening') {
+          // Basic info and screening are always accessible
+          if (tabName === 'basic-info' || tabName === 'screening') {
             return true;
           }
 
+          // Admins have access to everything
           if (staffData.is_admin) {
             return true;
           }
 
+          // Check if it's a service-based permission or tab-based permission
+          if (allowedServices.includes(tabName)) {
+            return true;
+          }
+
+          // Check if there's a service mapping for this tab
           const serviceName = SERVICE_TAB_MAPPING[tabName as keyof typeof SERVICE_TAB_MAPPING];
-          return allowedServices.includes(serviceName);
+          if (serviceName && allowedServices.includes(serviceName)) {
+            return true;
+          }
+
+          return false;
         };
 
         const newPermissions = {
@@ -196,7 +207,7 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           isAdmin: false,
           isActive: false,
           allowedServices: [],
-          canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
+          canAccessTab: (tabName: string) => tabName === 'basic-info' || tabName === 'screening'
         };
         return defaultPermissions;
       } finally {
@@ -215,7 +226,7 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
         isAdmin: false,
         isActive: false,
         allowedServices: [],
-        canAccessTab: (tabName: string) => tabName === 'overview' || tabName === 'screening'
+        canAccessTab: (tabName: string) => tabName === 'basic-info' || tabName === 'screening'
       });
     });
 

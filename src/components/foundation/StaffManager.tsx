@@ -656,17 +656,15 @@ const StaffManager = () => {
                       </div>
                     ))}
                     
-                    {/* Additional Data Access Permissions */}
+                    {/* Tab Access Permissions */}
                     <div className="mt-4 pt-4 border-t">
                       <p className="text-sm text-muted-foreground mb-3">
-                        Data access permissions:
+                        Patient details tab access:
                       </p>
                       {[
-                        { id: 'immunizations', name: 'Immunizations', description: 'Access to patient immunization records' },
-                        { id: 'history', name: 'History', description: 'Access to patient history and records' },
-                        { id: 'complaints', name: 'Complaints', description: 'Access to patient complaints' },
-                        { id: 'prognosis', name: 'Prognosis', description: 'Access to patient prognosis data' },
-                        { id: 'prescriptions', name: 'Prescriptions', description: 'Access to patient prescriptions' }
+                        { id: 'services', name: 'Services', description: 'Access to patient service records tab' },
+                        { id: 'prognosis', name: 'Prognosis & Complaints', description: 'Access to patient prognosis and complaints tab' },
+                        { id: 'prescriptions', name: 'Prescriptions', description: 'Access to patient prescriptions tab' }
                       ].map((permission) => (
                         <div key={permission.id} className="flex items-center space-x-2 mb-3">
                           <Checkbox

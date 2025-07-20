@@ -303,42 +303,58 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                   value={tab.id}
                   className="h-full mt-0 data-[state=active]:block data-[state=inactive]:hidden"
                 >
-                  <ScrollArea className="h-full">
-                    <div className="space-y-4 p-1">
-                      {tab.component}
-                      
-                      {/* Permission Status for overview tab */}
-                      {tab.id === "basic-info" && permissions.canAccessTab('overview') && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-lg">Permission Status</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="flex gap-2">
-                              <Badge variant={permissions.isAdmin ? "default" : "secondary"}>
-                                {permissions.isAdmin ? "Admin" : "Staff"}
-                              </Badge>
-                              <Badge variant={permissions.isActive ? "default" : "destructive"}>
-                                {permissions.isActive ? "Active" : "Inactive"}
-                              </Badge>
-                            </div>
-                            {permissions.allowedServices.length > 0 && (
-                              <div className="mt-2">
-                                <p className="text-sm text-muted-foreground">Allowed services:</p>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {permissions.allowedServices.map((service, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
-                                      {service}
-                                    </Badge>
-                                  ))}
-                                </div>
+                  {permissions.canAccessTab(tab.id) ? (
+                    <ScrollArea className="h-full">
+                      <div className="space-y-4 p-1">
+                        {tab.component}
+                        
+                        {/* Permission Status for basic info tab */}
+                        {tab.id === "basic-info" && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Permission Status</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="flex gap-2">
+                                <Badge variant={permissions.isAdmin ? "default" : "secondary"}>
+                                  {permissions.isAdmin ? "Admin" : "Staff"}
+                                </Badge>
+                                <Badge variant={permissions.isActive ? "default" : "destructive"}>
+                                  {permissions.isActive ? "Active" : "Inactive"}
+                                </Badge>
                               </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
+                              {permissions.allowedServices.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-sm text-muted-foreground">Allowed services:</p>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {permissions.allowedServices.map((service, index) => (
+                                      <Badge key={index} variant="outline" className="text-xs">
+                                        {service}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <Card className="p-8 text-center">
+                        <CardContent className="space-y-4">
+                          <div className="text-muted-foreground">
+                            <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <h3 className="text-lg font-medium">Access Restricted</h3>
+                            <p className="text-sm">
+                              You don't have permission to view this tab. Contact your administrator for access.
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </ScrollArea>
+                  )}
                 </TabsContent>
               ))}
             </div>
