@@ -68,11 +68,11 @@ const PapSmearTab = ({ patientVisitId }: PapSmearTabProps) => {
         .from("pap_smear_assessments")
         .select(`
           *,
-          doctors!performed_by_doctor_id (
+          doctors!fk_pap_smear_doctor (
             first_name,
             last_name
           ),
-          nurses!performed_by_nurse_id (
+          nurses!fk_pap_smear_nurse (
             first_name,
             last_name
           )

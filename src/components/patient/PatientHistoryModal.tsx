@@ -16,6 +16,7 @@ import {
   FileText,
   User
 } from "lucide-react";
+import PapSmearTab from "./PapSmearTab";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -269,9 +270,10 @@ const PatientHistoryModal = ({ isOpen, onClose, patientVisit }: PatientHistoryMo
 
           {/* Detailed Information Tabs */}
           <Tabs defaultValue="services" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="services">Services</TabsTrigger>
               <TabsTrigger value="screening">Basic Screening</TabsTrigger>
+              <TabsTrigger value="pap-smears">PAP Smears</TabsTrigger>
               <TabsTrigger value="medical">Medical Info</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
@@ -419,6 +421,10 @@ const PatientHistoryModal = ({ isOpen, onClose, patientVisit }: PatientHistoryMo
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="pap-smears" className="space-y-4">
+              <PapSmearTab patientVisitId={patientVisit.id} />
             </TabsContent>
 
             <TabsContent value="medical" className="space-y-4">

@@ -623,7 +623,22 @@ export type Database = {
           recommendations?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_pap_smear_doctor"
+            columns: ["performed_by_doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pap_smear_nurse"
+            columns: ["performed_by_nurse_id"]
+            isOneToOne: false
+            referencedRelation: "nurses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       parishes: {
         Row: {
