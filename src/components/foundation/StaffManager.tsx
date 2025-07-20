@@ -461,116 +461,118 @@ const StaffManager = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Professional Capacity</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Permissions</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {staff.map((staffMember) => {
-                  const permissions = getStaffPermissions(staffMember.id);
-                  return (
-                    <TableRow key={staffMember.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium text-foreground">
-                            {staffMember.first_name} {staffMember.last_name}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{staffMember.email}</TableCell>
-                      <TableCell>{staffMember.phone || "N/A"}</TableCell>
-                      <TableCell>
-                        <div className="capitalize">
-                          {staffMember.professional_capacity?.replace('_', ' ') || 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {staffMember.is_admin ? (
-                          <Badge variant="destructive" className="gap-1">
-                            <Shield className="h-3 w-3" />
-                            Admin
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Staff</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {permissions.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {permissions.slice(0, 2).map((permission) => (
-                                <Badge 
-                                  key={permission} 
-                                  variant={permission === "Admin" ? "destructive" : "outline"} 
-                                  className="text-xs"
-                                >
-                                  {permission}
-                                </Badge>
-                              ))}
-                              {permissions.length > 2 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{permissions.length - 2} more
-                                </Badge>
-                              )}
+          <div className="overflow-x-auto">
+            <div className="min-w-[800px] max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Professional Capacity</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Permissions</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {staff.map((staffMember) => {
+                    const permissions = getStaffPermissions(staffMember.id);
+                    return (
+                      <TableRow key={staffMember.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium text-foreground">
+                              {staffMember.first_name} {staffMember.last_name}
                             </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{staffMember.email}</TableCell>
+                        <TableCell>{staffMember.phone || "N/A"}</TableCell>
+                        <TableCell>
+                          <div className="capitalize">
+                            {staffMember.professional_capacity?.replace('_', ' ') || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {staffMember.is_admin ? (
+                            <Badge variant="destructive" className="gap-1">
+                              <Shield className="h-3 w-3" />
+                              Admin
+                            </Badge>
                           ) : (
-                            <Badge variant="secondary">No Access</Badge>
+                            <Badge variant="secondary">Staff</Badge>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={staffMember.is_active}
-                            onCheckedChange={() => handleToggleActive(staffMember)}
-                          />
-                          <span className="text-sm text-muted-foreground">
-                            {staffMember.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openPermissionsDialog(staffMember)}
-                            className="gap-1"
-                          >
-                            <UserCheck className="h-3 w-3" />
-                            Permissions
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(staffMember)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(staffMember.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {permissions.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {permissions.slice(0, 2).map((permission) => (
+                                  <Badge 
+                                    key={permission} 
+                                    variant={permission === "Admin" ? "destructive" : "outline"} 
+                                    className="text-xs"
+                                  >
+                                    {permission}
+                                  </Badge>
+                                ))}
+                                {permissions.length > 2 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{permissions.length - 2} more
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <Badge variant="secondary">No Access</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={staffMember.is_active}
+                              onCheckedChange={() => handleToggleActive(staffMember)}
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              {staffMember.is_active ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openPermissionsDialog(staffMember)}
+                              className="gap-1"
+                            >
+                              <UserCheck className="h-3 w-3" />
+                              Permissions
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(staffMember)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(staffMember.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </CardContent>
       </Card>
