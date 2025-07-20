@@ -22,6 +22,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import PapSmearTab from "../patient/PapSmearTab";
+import BasicScreeningTab from "../patient/BasicScreeningTab";
+import ServiceRecordsTab from "../patient/ServiceRecordsTab";
 
 interface PatientDetailsModalProps {
   patient: any;
@@ -186,20 +188,20 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
       id: "screening",
       label: "Screening",
       icon: Heart,
-      component: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5" />
-              Basic Health Screening
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Basic screening functionality will be implemented here
-            </div>
-          </CardContent>
-        </Card>
+      component: currentVisit ? <BasicScreeningTab patientVisitId={currentVisit.id} /> : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
+      )
+    },
+    {
+      id: "services",
+      label: "Services",
+      icon: Activity,
+      component: currentVisit ? <ServiceRecordsTab patientVisitId={currentVisit.id} /> : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
       )
     },
     {
@@ -346,7 +348,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         
         <div className="flex-1 min-h-0">
           <Tabs defaultValue="basic-info" className="h-full flex flex-col">
-            <TabsList className="grid grid-cols-9 w-full shrink-0">
+            <TabsList className="grid grid-cols-10 w-full shrink-0">
               {tabs.map((tab) => (
                 <TabsTrigger 
                   key={tab.id} 
