@@ -586,6 +586,45 @@ export type Database = {
           },
         ]
       }
+      pap_smear_assessments: {
+        Row: {
+          assessment_date: string
+          comments: string | null
+          created_at: string
+          findings: string | null
+          id: string
+          patient_visit_id: string
+          performed_by_doctor_id: string | null
+          performed_by_nurse_id: string | null
+          recommendations: string | null
+          updated_at: string
+        }
+        Insert: {
+          assessment_date?: string
+          comments?: string | null
+          created_at?: string
+          findings?: string | null
+          id?: string
+          patient_visit_id: string
+          performed_by_doctor_id?: string | null
+          performed_by_nurse_id?: string | null
+          recommendations?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assessment_date?: string
+          comments?: string | null
+          created_at?: string
+          findings?: string | null
+          id?: string
+          patient_visit_id?: string
+          performed_by_doctor_id?: string | null
+          performed_by_nurse_id?: string | null
+          recommendations?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       parishes: {
         Row: {
           created_at: string
