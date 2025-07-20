@@ -769,7 +769,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         teeth_condition: "",
         gum_health: "",
         recommendations: "",
-        assessment_notes: ""
+        assessment_notes: "",
+        dental_professional_id: ""
       });
       fetchPatientData();
     } catch (error) {
