@@ -91,7 +91,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: Au
             email: email,
             professional_capacity: professionalCapacity as "doctor" | "nurse" | "optician" | "dentist" | "dental_technician" | "registration_technician" | "administration",
             is_admin: false,
-            is_active: true,
+            is_active: false,
           });
 
         if (staffError) {
