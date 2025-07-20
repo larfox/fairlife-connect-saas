@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Clock, MapPin, Users, Stethoscope, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocations, useDoctors, useNurses, useServices } from "@/hooks/useDataCache";
 
 interface Location {
   id: string;
@@ -39,11 +40,13 @@ interface Service {
 export function CreateEventModal() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [nurses, setNurses] = useState<Nurse[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
   const { toast } = useToast();
+
+  // Use cached data hooks instead of making API calls
+  const { data: locations = [] } = useLocations();
+  const { data: doctors = [] } = useDoctors();
+  const { data: nurses = [] } = useNurses();
+  const { data: services = [] } = useServices();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -56,35 +59,6 @@ export function CreateEventModal() {
     selectedNurses: [] as string[],
     selectedServices: [] as string[]
   });
-
-  useEffect(() => {
-    if (open) {
-      fetchData();
-    }
-  }, [open]);
-
-  const fetchData = async () => {
-    try {
-      const [locationsResult, doctorsResult, nursesResult, servicesResult] = await Promise.all([
-        supabase.from("locations").select("id, name, address").eq("is_active", true).order("name"),
-        supabase.from("doctors").select("id, first_name, last_name, specialization").eq("is_active", true),
-        supabase.from("nurses").select("id, first_name, last_name, certification_level").eq("is_active", true),
-        supabase.from("services").select("id, name, description").eq("is_active", true)
-      ]);
-
-      setLocations(locationsResult.data || []);
-      setDoctors(doctorsResult.data || []);
-      setNurses(nursesResult.data || []);
-      setServices(servicesResult.data || []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load form data",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
