@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,6 +86,35 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
     expiration_date: "",
     site_of_injection: "",
     notes: ""
+  });
+  
+  // Optician assessment state
+  const [opticianAssessments, setOpticianAssessments] = useState<any[]>([]);
+  const [newOpticianAssessment, setNewOpticianAssessment] = useState({
+    vision_test_results: "",
+    eye_pressure: "",
+    prescription_details: "",
+    assessment_notes: ""
+  });
+  
+  // Dental assessment state
+  const [dentalAssessments, setDentalAssessments] = useState<any[]>([]);
+  const [newDentalAssessment, setNewDentalAssessment] = useState({
+    oral_health_assessment: "",
+    teeth_condition: "",
+    gum_health: "",
+    recommendations: "",
+    assessment_notes: ""
+  });
+  
+  // Back to school assessment state
+  const [backToSchoolAssessments, setBackToSchoolAssessments] = useState<any[]>([]);
+  const [newBackToSchoolAssessment, setNewBackToSchoolAssessment] = useState({
+    medical_clearance: "",
+    vaccination_status: "",
+    physical_fitness: "",
+    special_accommodations: "",
+    additional_notes: ""
   });
   
   const permissions = useStaffPermissions(user);
@@ -372,6 +401,32 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         } else {
           setPrescriptions(prescriptionsData || []);
         }
+
+        // Fetch optician assessments for current visit
+        const { data: opticianData, error: opticianError } = await supabase
+          .from("optician_assessments")
+          .select("*")
+          .eq("patient_visit_id", currentEventVisit.id)
+          .order("created_at", { ascending: false });
+
+        if (opticianError) {
+          console.error("Error fetching optician assessments:", opticianError);
+        } else {
+          setOpticianAssessments(opticianData || []);
+        }
+
+        // Fetch dental assessments for current visit
+        const { data: dentalData, error: dentalError } = await supabase
+          .from("dental_assessments")
+          .select("*")
+          .eq("patient_visit_id", currentEventVisit.id)
+          .order("created_at", { ascending: false });
+
+        if (dentalError) {
+          console.error("Error fetching dental assessments:", dentalError);
+        } else {
+          setDentalAssessments(dentalData || []);
+        }
       }
 
     } catch (error) {
@@ -564,6 +619,209 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
     }
   };
 
+  const savePrescription = async () => {
+    if (!newPrescription.medication.trim() || !currentVisit) return;
+
+    try {
+      const { error } = await supabase
+        .from("prescriptions")
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          medication: newPrescription.medication,
+          dosage: newPrescription.dosage || null,
+          frequency: newPrescription.frequency || null,
+          duration: newPrescription.duration || null,
+          instructions: newPrescription.instructions || null,
+          prescribed_by: healthProfessionalAssignments.prescriptions_doctor || null
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Prescription saved",
+        description: "Prescription has been recorded successfully.",
+      });
+
+      setNewPrescription({
+        medication: "",
+        dosage: "",
+        frequency: "",
+        duration: "",
+        instructions: ""
+      });
+      fetchPatientData();
+    } catch (error) {
+      console.error("Error saving prescription:", error);
+      toast({
+        title: "Save failed",
+        description: `Failed to save prescription: ${error.message || error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveEcgResult = async () => {
+    if (!newEcgResult.result.trim() || !currentVisit) return;
+
+    try {
+      const { error } = await supabase
+        .from("ecg_results")
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          result: newEcgResult.result,
+          interpretation: newEcgResult.interpretation || null,
+          notes: newEcgResult.notes || null,
+          performed_by: healthProfessionalAssignments.ecg_doctor || null
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "ECG result saved",
+        description: "ECG result has been recorded successfully.",
+      });
+
+      setNewEcgResult({
+        result: "",
+        interpretation: "",
+        notes: ""
+      });
+      fetchPatientData();
+    } catch (error) {
+      console.error("Error saving ECG result:", error);
+      toast({
+        title: "Save failed",
+        description: `Failed to save ECG result: ${error.message || error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveOpticianAssessment = async () => {
+    if (!currentVisit) return;
+
+    try {
+      const { error } = await supabase
+        .from("optician_assessments")
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          vision_test_results: newOpticianAssessment.vision_test_results || null,
+          eye_pressure: newOpticianAssessment.eye_pressure ? parseFloat(newOpticianAssessment.eye_pressure) : null,
+          prescription_details: newOpticianAssessment.prescription_details || null,
+          assessment_notes: newOpticianAssessment.assessment_notes || null,
+          optician_id: healthProfessionalAssignments.optician || null
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Optician assessment saved",
+        description: "Optician assessment has been recorded successfully.",
+      });
+
+      setNewOpticianAssessment({
+        vision_test_results: "",
+        eye_pressure: "",
+        prescription_details: "",
+        assessment_notes: ""
+      });
+      fetchPatientData();
+    } catch (error) {
+      console.error("Error saving optician assessment:", error);
+      toast({
+        title: "Save failed",
+        description: `Failed to save optician assessment: ${error.message || error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveDentalAssessment = async () => {
+    if (!currentVisit) return;
+
+    try {
+      const { error } = await supabase
+        .from("dental_assessments")
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          oral_health_assessment: newDentalAssessment.oral_health_assessment || null,
+          teeth_condition: newDentalAssessment.teeth_condition || null,
+          gum_health: newDentalAssessment.gum_health || null,
+          recommendations: newDentalAssessment.recommendations || null,
+          assessment_notes: newDentalAssessment.assessment_notes || null,
+          dental_professional_id: healthProfessionalAssignments.dental_professional || null
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Dental assessment saved",
+        description: "Dental assessment has been recorded successfully.",
+      });
+
+      setNewDentalAssessment({
+        oral_health_assessment: "",
+        teeth_condition: "",
+        gum_health: "",
+        recommendations: "",
+        assessment_notes: ""
+      });
+      fetchPatientData();
+    } catch (error) {
+      console.error("Error saving dental assessment:", error);
+      toast({
+        title: "Save failed",
+        description: `Failed to save dental assessment: ${error.message || error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveImmunization = async () => {
+    if (!newImmunization.vaccine_name.trim() || !currentVisit) return;
+
+    try {
+      const { error } = await supabase
+        .from("immunizations")
+        .insert([{
+          patient_visit_id: currentVisit.id,
+          vaccine_name: newImmunization.vaccine_name,
+          dose_number: newImmunization.dose_number ? parseInt(newImmunization.dose_number) : null,
+          vaccine_date: newImmunization.vaccine_date || null,
+          lot_number: newImmunization.lot_number || null,
+          expiration_date: newImmunization.expiration_date || null,
+          site_of_injection: newImmunization.site_of_injection || null,
+          notes: newImmunization.notes || null,
+          administered_by: healthProfessionalAssignments.immunizations_administrator || null
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Immunization recorded",
+        description: "Immunization has been recorded successfully.",
+      });
+
+      setNewImmunization({
+        vaccine_name: "",
+        dose_number: "",
+        vaccine_date: "",
+        lot_number: "",
+        expiration_date: "",
+        site_of_injection: "",
+        notes: ""
+      });
+      fetchPatientData();
+    } catch (error) {
+      console.error("Error saving immunization:", error);
+      toast({
+        title: "Save failed",
+        description: `Failed to save immunization: ${error.message || error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   // Permission wrapper component
   const PermissionWrapper = ({ tabName, children }: { tabName: string; children: React.ReactNode }) => {
     if (!permissions.canAccessTab(tabName)) {
@@ -630,6 +888,9 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
             <User className="h-5 w-5" />
             {patient.first_name} {patient.last_name}
           </DialogTitle>
+          <DialogDescription>
+            Patient details and medical records for {patient.first_name} {patient.last_name}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden">
@@ -1078,7 +1339,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
                         />
                       </div>
-                      <Button className="gap-2">
+                      <Button onClick={savePrescription} className="gap-2">
                         <Save className="h-4 w-4" />
                         Add Prescription
                       </Button>
@@ -1152,7 +1413,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           onChange={(e) => setNewEcgResult({...newEcgResult, notes: e.target.value})}
                         />
                       </div>
-                      <Button className="gap-2">
+                      <Button onClick={saveEcgResult} className="gap-2">
                         <Save className="h-4 w-4" />
                         Save ECG Result
                       </Button>
@@ -1205,6 +1466,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="vision_test"
                           placeholder="Enter vision test results (e.g., 20/20, 20/40)..."
                           rows={2}
+                          value={newOpticianAssessment.vision_test_results}
+                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, vision_test_results: e.target.value})}
                         />
                       </div>
                       <div>
@@ -1213,6 +1476,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="eye_pressure"
                           type="number"
                           placeholder="Enter eye pressure reading"
+                          value={newOpticianAssessment.eye_pressure}
+                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, eye_pressure: e.target.value})}
                         />
                       </div>
                       <div>
@@ -1221,6 +1486,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="prescription_needed"
                           placeholder="Enter prescription details if needed..."
                           rows={3}
+                          value={newOpticianAssessment.prescription_details}
+                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, prescription_details: e.target.value})}
                         />
                       </div>
                       <div>
@@ -1229,9 +1496,11 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="optician_notes"
                           placeholder="Additional assessment notes..."
                           rows={3}
+                          value={newOpticianAssessment.assessment_notes}
+                          onChange={(e) => setNewOpticianAssessment({...newOpticianAssessment, assessment_notes: e.target.value})}
                         />
                       </div>
-                      <Button className="gap-2">
+                      <Button onClick={saveOpticianAssessment} className="gap-2">
                         <Save className="h-4 w-4" />
                         Save Optician Assessment
                       </Button>
@@ -1240,10 +1509,33 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
 
                   <Separator />
 
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Previous Assessments</h4>
-                    <p className="text-muted-foreground">No previous optician assessments recorded.</p>
-                  </div>
+                   <div className="space-y-3">
+                     <h4 className="font-medium">Previous Assessments</h4>
+                     {opticianAssessments.length > 0 ? (
+                       opticianAssessments.map((assessment, index) => (
+                         <div key={index} className="p-3 border rounded-lg">
+                           <div className="flex items-center justify-between mb-2">
+                             <span className="font-medium">Vision Assessment</span>
+                             <Badge variant="outline">Optician</Badge>
+                           </div>
+                           {assessment.vision_test_results && (
+                             <p className="text-sm mb-1"><strong>Vision:</strong> {assessment.vision_test_results}</p>
+                           )}
+                           {assessment.eye_pressure && (
+                             <p className="text-sm mb-1"><strong>Eye Pressure:</strong> {assessment.eye_pressure} mmHg</p>
+                           )}
+                           {assessment.prescription_details && (
+                             <p className="text-sm mb-1"><strong>Prescription:</strong> {assessment.prescription_details}</p>
+                           )}
+                           {assessment.assessment_notes && (
+                             <p className="text-sm text-muted-foreground">{assessment.assessment_notes}</p>
+                           )}
+                         </div>
+                       ))
+                     ) : (
+                       <p className="text-muted-foreground">No previous optician assessments recorded.</p>
+                     )}
+                   </div>
                 </CardContent>
               </Card>
               </PermissionWrapper>
@@ -1267,6 +1559,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="oral_health"
                           placeholder="Overall oral health condition..."
                           rows={3}
+                          value={newDentalAssessment.oral_health_assessment}
+                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, oral_health_assessment: e.target.value})}
                         />
                       </div>
                       <div>
@@ -1275,6 +1569,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="teeth_condition"
                           placeholder="Condition of teeth, cavities, etc..."
                           rows={3}
+                          value={newDentalAssessment.teeth_condition}
+                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, teeth_condition: e.target.value})}
                         />
                       </div>
                       <div>
@@ -1283,6 +1579,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="gum_health"
                           placeholder="Gum condition and health assessment..."
                           rows={2}
+                          value={newDentalAssessment.gum_health}
+                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, gum_health: e.target.value})}
                         />
                       </div>
                       <div>
@@ -1291,6 +1589,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="dental_recommendations"
                           placeholder="Treatment recommendations, referrals, etc..."
                           rows={3}
+                          value={newDentalAssessment.recommendations}
+                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, recommendations: e.target.value})}
                         />
                       </div>
                       <div>
@@ -1299,9 +1599,11 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           id="dental_notes"
                           placeholder="Additional dental assessment notes..."
                           rows={3}
+                          value={newDentalAssessment.assessment_notes}
+                          onChange={(e) => setNewDentalAssessment({...newDentalAssessment, assessment_notes: e.target.value})}
                         />
                       </div>
-                      <Button className="gap-2">
+                      <Button onClick={saveDentalAssessment} className="gap-2">
                         <Save className="h-4 w-4" />
                         Save Dental Assessment
                       </Button>
@@ -1310,10 +1612,36 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
 
                   <Separator />
 
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Previous Assessments</h4>
-                    <p className="text-muted-foreground">No previous dental assessments recorded.</p>
-                  </div>
+                   <div className="space-y-3">
+                     <h4 className="font-medium">Previous Assessments</h4>
+                     {dentalAssessments.length > 0 ? (
+                       dentalAssessments.map((assessment, index) => (
+                         <div key={index} className="p-3 border rounded-lg">
+                           <div className="flex items-center justify-between mb-2">
+                             <span className="font-medium">Dental Assessment</span>
+                             <Badge variant="outline">Dental</Badge>
+                           </div>
+                           {assessment.oral_health_assessment && (
+                             <p className="text-sm mb-1"><strong>Oral Health:</strong> {assessment.oral_health_assessment}</p>
+                           )}
+                           {assessment.teeth_condition && (
+                             <p className="text-sm mb-1"><strong>Teeth:</strong> {assessment.teeth_condition}</p>
+                           )}
+                           {assessment.gum_health && (
+                             <p className="text-sm mb-1"><strong>Gums:</strong> {assessment.gum_health}</p>
+                           )}
+                           {assessment.recommendations && (
+                             <p className="text-sm mb-1"><strong>Recommendations:</strong> {assessment.recommendations}</p>
+                           )}
+                           {assessment.assessment_notes && (
+                             <p className="text-sm text-muted-foreground">{assessment.assessment_notes}</p>
+                           )}
+                         </div>
+                       ))
+                     ) : (
+                       <p className="text-muted-foreground">No previous dental assessments recorded.</p>
+                     )}
+                   </div>
                 </CardContent>
               </Card>
               </PermissionWrapper>
@@ -1343,65 +1671,71 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                        <Label htmlFor="school_clearance">Medical Clearance for School</Label>
-                       <Select>
-                         <SelectTrigger>
-                           <SelectValue placeholder="Select clearance status" />
-                         </SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="cleared">Cleared for School</SelectItem>
-                           <SelectItem value="restrictions">Cleared with Restrictions</SelectItem>
-                           <SelectItem value="not_cleared">Not Cleared</SelectItem>
-                           <SelectItem value="pending">Pending Further Assessment</SelectItem>
-                         </SelectContent>
-                       </Select>
+                        <Select value={newBackToSchoolAssessment.medical_clearance} onValueChange={(value) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, medical_clearance: value})}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select clearance status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cleared">Cleared for School</SelectItem>
+                            <SelectItem value="restrictions">Cleared with Restrictions</SelectItem>
+                            <SelectItem value="not_cleared">Not Cleared</SelectItem>
+                            <SelectItem value="pending">Pending Further Assessment</SelectItem>
+                          </SelectContent>
+                        </Select>
                      </div>
                      <div>
                        <Label htmlFor="vaccination_status">Vaccination Status</Label>
-                       <Select>
-                         <SelectTrigger>
-                           <SelectValue placeholder="Select vaccination status" />
-                         </SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="up_to_date">Up to Date</SelectItem>
-                           <SelectItem value="incomplete">Incomplete</SelectItem>
-                           <SelectItem value="needs_update">Needs Update</SelectItem>
-                           <SelectItem value="exemption">Medical Exemption</SelectItem>
-                         </SelectContent>
-                       </Select>
+                        <Select value={newBackToSchoolAssessment.vaccination_status} onValueChange={(value) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, vaccination_status: value})}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select vaccination status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="up_to_date">Up to Date</SelectItem>
+                            <SelectItem value="incomplete">Incomplete</SelectItem>
+                            <SelectItem value="needs_update">Needs Update</SelectItem>
+                            <SelectItem value="exemption">Medical Exemption</SelectItem>
+                          </SelectContent>
+                        </Select>
                      </div>
                    </div>
                    
                    <div>
                      <Label htmlFor="physical_fitness">Physical Fitness Assessment</Label>
-                     <Textarea
-                       id="physical_fitness"
-                       placeholder="Assessment of student's physical fitness for school activities..."
-                       rows={3}
-                     />
+                      <Textarea
+                        id="physical_fitness"
+                        placeholder="Assessment of student's physical fitness for school activities..."
+                        rows={3}
+                        value={newBackToSchoolAssessment.physical_fitness}
+                        onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, physical_fitness: e.target.value})}
+                      />
                    </div>
                    
                    <div>
                      <Label htmlFor="special_accommodations">Special Accommodations Needed</Label>
-                     <Textarea
-                       id="special_accommodations"
-                       placeholder="Any special accommodations required for the student..."
-                       rows={3}
-                     />
+                      <Textarea
+                        id="special_accommodations"
+                        placeholder="Any special accommodations required for the student..."
+                        rows={3}
+                        value={newBackToSchoolAssessment.special_accommodations}
+                        onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, special_accommodations: e.target.value})}
+                      />
                    </div>
                    
                    <div>
                      <Label htmlFor="school_notes">Additional Notes</Label>
-                     <Textarea
-                       id="school_notes"
-                       placeholder="Additional notes or recommendations for school..."
-                       rows={3}
-                     />
+                      <Textarea
+                        id="school_notes"
+                        placeholder="Additional notes or recommendations for school..."
+                        rows={3}
+                        value={newBackToSchoolAssessment.additional_notes}
+                        onChange={(e) => setNewBackToSchoolAssessment({...newBackToSchoolAssessment, additional_notes: e.target.value})}
+                      />
                    </div>
                    
-                   <Button className="gap-2">
-                     <Save className="h-4 w-4" />
-                     Save Assessment
-                   </Button>
+                    <Button className="gap-2">
+                      <Save className="h-4 w-4" />
+                      Save Assessment (Feature Coming Soon)
+                    </Button>
                  </CardContent>
                </Card>
                </PermissionWrapper>
@@ -1485,7 +1819,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                           onChange={(e) => setNewImmunization({...newImmunization, notes: e.target.value})}
                         />
                       </div>
-                      <Button className="gap-2">
+                      <Button onClick={saveImmunization} className="gap-2">
                         <Save className="h-4 w-4" />
                         Record Immunization
                       </Button>

@@ -25,7 +25,7 @@ const SERVICE_TAB_MAPPING = {
 
 // Cache to avoid repeated API calls for the same user
 const permissionsCache = new Map<string, { data: StaffPermissions; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 30 * 1000; // 30 seconds
 
 export const useStaffPermissions = (user: User | null): StaffPermissions => {
   const [permissions, setPermissions] = useState<StaffPermissions>({
