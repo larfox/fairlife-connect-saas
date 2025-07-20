@@ -1185,6 +1185,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
             </TabsContent>
 
             <TabsContent value="complaints-prognosis" className="space-y-4">
+              <PermissionWrapper tabName="complaints-prognosis">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Complaints Section */}
                 <Card>
@@ -1422,11 +1423,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                      label="Prescribing Doctor" 
                      type="doctor" 
                    />
-                </CardContent>
-              </Card>
-            </TabsContent>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
 
             <TabsContent value="ecg" className="space-y-4">
+              <PermissionWrapper tabName="ecg">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1501,11 +1504,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                      label="ECG Performing Doctor" 
                      type="doctor" 
                    />
-                </CardContent>
-              </Card>
-            </TabsContent>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
 
-            <TabsContent value="optician" className="space-y-4">
+             <TabsContent value="optician" className="space-y-4">
+               <PermissionWrapper tabName="optician">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1568,11 +1573,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                      label="Assigned Optician" 
                      type="doctor" 
                    />
-                </CardContent>
-              </Card>
-            </TabsContent>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
 
-            <TabsContent value="dental" className="space-y-4">
+             <TabsContent value="dental" className="space-y-4">
+               <PermissionWrapper tabName="dental">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1643,20 +1650,24 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                      label="Assigned Dental Professional" 
                      type="doctor" 
                    />
-                </CardContent>
-              </Card>
-            </TabsContent>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
 
-            <TabsContent value="pap-smears" className="space-y-4">
+             <TabsContent value="pap-smears" className="space-y-4">
+               <PermissionWrapper tabName="pap-smears">
               {currentVisit && (
                 <PapSmearTab 
                   patientVisitId={currentVisit.id} 
                   eventDate={currentVisit.visit_date}
                 />
-              )}
-            </TabsContent>
+               )}
+               </PermissionWrapper>
+             </TabsContent>
 
-            <TabsContent value="back-to-school" className="space-y-4">
+             <TabsContent value="back-to-school" className="space-y-4">
+               <PermissionWrapper tabName="back-to-school">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1752,11 +1763,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     label="Assessing Doctor" 
                     type="doctor" 
                   />
-                </CardContent>
-              </Card>
-            </TabsContent>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
 
-            <TabsContent value="immunizations" className="space-y-4">
+             <TabsContent value="immunizations" className="space-y-4">
+               <PermissionWrapper tabName="immunizations">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1887,11 +1900,13 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                     label="Administered By" 
                     type="doctor" 
                   />
-                </CardContent>
-              </Card>
-            </TabsContent>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4">
+             <TabsContent value="history" className="space-y-4">
+               <PermissionWrapper tabName="history">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2025,10 +2040,11 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                       <p className="text-muted-foreground text-center py-8">No previous visits found.</p>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                 </CardContent>
+               </Card>
+               </PermissionWrapper>
+             </TabsContent>
+           </Tabs>
         </div>
       </DialogContent>
     </Dialog>
