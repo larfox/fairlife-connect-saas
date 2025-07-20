@@ -127,17 +127,63 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     return 0;
   };
 
+  const validateInput = (field: string, value: string): boolean => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return true; // Allow empty/invalid numbers to be handled later
+    
+    // Set reasonable limits for each field to prevent database overflow
+    const limits = {
+      height: { min: 0, max: 300 }, // cm
+      weight: { min: 0, max: 1000 }, // kg
+      blood_pressure_systolic: { min: 0, max: 300 }, // mmHg
+      blood_pressure_diastolic: { min: 0, max: 200 }, // mmHg
+      heart_rate: { min: 0, max: 300 }, // bpm
+      temperature: { min: 0, max: 50 }, // °C
+      blood_sugar: { min: 0, max: 1000 }, // mg/dL
+      cholesterol: { min: 0, max: 1000 }, // mg/dL
+      oxygen_saturation: { min: 0, max: 100 } // %
+    };
+    
+    const limit = limits[field as keyof typeof limits];
+    if (limit && (numValue < limit.min || numValue > limit.max)) {
+      toast({
+        title: "Invalid Value",
+        description: `${field.replace('_', ' ')} must be between ${limit.min} and ${limit.max}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleInputChange = (field: string, value: string) => {
-    const newFormData = { ...formData, [field]: value };
-    setFormData(newFormData);
+    // Only update if validation passes
+    if (validateInput(field, value)) {
+      const newFormData = { ...formData, [field]: value };
+      setFormData(newFormData);
+    }
   };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
       
-      const height = parseFloat(formData.height) || null;
-      const weight = parseFloat(formData.weight) || null;
+      console.log("=== SAVING SCREENING DATA ===");
+      console.log("Form data:", formData);
+      
+      // Validate all numeric inputs before saving
+      const numericFields = ['height', 'weight', 'blood_pressure_systolic', 'blood_pressure_diastolic', 
+                            'heart_rate', 'temperature', 'blood_sugar', 'cholesterol', 'oxygen_saturation'];
+      
+      for (const field of numericFields) {
+        const value = formData[field as keyof typeof formData];
+        if (value && !validateInput(field, value)) {
+          return; // Stop if validation fails
+        }
+      }
+      
+      const height = formData.height ? parseFloat(formData.height) : null;
+      const weight = formData.weight ? parseFloat(formData.weight) : null;
       const bmi = height && weight ? calculateBMI(height, weight) : null;
       
       const screeningData = {
@@ -145,32 +191,42 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         height,
         weight,
         bmi,
-        blood_pressure_systolic: parseFloat(formData.blood_pressure_systolic) || null,
-        blood_pressure_diastolic: parseFloat(formData.blood_pressure_diastolic) || null,
-        heart_rate: parseInt(formData.heart_rate) || null,
-        temperature: parseFloat(formData.temperature) || null,
-        blood_sugar: parseInt(formData.blood_sugar) || null,
-        cholesterol: parseInt(formData.cholesterol) || null,
-        oxygen_saturation: parseInt(formData.oxygen_saturation) || null,
+        blood_pressure_systolic: formData.blood_pressure_systolic ? parseInt(formData.blood_pressure_systolic) : null,
+        blood_pressure_diastolic: formData.blood_pressure_diastolic ? parseInt(formData.blood_pressure_diastolic) : null,
+        heart_rate: formData.heart_rate ? parseInt(formData.heart_rate) : null,
+        temperature: formData.temperature ? parseFloat(formData.temperature) : null,
+        blood_sugar: formData.blood_sugar ? parseInt(formData.blood_sugar) : null,
+        cholesterol: formData.cholesterol ? parseInt(formData.cholesterol) : null,
+        oxygen_saturation: formData.oxygen_saturation ? parseInt(formData.oxygen_saturation) : null,
         notes: formData.notes || null,
         screened_by: currentUser?.id || null
       };
 
+      console.log("Processed screening data:", screeningData);
+
       if (basicScreening) {
         // Update existing record
+        console.log("Updating existing screening record:", basicScreening.id);
         const { error } = await supabase
           .from("basic_screening")
           .update(screeningData)
           .eq("id", basicScreening.id);
         
-        if (error) throw error;
+        if (error) {
+          console.error("Update error:", error);
+          throw error;
+        }
       } else {
         // Create new record
+        console.log("Creating new screening record");
         const { error } = await supabase
           .from("basic_screening")
           .insert(screeningData);
         
-        if (error) throw error;
+        if (error) {
+          console.error("Insert error:", error);
+          throw error;
+        }
       }
 
       toast({
@@ -180,11 +236,19 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
 
       setIsEditing(false);
       fetchBasicScreening();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving basic screening:", error);
+      
+      let errorMessage = "Failed to save basic screening data";
+      if (error.message.includes("numeric field overflow")) {
+        errorMessage = "One or more values are too large. Please check your entries and try again.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to save basic screening data",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -261,6 +325,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Enter height in cm"
                   value={formData.height}
                   onChange={(e) => handleInputChange("height", e.target.value)}
+                  min="0"
+                  max="300"
                 />
               </div>
               <div className="space-y-2">
@@ -271,6 +337,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Enter weight in kg"
                   value={formData.weight}
                   onChange={(e) => handleInputChange("weight", e.target.value)}
+                  min="0"
+                  max="1000"
                 />
               </div>
               <div className="space-y-2">
@@ -281,6 +349,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Systolic pressure"
                   value={formData.blood_pressure_systolic}
                   onChange={(e) => handleInputChange("blood_pressure_systolic", e.target.value)}
+                  min="0"
+                  max="300"
                 />
               </div>
               <div className="space-y-2">
@@ -291,6 +361,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Diastolic pressure"
                   value={formData.blood_pressure_diastolic}
                   onChange={(e) => handleInputChange("blood_pressure_diastolic", e.target.value)}
+                  min="0"
+                  max="200"
                 />
               </div>
               <div className="space-y-2">
@@ -301,6 +373,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Beats per minute"
                   value={formData.heart_rate}
                   onChange={(e) => handleInputChange("heart_rate", e.target.value)}
+                  min="0"
+                  max="300"
                 />
               </div>
               <div className="space-y-2">
@@ -312,6 +386,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Body temperature"
                   value={formData.temperature}
                   onChange={(e) => handleInputChange("temperature", e.target.value)}
+                  min="0"
+                  max="50"
                 />
               </div>
               <div className="space-y-2">
@@ -322,6 +398,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Blood sugar level"
                   value={formData.blood_sugar}
                   onChange={(e) => handleInputChange("blood_sugar", e.target.value)}
+                  min="0"
+                  max="1000"
                 />
               </div>
               <div className="space-y-2">
@@ -332,6 +410,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Cholesterol level"
                   value={formData.cholesterol}
                   onChange={(e) => handleInputChange("cholesterol", e.target.value)}
+                  min="0"
+                  max="1000"
                 />
               </div>
               <div className="space-y-2">
@@ -342,6 +422,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   placeholder="Oxygen saturation percentage"
                   value={formData.oxygen_saturation}
                   onChange={(e) => handleInputChange("oxygen_saturation", e.target.value)}
+                  min="0"
+                  max="100"
                 />
               </div>
             </div>
