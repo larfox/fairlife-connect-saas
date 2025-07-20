@@ -58,6 +58,8 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     comments: "",
+    findings: "",
+    recommendations: "",
     date: eventDate ? new Date(eventDate) : new Date(),
     performed_by_doctor_id: "",
     performed_by_nurse_id: "",
@@ -136,6 +138,8 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
   const resetForm = () => {
     setFormData({
       comments: "",
+      findings: "",
+      recommendations: "",
       date: eventDate ? new Date(eventDate) : new Date(),
       performed_by_doctor_id: "",
       performed_by_nurse_id: "",
@@ -151,6 +155,8 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
           .from("pap_smear_assessments")
           .update({
             comments: formData.comments || null,
+            findings: formData.findings || null,
+            recommendations: formData.recommendations || null,
             assessment_date: formData.date.toISOString(),
             performed_by_doctor_id: formData.performed_by_doctor_id || null,
             performed_by_nurse_id: formData.performed_by_nurse_id || null,
@@ -170,6 +176,8 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
           .insert({
             patient_visit_id: patientVisitId,
             comments: formData.comments || null,
+            findings: formData.findings || null,
+            recommendations: formData.recommendations || null,
             assessment_date: formData.date.toISOString(),
             performed_by_doctor_id: formData.performed_by_doctor_id || null,
             performed_by_nurse_id: formData.performed_by_nurse_id || null,
@@ -198,6 +206,8 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
   const handleEdit = (assessment: PapSmearAssessment) => {
     setFormData({
       comments: assessment.comments || "",
+      findings: assessment.findings || "",
+      recommendations: assessment.recommendations || "",
       date: new Date(assessment.assessment_date),
       performed_by_doctor_id: assessment.performed_by_doctor_id || "",
       performed_by_nurse_id: assessment.performed_by_nurse_id || "",
@@ -320,10 +330,36 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="comments">Comments</Label>
+            <Label htmlFor="findings">Findings</Label>
+            <Textarea
+              id="findings"
+              placeholder="Enter clinical findings..."
+              value={formData.findings}
+              onChange={(e) =>
+                setFormData({ ...formData, findings: e.target.value })
+              }
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="recommendations">Recommendations</Label>
+            <Textarea
+              id="recommendations"
+              placeholder="Enter recommendations and follow-up instructions..."
+              value={formData.recommendations}
+              onChange={(e) =>
+                setFormData({ ...formData, recommendations: e.target.value })
+              }
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="comments">Additional Comments</Label>
             <Textarea
               id="comments"
-              placeholder="Enter comments about the PAP smear assessment..."
+              placeholder="Enter additional comments..."
               value={formData.comments}
               onChange={(e) =>
                 setFormData({ ...formData, comments: e.target.value })
@@ -385,6 +421,18 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
                   {assessment.nurse && (
                     <div>
                       <span className="font-medium">Nurse:</span> {assessment.nurse.first_name} {assessment.nurse.last_name}
+                    </div>
+                  )}
+                  {assessment.findings && (
+                    <div>
+                      <span className="font-medium">Findings:</span>
+                      <p className="text-muted-foreground mt-1">{assessment.findings}</p>
+                    </div>
+                  )}
+                  {assessment.recommendations && (
+                    <div>
+                      <span className="font-medium">Recommendations:</span>
+                      <p className="text-muted-foreground mt-1">{assessment.recommendations}</p>
                     </div>
                   )}
                   {assessment.comments && (
