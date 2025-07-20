@@ -29,12 +29,28 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
   });
   const [services, setServices] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
+      
+      if (user?.email) {
+        // Fetch user's name from staff table
+        const { data: staff } = await supabase
+          .from('staff')
+          .select('first_name, last_name')
+          .eq('email', user.email)
+          .single();
+        
+        if (staff) {
+          setCurrentUserName(`${staff.first_name} ${staff.last_name}`);
+        } else {
+          setCurrentUserName(user.email);
+        }
+      }
     };
     getCurrentUser();
   }, []);
@@ -192,10 +208,10 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
               </p>
             </div>
           </div>
-          {currentUser && (
+          {currentUser && currentUserName && (
             <div className="flex items-center gap-2 bg-card px-4 py-2 rounded-lg border">
               <User className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">{currentUser.email}</span>
+              <span className="text-sm font-medium">{currentUserName}</span>
             </div>
           )}
         </div>

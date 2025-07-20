@@ -39,6 +39,7 @@ interface PatientDetailsModalProps {
 
 const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose }: PatientDetailsModalProps) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>("");
   const [currentVisit, setCurrentVisit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -48,6 +49,21 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      
+      if (user?.email) {
+        // Fetch user's name from staff table
+        const { data: staff } = await supabase
+          .from('staff')
+          .select('first_name, last_name')
+          .eq('email', user.email)
+          .single();
+        
+        if (staff) {
+          setCurrentUserName(`${staff.first_name} ${staff.last_name}`);
+        } else {
+          setCurrentUserName(user.email);
+        }
+      }
     };
     getCurrentUser();
   }, []);
@@ -280,10 +296,10 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
               <User className="h-5 w-5" />
               {patient.first_name} {patient.last_name}
             </DialogTitle>
-            {user && (
+            {user && currentUserName && (
               <div className="flex items-center gap-2 bg-muted px-3 py-1 rounded text-sm">
                 <User className="h-3 w-3" />
-                {user.email}
+                {currentUserName}
               </div>
             )}
           </div>
