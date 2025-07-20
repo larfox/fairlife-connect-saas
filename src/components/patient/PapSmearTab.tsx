@@ -288,7 +288,6 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
                   <SelectValue placeholder="Select doctor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No doctor selected</SelectItem>
                   {doctors.map((doctor) => (
                     <SelectItem key={doctor.id} value={doctor.id}>
                       {doctor.first_name} {doctor.last_name}
@@ -310,7 +309,6 @@ const PapSmearTab = ({ patientVisitId, eventDate }: PapSmearTabProps) => {
                   <SelectValue placeholder="Select nurse" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No nurse selected</SelectItem>
                   {nurses.map((nurse) => (
                     <SelectItem key={nurse.id} value={nurse.id}>
                       {nurse.first_name} {nurse.last_name}
