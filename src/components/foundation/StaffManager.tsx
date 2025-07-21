@@ -68,6 +68,7 @@ const StaffManager = () => {
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedTabPermissions, setSelectedTabPermissions] = useState<string[]>([]);
   const [selectedAdminStatus, setSelectedAdminStatus] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -252,6 +253,8 @@ const StaffManager = () => {
       .filter(p => p.staff_id === staffMember.id)
       .map(p => p.service_id);
     setSelectedServiceIds(currentPermissions);
+    // For now, tab permissions are not stored in database, so reset to empty
+    setSelectedTabPermissions([]);
     setSelectedAdminStatus(staffMember.is_admin);
     setPermissionsDialogOpen(true);
   };
@@ -605,6 +608,7 @@ const StaffManager = () => {
                     // Clear service selections when admin is toggled on
                     if (checked) {
                       setSelectedServiceIds([]);
+                      setSelectedTabPermissions([]);
                     }
                   }}
                 />
@@ -665,21 +669,21 @@ const StaffManager = () => {
                         { id: 'services', name: 'Services', description: 'Access to patient service records tab' },
                         { id: 'prognosis', name: 'Prognosis & Complaints', description: 'Access to patient prognosis and complaints tab' },
                         { id: 'prescriptions', name: 'Prescriptions', description: 'Access to patient prescriptions tab' }
-                      ].map((permission) => (
-                        <div key={permission.id} className="flex items-center space-x-2 mb-3">
-                          <Checkbox
-                            id={permission.id}
-                            checked={selectedServiceIds.includes(permission.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedServiceIds([...selectedServiceIds, permission.id]);
-                              } else {
-                                setSelectedServiceIds(
-                                  selectedServiceIds.filter((id) => id !== permission.id)
-                                );
-                              }
-                            }}
-                          />
+                       ].map((permission) => (
+                         <div key={permission.id} className="flex items-center space-x-2 mb-3">
+                           <Checkbox
+                             id={permission.id}
+                             checked={selectedTabPermissions.includes(permission.id)}
+                             onCheckedChange={(checked) => {
+                               if (checked) {
+                                 setSelectedTabPermissions([...selectedTabPermissions, permission.id]);
+                               } else {
+                                 setSelectedTabPermissions(
+                                   selectedTabPermissions.filter((id) => id !== permission.id)
+                                 );
+                               }
+                             }}
+                           />
                           <Label htmlFor={permission.id} className="flex-1">
                             <div>
                               <div className="font-medium">{permission.name}</div>
