@@ -84,7 +84,8 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
       const formData = {
         ...assessmentForm,
         patient_visit_id: patientVisitId,
-        eye_pressure: assessmentForm.eye_pressure ? parseFloat(assessmentForm.eye_pressure) : null
+        eye_pressure: assessmentForm.eye_pressure ? parseFloat(assessmentForm.eye_pressure) : null,
+        optician_id: assessmentForm.optician_id || null // Convert empty string to null
       };
 
       const { error } = await supabase
