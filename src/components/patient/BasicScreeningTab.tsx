@@ -31,6 +31,16 @@ interface BasicScreening {
   };
 }
 
+interface Professional {
+  id: string;
+  first_name: string;
+  last_name: string;
+  type: 'doctor' | 'nurse' | 'staff';
+  specialization?: string;
+  certification_level?: string;
+  professional_capacity?: string;
+}
+
 interface BasicScreeningTabProps {
   patientVisitId: string;
 }
@@ -41,6 +51,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<any>(null);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [formData, setFormData] = useState({
     height: "",
     weight: "",
@@ -53,13 +64,16 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     oxygen_saturation: "",
     notes: "",
     height_unit: "cm",
-    weight_unit: "kg"
+    weight_unit: "kg",
+    screened_by: "",
+    service_provided_by: ""
   });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchBasicScreening();
     getCurrentStaff();
+    fetchProfessionals();
   }, [patientVisitId]);
 
   const getCurrentStaff = async () => {
@@ -70,12 +84,68 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           .from("staff")
           .select("*")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
         
         setCurrentStaff(staffData);
       }
     } catch (error) {
       console.error("Error getting current staff:", error);
+    }
+  };
+
+  const fetchProfessionals = async () => {
+    try {
+      // Fetch all staff, doctors, and nurses
+      const [staffResponse, doctorsResponse, nursesResponse] = await Promise.all([
+        supabase.from("staff").select("*").eq("is_active", true),
+        supabase.from("doctors").select("*").eq("is_active", true),
+        supabase.from("nurses").select("*").eq("is_active", true)
+      ]);
+
+      const allProfessionals: Professional[] = [];
+      
+      // Add staff members
+      if (staffResponse.data) {
+        staffResponse.data.forEach(staff => {
+          allProfessionals.push({
+            id: staff.id,
+            first_name: staff.first_name,
+            last_name: staff.last_name,
+            type: 'staff',
+            professional_capacity: staff.professional_capacity
+          });
+        });
+      }
+      
+      // Add doctors
+      if (doctorsResponse.data) {
+        doctorsResponse.data.forEach(doctor => {
+          allProfessionals.push({
+            id: doctor.id,
+            first_name: doctor.first_name,
+            last_name: doctor.last_name,
+            type: 'doctor',
+            specialization: doctor.specialization
+          });
+        });
+      }
+      
+      // Add nurses
+      if (nursesResponse.data) {
+        nursesResponse.data.forEach(nurse => {
+          allProfessionals.push({
+            id: nurse.id,
+            first_name: nurse.first_name,
+            last_name: nurse.last_name,
+            type: 'nurse',
+            certification_level: nurse.certification_level
+          });
+        });
+      }
+      
+      setProfessionals(allProfessionals);
+    } catch (error) {
+      console.error("Error fetching professionals:", error);
     }
   };
 
@@ -120,7 +190,9 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           oxygen_saturation: transformedScreeningData.oxygen_saturation?.toString() || "",
           notes: transformedScreeningData.notes || "",
           height_unit: "cm",
-          weight_unit: "kg"
+          weight_unit: "kg",
+          screened_by: transformedScreeningData.screened_by ? transformedScreeningData.screened_by.first_name + " " + transformedScreeningData.screened_by.last_name : "",
+          service_provided_by: ""
         });
       }
       
@@ -204,7 +276,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
 
   const handleInputChange = (field: string, value: string) => {
     // Only update if validation passes for numeric fields
-    if (field.includes('_unit') || field === 'notes' || validateInput(field, value)) {
+    if (field.includes('_unit') || field === 'notes' || field === 'screened_by' || field === 'service_provided_by' || validateInput(field, value)) {
       const newFormData = { ...formData, [field]: value };
       setFormData(newFormData);
     }
@@ -217,10 +289,27 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       console.log("=== SAVING SCREENING DATA ===");
       console.log("Form data:", formData);
       
-      if (!currentStaff) {
+      // Determine screened_by: use current staff or selected professional
+      let screenedById = null;
+      if (currentStaff) {
+        screenedById = currentStaff.id;
+      } else if (formData.screened_by) {
+        // Find the selected professional in staff table
+        const selectedProfessional = professionals.find(p => p.id === formData.screened_by && p.type === 'staff');
+        if (selectedProfessional) {
+          screenedById = selectedProfessional.id;
+        } else {
+          toast({
+            title: "Error",
+            description: "Please select a valid staff member for 'Screened by' field.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
         toast({
           title: "Error",
-          description: "No staff member found for current user. Please contact administrator.",
+          description: "Please select who performed the screening.",
           variant: "destructive",
         });
         return;
@@ -268,7 +357,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         cholesterol: formData.cholesterol ? parseInt(formData.cholesterol) : null,
         oxygen_saturation: formData.oxygen_saturation ? parseInt(formData.oxygen_saturation) : null,
         notes: notes || null,
-        screened_by: currentStaff.id
+        screened_by: screenedById
       };
 
       console.log("Processed screening data:", screeningData);
@@ -345,7 +434,9 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         oxygen_saturation: basicScreening.oxygen_saturation?.toString() || "",
         notes: basicScreening.notes || "",
         height_unit: "cm",
-        weight_unit: "kg"
+        weight_unit: "kg",
+        screened_by: basicScreening.screened_by ? basicScreening.screened_by.first_name + " " + basicScreening.screened_by.last_name : "",
+        service_provided_by: ""
       });
     } else {
       // Clear form for new entry
@@ -361,7 +452,9 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         oxygen_saturation: "",
         notes: "",
         height_unit: "cm",
-        weight_unit: "kg"
+        weight_unit: "kg",
+        screened_by: "",
+        service_provided_by: ""
       });
     }
     setIsEditing(false);
@@ -541,6 +634,55 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                 </p>
               </div>
             )}
+            
+            {/* Professional Selection Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+              <div className="space-y-2">
+                <Label htmlFor="screened_by">Screened by (Staff Member) *</Label>
+                <Select value={formData.screened_by} onValueChange={(value) => handleInputChange("screened_by", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={currentStaff ? `${currentStaff.first_name} ${currentStaff.last_name} (Current User)` : "Select staff member"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currentStaff && (
+                      <SelectItem value={currentStaff.id}>
+                        {currentStaff.first_name} {currentStaff.last_name} (Current User)
+                      </SelectItem>
+                    )}
+                    {professionals.filter(p => p.type === 'staff' && p.id !== currentStaff?.id).map((professional) => (
+                      <SelectItem key={professional.id} value={professional.id}>
+                        {professional.first_name} {professional.last_name}
+                        {professional.professional_capacity && ` (${professional.professional_capacity})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="service_provided_by">Service provided by (Optional)</Label>
+                <Select value={formData.service_provided_by} onValueChange={(value) => handleInputChange("service_provided_by", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select doctor or nurse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {professionals.filter(p => p.type === 'doctor').map((professional) => (
+                      <SelectItem key={professional.id} value={professional.id}>
+                        Dr. {professional.first_name} {professional.last_name}
+                        {professional.specialization && ` (${professional.specialization})`}
+                      </SelectItem>
+                    ))}
+                    {professionals.filter(p => p.type === 'nurse').map((professional) => (
+                      <SelectItem key={professional.id} value={professional.id}>
+                        {professional.first_name} {professional.last_name} (Nurse)
+                        {professional.certification_level && ` - ${professional.certification_level}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
