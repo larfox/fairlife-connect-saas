@@ -26,7 +26,8 @@ import {
   ClipboardList,
   Eye,
   X,
-  FileText
+  FileText,
+  HelpCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ import PatientManagement from "@/components/PatientManagement";
 import EventsManagement from "@/components/EventsManagement";
 import QueueManagement from "@/components/queue/QueueManagement";
 import Reports from "@/components/Reports";
+import HelpManual from "@/components/HelpManual";
 
 
 interface DashboardProps {
@@ -44,7 +46,7 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ selectedEventId }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue" | "reports">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue" | "reports" | "help">("dashboard");
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -250,6 +252,10 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
     return <Reports onBack={() => setCurrentView("dashboard")} />;
   }
 
+  if (currentView === "help") {
+    return <HelpManual onBack={() => setCurrentView("dashboard")} />;
+  }
+
   if (currentView === "queue" && selectedEvent) {
     return (
       <QueueManagement 
@@ -313,6 +319,15 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
             >
               <FileText className="h-5 w-5" />
               Reports
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              onClick={() => setCurrentView("help")}
+              className="gap-2"
+            >
+              <HelpCircle className="h-5 w-5" />
+              Help
             </Button>
             <Button 
               size="lg" 
