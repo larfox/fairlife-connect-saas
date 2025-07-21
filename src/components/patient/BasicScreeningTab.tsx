@@ -71,20 +71,24 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchBasicScreening();
-    getCurrentStaff();
-    fetchProfessionals();
+    const initializeComponent = async () => {
+      await getCurrentStaff();
+      await fetchProfessionals();
+      await fetchBasicScreening();
+    };
+    
+    initializeComponent();
   }, [patientVisitId]);
 
-  // Update form data when current professional is loaded
+  // Update form data when current staff is loaded and form is being initialized
   useEffect(() => {
-    if (currentStaff && !basicScreening && formData.health_professional === "") {
+    if (currentStaff && isEditing && formData.health_professional === "") {
       setFormData(prev => ({
         ...prev,
         health_professional: currentStaff.id
       }));
     }
-  }, [currentStaff, basicScreening, formData.health_professional]);
+  }, [currentStaff, isEditing]);
 
   const getCurrentStaff = async () => {
     try {
@@ -187,6 +191,11 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       // If no screening data exists, set editing mode to true
       if (!transformedScreeningData) {
         setIsEditing(true);
+        // Set default health professional to current staff when creating new screening
+        setFormData(prev => ({
+          ...prev,
+          health_professional: currentStaff?.id || ""
+        }));
       } else {
         // Populate form data with existing values
         setFormData({
