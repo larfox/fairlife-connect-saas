@@ -274,15 +274,17 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="lg" 
-              onClick={() => setCurrentView("foundation")}
-              className="gap-2"
-            >
-              <Building className="h-5 w-5" />
-              Foundation Setup
-            </Button>
+            {permissions.isAdmin && (
+              <Button 
+                variant="outline" 
+                size="lg" 
+                onClick={() => setCurrentView("foundation")}
+                className="gap-2"
+              >
+                <Building className="h-5 w-5" />
+                Foundation Setup
+              </Button>
+            )}
             {(permissions.isAdmin || (permissions.canAccessTab('prognosis') && permissions.canAccessTab('prescriptions'))) && (
               <Button 
                 variant="outline" 
