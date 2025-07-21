@@ -134,7 +134,7 @@ const PatientHistoryModal = ({ isOpen, onClose, patientVisit }: PatientHistoryMo
         .from("basic_screening")
         .select(`
           *,
-          nurses (
+          staff (
             first_name,
             last_name
           )
@@ -161,7 +161,7 @@ const PatientHistoryModal = ({ isOpen, onClose, patientVisit }: PatientHistoryMo
       // Transform screening data to match interface
       const transformedScreeningData = screeningData ? {
         ...screeningData,
-        screened_by: screeningData.nurses
+        screened_by: screeningData.staff
       } : null;
       
       setBasicScreening(transformedScreeningData);

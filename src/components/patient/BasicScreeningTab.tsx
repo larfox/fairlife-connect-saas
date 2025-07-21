@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Heart, Edit, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,7 +39,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentStaff, setCurrentStaff] = useState<any>(null);
   const [formData, setFormData] = useState({
     height: "",
     weight: "",
@@ -49,18 +50,32 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     blood_sugar: "",
     cholesterol: "",
     oxygen_saturation: "",
-    notes: ""
+    notes: "",
+    height_unit: "cm",
+    weight_unit: "kg"
   });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchBasicScreening();
-    getCurrentUser();
+    getCurrentStaff();
   }, [patientVisitId]);
 
-  const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
+  const getCurrentStaff = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: staffData } = await supabase
+          .from("staff")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+        
+        setCurrentStaff(staffData);
+      }
+    } catch (error) {
+      console.error("Error getting current staff:", error);
+    }
   };
 
   const fetchBasicScreening = async () => {
@@ -69,7 +84,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         .from("basic_screening")
         .select(`
           *,
-          nurses (
+          staff (
             first_name,
             last_name
           )
@@ -83,9 +98,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
 
       const transformedScreeningData = screeningData ? {
         ...screeningData,
-        screened_by: screeningData.nurses
+        screened_by: screeningData.staff
       } : null;
-      
       
       // If no screening data exists, set editing mode to true
       if (!transformedScreeningData) {
@@ -102,7 +116,9 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           blood_sugar: transformedScreeningData.blood_sugar?.toString() || "",
           cholesterol: transformedScreeningData.cholesterol?.toString() || "",
           oxygen_saturation: transformedScreeningData.oxygen_saturation?.toString() || "",
-          notes: transformedScreeningData.notes || ""
+          notes: transformedScreeningData.notes || "",
+          height_unit: "cm",
+          weight_unit: "kg"
         });
       }
       
@@ -119,6 +135,20 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     }
   };
 
+  const convertHeightToCm = (value: number, unit: string): number => {
+    if (unit === "ft") {
+      return value * 30.48; // feet to cm
+    }
+    return value; // already in cm
+  };
+
+  const convertWeightToKg = (value: number, unit: string): number => {
+    if (unit === "lbs") {
+      return value * 0.453592; // pounds to kg
+    }
+    return value; // already in kg
+  };
+
   const calculateBMI = (height: number, weight: number): number => {
     if (height > 0 && weight > 0) {
       const heightInMeters = height / 100;
@@ -127,14 +157,28 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     return 0;
   };
 
+  const getBloodPressureInterpretation = (systolic: number, diastolic: number): string => {
+    if (systolic < 120 && diastolic < 80) {
+      return "Normal blood pressure";
+    } else if (systolic < 130 && diastolic < 80) {
+      return "Elevated blood pressure";
+    } else if (systolic < 140 || diastolic < 90) {
+      return "Stage 1 Hypertension";
+    } else if (systolic < 180 || diastolic < 120) {
+      return "Stage 2 Hypertension";
+    } else {
+      return "Hypertensive Crisis - Seek immediate medical attention";
+    }
+  };
+
   const validateInput = (field: string, value: string): boolean => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return true; // Allow empty/invalid numbers to be handled later
     
     // Set reasonable limits for each field to prevent database overflow
     const limits = {
-      height: { min: 0, max: 300 }, // cm
-      weight: { min: 0, max: 1000 }, // kg
+      height: { min: 0, max: 300 }, // cm or converted to cm
+      weight: { min: 0, max: 1000 }, // kg or converted to kg
       blood_pressure_systolic: { min: 0, max: 300 }, // mmHg
       blood_pressure_diastolic: { min: 0, max: 200 }, // mmHg
       heart_rate: { min: 0, max: 300 }, // bpm
@@ -157,8 +201,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    // Only update if validation passes
-    if (validateInput(field, value)) {
+    // Only update if validation passes for numeric fields
+    if (field.includes('_unit') || field === 'notes' || validateInput(field, value)) {
       const newFormData = { ...formData, [field]: value };
       setFormData(newFormData);
     }
@@ -171,6 +215,15 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       console.log("=== SAVING SCREENING DATA ===");
       console.log("Form data:", formData);
       
+      if (!currentStaff) {
+        toast({
+          title: "Error",
+          description: "No staff member found for current user. Please contact administrator.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Validate all numeric inputs before saving
       const numericFields = ['height', 'weight', 'blood_pressure_systolic', 'blood_pressure_diastolic', 
                             'heart_rate', 'temperature', 'blood_sugar', 'cholesterol', 'oxygen_saturation'];
@@ -182,24 +235,38 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         }
       }
       
-      const height = formData.height ? parseFloat(formData.height) : null;
-      const weight = formData.weight ? parseFloat(formData.weight) : null;
+      // Convert units to standard units (cm and kg)
+      const heightValue = formData.height ? parseFloat(formData.height) : null;
+      const weightValue = formData.weight ? parseFloat(formData.weight) : null;
+      
+      const height = heightValue ? convertHeightToCm(heightValue, formData.height_unit) : null;
+      const weight = weightValue ? convertWeightToKg(weightValue, formData.weight_unit) : null;
       const bmi = height && weight ? calculateBMI(height, weight) : null;
+      
+      // Generate blood pressure interpretation
+      const systolic = formData.blood_pressure_systolic ? parseInt(formData.blood_pressure_systolic) : null;
+      const diastolic = formData.blood_pressure_diastolic ? parseInt(formData.blood_pressure_diastolic) : null;
+      let notes = formData.notes || "";
+      
+      if (systolic && diastolic) {
+        const bpInterpretation = getBloodPressureInterpretation(systolic, diastolic);
+        notes = notes ? `${notes}\n\nBlood Pressure: ${bpInterpretation}` : `Blood Pressure: ${bpInterpretation}`;
+      }
       
       const screeningData = {
         patient_visit_id: patientVisitId,
         height,
         weight,
         bmi,
-        blood_pressure_systolic: formData.blood_pressure_systolic ? parseInt(formData.blood_pressure_systolic) : null,
-        blood_pressure_diastolic: formData.blood_pressure_diastolic ? parseInt(formData.blood_pressure_diastolic) : null,
+        blood_pressure_systolic: systolic,
+        blood_pressure_diastolic: diastolic,
         heart_rate: formData.heart_rate ? parseInt(formData.heart_rate) : null,
         temperature: formData.temperature ? parseFloat(formData.temperature) : null,
         blood_sugar: formData.blood_sugar ? parseInt(formData.blood_sugar) : null,
         cholesterol: formData.cholesterol ? parseInt(formData.cholesterol) : null,
         oxygen_saturation: formData.oxygen_saturation ? parseInt(formData.oxygen_saturation) : null,
-        notes: formData.notes || null,
-        screened_by: currentUser?.id || null
+        notes: notes || null,
+        screened_by: currentStaff.id
       };
 
       console.log("Processed screening data:", screeningData);
@@ -269,7 +336,9 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         blood_sugar: basicScreening.blood_sugar?.toString() || "",
         cholesterol: basicScreening.cholesterol?.toString() || "",
         oxygen_saturation: basicScreening.oxygen_saturation?.toString() || "",
-        notes: basicScreening.notes || ""
+        notes: basicScreening.notes || "",
+        height_unit: "cm",
+        weight_unit: "kg"
       });
     } else {
       // Clear form for new entry
@@ -283,7 +352,9 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         blood_sugar: "",
         cholesterol: "",
         oxygen_saturation: "",
-        notes: ""
+        notes: "",
+        height_unit: "cm",
+        weight_unit: "kg"
       });
     }
     setIsEditing(false);
@@ -318,28 +389,52 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="height">Height (cm)</Label>
-                <Input
-                  id="height"
-                  type="number"
-                  placeholder="Enter height in cm"
-                  value={formData.height}
-                  onChange={(e) => handleInputChange("height", e.target.value)}
-                  min="0"
-                  max="300"
-                />
+                <Label htmlFor="height">Height</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="height"
+                    type="number"
+                    placeholder="Enter height"
+                    value={formData.height}
+                    onChange={(e) => handleInputChange("height", e.target.value)}
+                    min="0"
+                    max="300"
+                    className="flex-1"
+                  />
+                  <Select value={formData.height_unit} onValueChange={(value) => handleInputChange("height_unit", value)}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cm">cm</SelectItem>
+                      <SelectItem value="ft">ft</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="weight">Weight (kg)</Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  placeholder="Enter weight in kg"
-                  value={formData.weight}
-                  onChange={(e) => handleInputChange("weight", e.target.value)}
-                  min="0"
-                  max="1000"
-                />
+                <Label htmlFor="weight">Weight</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="weight"
+                    type="number"
+                    placeholder="Enter weight"
+                    value={formData.weight}
+                    onChange={(e) => handleInputChange("weight", e.target.value)}
+                    min="0"
+                    max="1000"
+                    className="flex-1"
+                  />
+                  <Select value={formData.weight_unit} onValueChange={(value) => handleInputChange("weight_unit", value)}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="kg">kg</SelectItem>
+                      <SelectItem value="lbs">lbs</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="systolic">Blood Pressure - Systolic (mmHg)</Label>
@@ -427,6 +522,19 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                 />
               </div>
             </div>
+            
+            {/* Blood Pressure Interpretation */}
+            {formData.blood_pressure_systolic && formData.blood_pressure_diastolic && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm font-medium">
+                  Blood Pressure Interpretation: {getBloodPressureInterpretation(
+                    parseInt(formData.blood_pressure_systolic), 
+                    parseInt(formData.blood_pressure_diastolic)
+                  )}
+                </p>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
               <Textarea
@@ -437,13 +545,18 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                 rows={3}
               />
             </div>
+            
             {formData.height && formData.weight && (
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm font-medium">
-                  Calculated BMI: {calculateBMI(parseFloat(formData.height), parseFloat(formData.weight))}
+                  Calculated BMI: {calculateBMI(
+                    convertHeightToCm(parseFloat(formData.height), formData.height_unit), 
+                    convertWeightToKg(parseFloat(formData.weight), formData.weight_unit)
+                  )}
                 </p>
               </div>
             )}
+            
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={isSaving}>
                 <Save className="h-4 w-4 mr-2" />
@@ -514,7 +627,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
             {basicScreening.notes && (
               <div className="space-y-1 md:col-span-2">
                 <Badge variant="outline" className="mb-2">Notes</Badge>
-                <p className="text-sm bg-muted p-3 rounded">{basicScreening.notes}</p>
+                <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.notes}</p>
               </div>
             )}
             {basicScreening.screened_by && (

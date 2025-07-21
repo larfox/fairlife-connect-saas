@@ -81,7 +81,7 @@ export type Database = {
             foreignKeyName: "basic_screening_screened_by_fkey"
             columns: ["screened_by"]
             isOneToOne: false
-            referencedRelation: "nurses"
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
