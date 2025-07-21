@@ -284,6 +284,20 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
           No visit data available
         </div>
       )
+    },
+    {
+      id: "back-to-school",
+      label: "Back to School",
+      icon: FileText,
+      component: currentVisit ? (
+        <div className="text-center py-8 text-muted-foreground">
+          Back to School assessment functionality coming soon
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          No visit data available
+        </div>
+      )
     }
   ];
 
@@ -307,7 +321,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         
         <div className="flex-1 min-h-0">
           <Tabs defaultValue="basic-info" className="h-full flex flex-col">
-            <TabsList className="grid grid-cols-9 w-full shrink-0">
+            <TabsList className="grid grid-cols-10 w-full shrink-0">
               {tabs.map((tab) => (
                 <TabsTrigger 
                   key={tab.id} 

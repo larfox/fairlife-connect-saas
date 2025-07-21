@@ -1086,6 +1086,9 @@ export type Database = {
       }
       staff: {
         Row: {
+          can_access_prescriptions_tab: boolean | null
+          can_access_prognosis_tab: boolean | null
+          can_access_services_tab: boolean | null
           created_at: string
           email: string
           first_name: string
@@ -1101,6 +1104,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          can_access_prescriptions_tab?: boolean | null
+          can_access_prognosis_tab?: boolean | null
+          can_access_services_tab?: boolean | null
           created_at?: string
           email: string
           first_name: string
@@ -1116,6 +1122,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          can_access_prescriptions_tab?: boolean | null
+          can_access_prognosis_tab?: boolean | null
+          can_access_services_tab?: boolean | null
           created_at?: string
           email?: string
           first_name?: string

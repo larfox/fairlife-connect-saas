@@ -18,7 +18,8 @@ const SERVICE_TAB_MAPPING = {
   'ecg': 'ECG screening',
   'optician': 'Optical',
   'dental': 'Dental ',
-  'pap-smear': 'Paps Smears'
+  'pap-smear': 'Paps Smears',
+  'back-to-school': 'Back to School '
 };
 
 // Global cache and request deduplication with localStorage persistence
@@ -37,6 +38,12 @@ const getStoredPermissions = (email: string): { data: StaffPermissions; timestam
         parsed.data.canAccessTab = (tabName: string): boolean => {
           if (tabName === 'basic-info' || tabName === 'screening') return true;
           if (parsed.data.isAdmin) return true;
+          
+          // Check specific tab permissions (stored in cache)
+          if (tabName === 'services' && parsed.data.canAccessServicesTab) return true;
+          if (tabName === 'prognosis' && parsed.data.canAccessPrognosisTab) return true;
+          if (tabName === 'prescriptions' && parsed.data.canAccessPrescriptionsTab) return true;
+          
           if (parsed.data.allowedServices.includes(tabName)) return true;
           const serviceName = SERVICE_TAB_MAPPING[tabName as keyof typeof SERVICE_TAB_MAPPING];
           return serviceName && parsed.data.allowedServices.includes(serviceName);
@@ -57,13 +64,32 @@ const storePermissions = (email: string, data: StaffPermissions, timestamp: numb
       data: {
         isAdmin: data.isAdmin,
         isActive: data.isActive,
-        allowedServices: data.allowedServices
+        allowedServices: data.allowedServices,
+        canAccessServicesTab: data.canAccessTab('services'),
+        canAccessPrognosisTab: data.canAccessTab('prognosis'),
+        canAccessPrescriptionsTab: data.canAccessTab('prescriptions')
       },
       timestamp
     };
     localStorage.setItem(`staff_permissions_${email}`, JSON.stringify(toStore));
   } catch (error) {
     console.error('Error storing permissions:', error);
+  }
+};
+
+// Function to clear permissions cache (useful when permissions are updated)
+export const clearPermissionsCache = (email?: string) => {
+  if (email) {
+    permissionsCache.delete(email);
+    localStorage.removeItem(`staff_permissions_${email}`);
+  } else {
+    // Clear all permissions
+    permissionsCache.clear();
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('staff_permissions_')) {
+        localStorage.removeItem(key);
+      }
+    });
   }
 };
 
@@ -136,6 +162,9 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
           .select(`
             is_admin,
             is_active,
+            can_access_services_tab,
+            can_access_prognosis_tab,
+            can_access_prescriptions_tab,
             staff_service_permissions (
               services (name)
             )
@@ -169,6 +198,17 @@ export const useStaffPermissions = (user: User | null): StaffPermissions => {
 
           // Admins have access to everything
           if (staffData.is_admin) {
+            return true;
+          }
+
+          // Check specific tab permissions
+          if (tabName === 'services' && staffData.can_access_services_tab) {
+            return true;
+          }
+          if (tabName === 'prognosis' && staffData.can_access_prognosis_tab) {
+            return true;
+          }
+          if (tabName === 'prescriptions' && staffData.can_access_prescriptions_tab) {
             return true;
           }
 

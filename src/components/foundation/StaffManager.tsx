@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, UserCheck, Shield } from "lucide-react";
+import { clearPermissionsCache } from "@/hooks/useStaffPermissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ProfessionalCapacity = "doctor" | "nurse" | "optician" | "dentist" | "dental_technician" | "registration_technician" | "administration";
@@ -40,6 +41,9 @@ interface Staff {
   is_admin: boolean;
   is_active: boolean;
   created_at: string;
+  can_access_services_tab?: boolean;
+  can_access_prognosis_tab?: boolean;
+  can_access_prescriptions_tab?: boolean;
 }
 
 interface Service {
@@ -253,8 +257,14 @@ const StaffManager = () => {
       .filter(p => p.staff_id === staffMember.id)
       .map(p => p.service_id);
     setSelectedServiceIds(currentPermissions);
-    // For now, tab permissions are not stored in database, so reset to empty
-    setSelectedTabPermissions([]);
+    
+    // Load tab permissions from staff table
+    const tabPermissions = [];
+    if (staffMember.can_access_services_tab) tabPermissions.push('services');
+    if (staffMember.can_access_prognosis_tab) tabPermissions.push('prognosis');
+    if (staffMember.can_access_prescriptions_tab) tabPermissions.push('prescriptions');
+    setSelectedTabPermissions(tabPermissions);
+    
     setSelectedAdminStatus(staffMember.is_admin);
     setPermissionsDialogOpen(true);
   };
@@ -263,19 +273,26 @@ const StaffManager = () => {
     if (!selectedStaff) return;
 
     try {
-      // Update admin status
+      // Update admin status and tab permissions
+      const staffUpdate = {
+        is_admin: selectedAdminStatus,
+        can_access_services_tab: selectedTabPermissions.includes('services'),
+        can_access_prognosis_tab: selectedTabPermissions.includes('prognosis'),
+        can_access_prescriptions_tab: selectedTabPermissions.includes('prescriptions')
+      };
+      
       await supabase
         .from("staff")
-        .update({ is_admin: selectedAdminStatus })
+        .update(staffUpdate)
         .eq("id", selectedStaff.id);
 
-      // Delete existing permissions
+      // Delete existing service permissions
       await supabase
         .from("staff_service_permissions")
         .delete()
         .eq("staff_id", selectedStaff.id);
 
-      // Insert new permissions (only if not admin)
+      // Insert new service permissions (only if not admin)
       if (!selectedAdminStatus && selectedServiceIds.length > 0) {
         const permissions = selectedServiceIds.map(serviceId => ({
           staff_id: selectedStaff.id,
@@ -293,6 +310,9 @@ const StaffManager = () => {
         title: "Success",
         description: "Permissions updated successfully",
       });
+      
+      // Clear permissions cache for this user so they get updated permissions
+      clearPermissionsCache(selectedStaff.email);
       
       setPermissionsDialogOpen(false);
       fetchData();
