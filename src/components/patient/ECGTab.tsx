@@ -52,12 +52,11 @@ const ECGTab = ({ patientVisitId }: ECGTabProps) => {
 
       if (ecgError) throw ecgError;
 
-      // Fetch staff for dropdown (doctors and nurses who can perform ECG)
+      // Fetch doctors for dropdown (who can perform ECG)
       const { data: staffData, error: staffError } = await supabase
-        .from("staff")
-        .select("id, first_name, last_name, professional_capacity")
-        .eq("is_active", true)
-        .in("professional_capacity", ["doctor", "nurse", "registration_technician"]);
+        .from("doctors")
+        .select("id, first_name, last_name, specialization")
+        .eq("is_active", true);
 
       if (staffError) throw staffError;
 
@@ -80,16 +79,12 @@ const ECGTab = ({ patientVisitId }: ECGTabProps) => {
 
     try {
       setSaving(true);
-      // Convert performed_by to null if empty string to avoid foreign key constraint
-      const insertData = {
-        ...ecgForm,
-        patient_visit_id: patientVisitId,
-        performed_by: ecgForm.performed_by || null
-      };
-      
       const { error } = await supabase
         .from("ecg_results")
-        .insert(insertData);
+        .insert({
+          ...ecgForm,
+          patient_visit_id: patientVisitId
+        });
 
       if (error) throw error;
 
@@ -214,7 +209,7 @@ const ECGTab = ({ patientVisitId }: ECGTabProps) => {
                 <SelectContent>
                   {staff.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
-                      {member.first_name} {member.last_name} ({member.professional_capacity})
+                      Dr. {member.first_name} {member.last_name} {member.specialization ? `(${member.specialization})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -288,7 +283,7 @@ const ECGTab = ({ patientVisitId }: ECGTabProps) => {
                     {staffMember && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <User className="h-3 w-3" />
-                        {staffMember.first_name} {staffMember.last_name} ({staffMember.professional_capacity})
+                        Dr. {staffMember.first_name} {staffMember.last_name} {staffMember.specialization ? `(${staffMember.specialization})` : ''}
                       </div>
                     )}
                   </div>
