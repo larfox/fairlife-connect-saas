@@ -1,16 +1,8 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -19,144 +11,222 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Edit, Trash2, UserCheck, Mail, Phone, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Users, CheckCircle } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 type ProfessionalCapacity = "doctor" | "nurse" | "optician" | "dentist" | "dental_technician" | "registration_technician" | "administration";
 
-interface Profile {
-  id: string;
-  user_id: string;
-  full_name: string | null;
-  organization: string | null;
-  created_at: string;
-}
-
-interface Staff {
+interface RegistrationTechnician {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
-  user_id: string | null;
+  phone: string | null;
+  professional_capacity: ProfessionalCapacity;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface AvailableStaff {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  professional_capacity: ProfessionalCapacity;
+  is_active: boolean;
 }
 
 const RegistrationManager = () => {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [existingStaff, setExistingStaff] = useState<Staff[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [registrationTechnicians, setRegistrationTechnicians] = useState<RegistrationTechnician[]>([]);
+  const [availableStaff, setAvailableStaff] = useState<AvailableStaff[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [editingTechnician, setEditingTechnician] = useState<RegistrationTechnician | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [createFromStaff, setCreateFromStaff] = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+  const { toast } = useToast();
+
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
-    email: "",
     phone: "",
-    professional_capacity: "administration" as ProfessionalCapacity,
-    is_admin: false,
+    email: "",
+    is_active: true,
   });
 
-  const { toast } = useToast();
-
   useEffect(() => {
-    fetchData();
+    fetchRegistrationTechnicians();
+    fetchAvailableStaff();
   }, []);
 
-  const fetchData = async () => {
-    setIsLoading(true);
+  const fetchRegistrationTechnicians = async () => {
     try {
-      // Fetch all profiles (signups)
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
+      const { data, error } = await supabase
+        .from("staff")
         .select("*")
+        .eq("professional_capacity", "registration_technician")
         .order("created_at", { ascending: false });
 
-      if (profilesError) throw profilesError;
-
-      // Fetch existing staff to filter out already registered users
-      const { data: staffData, error: staffError } = await supabase
-        .from("staff")
-        .select("id, first_name, last_name, email, user_id");
-
-      if (staffError) throw staffError;
-
-      setExistingStaff(staffData || []);
-      
-      // Filter out profiles that are already registered as staff
-      const staffUserIds = (staffData || []).map(s => s.user_id).filter(Boolean);
-      const availableProfiles = (profilesData || []).filter(p => !staffUserIds.includes(p.user_id));
-      
-      setProfiles(availableProfiles);
-    } catch (error) {
-      console.error("Error fetching data:", error);
+      if (error) throw error;
+      setRegistrationTechnicians(data || []);
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to fetch signup data",
         variant: "destructive",
+        title: "Error fetching registration technicians",
+        description: error.message,
+      });
+    }
+  };
+
+  const fetchAvailableStaff = async () => {
+    try {
+      // Get existing registration technician emails to exclude them
+      const { data: registrationTechs } = await supabase
+        .from("staff")
+        .select("email")
+        .eq("professional_capacity", "registration_technician");
+      
+      const techEmails = registrationTechs?.map(t => t.email).filter(Boolean) || [];
+      
+      // Get staff members who could be registration technicians
+      const { data, error } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("is_active", true)
+        .in("professional_capacity", ["administration", "registration_technician"])
+        .not("email", "in", `(${techEmails.map(e => `"${e}"`).join(",")})`);
+
+      if (error) throw error;
+      setAvailableStaff(data || []);
+    } catch (error: any) {
+      console.error("Error fetching available staff:", error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      if (createFromStaff && selectedStaffId && !editingTechnician) {
+        // Update existing staff member to be a registration technician
+        const selectedStaff = availableStaff.find(s => s.id === selectedStaffId);
+        if (!selectedStaff) throw new Error("Selected staff member not found");
+
+        const { error } = await supabase
+          .from("staff")
+          .update({
+            professional_capacity: "registration_technician",
+          })
+          .eq("id", selectedStaffId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Registration technician assigned",
+          description: "Staff member has been successfully assigned as a registration technician.",
+        });
+      } else {
+        // Clean up empty strings to null for optional fields
+        const cleanFormData = {
+          ...formData,
+          phone: formData.phone || null,
+          email: formData.email || null,
+          professional_capacity: "registration_technician" as ProfessionalCapacity,
+        };
+
+        if (editingTechnician) {
+          const { error } = await supabase
+            .from("staff")
+            .update(cleanFormData)
+            .eq("id", editingTechnician.id);
+
+          if (error) throw error;
+
+          toast({
+            title: "Registration technician updated",
+            description: "Registration technician profile has been successfully updated.",
+          });
+        } else {
+          const { error } = await supabase
+            .from("staff")
+            .insert([cleanFormData]);
+
+          if (error) throw error;
+
+          toast({
+            title: "Registration technician created",
+            description: "New registration technician profile has been successfully created.",
+          });
+        }
+      }
+
+      setIsDialogOpen(false);
+      setEditingTechnician(null);
+      resetForm();
+      fetchRegistrationTechnicians();
+      fetchAvailableStaff();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: editingTechnician ? "Error updating registration technician" : "Error creating registration technician",
+        description: error.message,
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRegisterStaff = (profile: Profile) => {
-    setSelectedProfile(profile);
-    
-    // Pre-fill form with profile data
-    const nameParts = profile.full_name?.split(" ") || ["", ""];
+  const handleEdit = (technician: RegistrationTechnician) => {
+    setEditingTechnician(technician);
     setFormData({
-      first_name: nameParts[0] || "",
-      last_name: nameParts.slice(1).join(" ") || "",
-      email: "", // Will need to get from auth.users or user input
-      phone: "",
-      professional_capacity: "administration",
-      is_admin: false,
+      first_name: technician.first_name,
+      last_name: technician.last_name,
+      phone: technician.phone || "",
+      email: technician.email || "",
+      is_active: technician.is_active,
     });
-    
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProfile) return;
-
-    setIsLoading(true);
-
+  const handleDelete = async (id: string) => {
     try {
-      const staffData = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        phone: formData.phone || null,
-        professional_capacity: formData.professional_capacity,
-        is_admin: formData.is_admin,
-        user_id: selectedProfile.user_id,
-      };
-
       const { error } = await supabase
         .from("staff")
-        .insert(staffData);
+        .delete()
+        .eq("id", id);
 
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Staff member registered successfully",
+        title: "Registration technician deleted",
+        description: "Registration technician profile has been successfully deleted.",
       });
-
-      setIsDialogOpen(false);
-      fetchData();
+      fetchRegistrationTechnicians();
     } catch (error: any) {
-      console.error("Error registering staff:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to register staff member",
         variant: "destructive",
+        title: "Error deleting registration technician",
+        description: error.message,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -164,243 +234,275 @@ const RegistrationManager = () => {
     setFormData({
       first_name: "",
       last_name: "",
-      email: "",
       phone: "",
-      professional_capacity: "administration",
-      is_admin: false,
+      email: "",
+      is_active: true,
     });
-    setSelectedProfile(null);
+    setCreateFromStaff(false);
+    setSelectedStaffId("");
   };
 
-  const isAlreadyRegistered = (userId: string) => {
-    return existingStaff.some(staff => staff.user_id === userId);
+  const openCreateDialog = () => {
+    setEditingTechnician(null);
+    resetForm();
+    setIsDialogOpen(true);
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+  const handleStaffSelection = (staffId: string) => {
+    setSelectedStaffId(staffId);
+    const selectedStaff = availableStaff.find(s => s.id === staffId);
+    if (selectedStaff) {
+      setFormData(prev => ({
+        ...prev,
+        first_name: selectedStaff.first_name,
+        last_name: selectedStaff.last_name,
+        email: selectedStaff.email,
+        phone: selectedStaff.phone || "",
+      }));
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-foreground">Staff Registration</h3>
+          <h3 className="text-lg font-semibold text-foreground">Registration Technicians</h3>
           <p className="text-sm text-muted-foreground">
-            Register staff members from the pool of signups
+            Manage staff responsible for patient registration and check-in processes
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Badge variant="outline" className="gap-2">
-            <Users className="h-4 w-4" />
-            {profiles.length} Available Signups
-          </Badge>
-          <Badge variant="outline" className="gap-2">
-            <CheckCircle className="h-4 w-4" />
-            {existingStaff.length} Registered Staff
-          </Badge>
+        <div className="flex gap-2">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreateDialog} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Registration Technician
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingTechnician ? "Edit Registration Technician" : "Add Registration Technician"}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingTechnician 
+                    ? "Update the registration technician's profile information below."
+                    : createFromStaff
+                    ? "Select an existing staff member to assign as a registration technician."
+                    : "Create a new registration technician profile or select from existing staff."
+                  }
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!editingTechnician && (
+                  <div className="flex gap-2 mb-4">
+                    <Button
+                      type="button"
+                      variant={!createFromStaff ? "default" : "outline"}
+                      onClick={() => {
+                        setCreateFromStaff(false);
+                        resetForm();
+                      }}
+                      className="flex-1"
+                    >
+                      Create New
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={createFromStaff ? "default" : "outline"}
+                      onClick={() => setCreateFromStaff(true)}
+                      className="flex-1"
+                      disabled={availableStaff.length === 0}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      From Staff
+                    </Button>
+                  </div>
+                )}
+
+                {createFromStaff && !editingTechnician && (
+                  <div className="space-y-2">
+                    <Label htmlFor="staff_select">Select Staff Member</Label>
+                    <Select value={selectedStaffId} onValueChange={handleStaffSelection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a staff member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableStaff.map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            {staff.first_name} {staff.last_name} ({staff.professional_capacity})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {(!createFromStaff || editingTechnician) && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="first_name">First Name</Label>
+                        <Input
+                          id="first_name"
+                          value={formData.first_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                          placeholder="John"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="last_name">Last Name</Label>
+                        <Input
+                          id="last_name"
+                          value={formData.last_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                          placeholder="Doe"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="(555) 123-4567"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="technician@hospital.com"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {(createFromStaff && selectedStaffId) && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-2">Selected Staff Member:</p>
+                    <p className="font-medium">
+                      {availableStaff.find(s => s.id === selectedStaffId)?.first_name}{" "}
+                      {availableStaff.find(s => s.id === selectedStaffId)?.last_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {availableStaff.find(s => s.id === selectedStaffId)?.email}
+                    </p>
+                  </div>
+                )}
+
+                {(!createFromStaff || editingTechnician) && (
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="is_active"
+                      checked={formData.is_active}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                    />
+                    <Label htmlFor="is_active">Active</Label>
+                  </div>
+                )}
+
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading || (createFromStaff && !selectedStaffId && !editingTechnician)}
+                  >
+                    {isLoading ? "Saving..." : (editingTechnician ? "Update" : "Create")}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Available Signups */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Available Signups
-            </CardTitle>
-            <CardDescription>
-              Users who have signed up but are not yet registered as staff
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <div className="max-h-[400px] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Organization</TableHead>
-                      <TableHead>Signup Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {profiles.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                          No available signups
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      profiles.map((profile) => (
-                        <TableRow key={profile.id}>
-                          <TableCell className="font-medium">
-                            {profile.full_name || "Unknown"}
-                          </TableCell>
-                          <TableCell>{profile.organization || "-"}</TableCell>
-                          <TableCell>
-                            {new Date(profile.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              onClick={() => handleRegisterStaff(profile)}
-                              className="gap-2"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                              Register
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Registered Staff Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5" />
-              Registered Staff
-            </CardTitle>
-            <CardDescription>
-              Users who have been registered as staff members
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <div className="max-h-[400px] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {existingStaff.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground">
-                          No registered staff
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      existingStaff.map((staff) => (
-                        <TableRow key={staff.id}>
-                          <TableCell className="font-medium">
-                            {staff.first_name} {staff.last_name}
-                          </TableCell>
-                          <TableCell>{staff.email}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">Registered</Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Registration Technicians Table */}
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {registrationTechnicians.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2">
+                    <UserCheck className="h-8 w-8" />
+                    <p>No registration technicians found</p>
+                    <p className="text-sm">Add your first registration technician to get started</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              registrationTechnicians.map((technician) => (
+                <TableRow key={technician.id}>
+                  <TableCell className="font-medium">
+                    {technician.first_name} {technician.last_name}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm space-y-1">
+                      {technician.phone && (
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {technician.phone}
+                        </div>
+                      )}
+                      {technician.email && (
+                        <div className="flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {technician.email}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <div className={`h-2 w-2 rounded-full ${technician.is_active ? 'bg-green-500' : 'bg-gray-400'}`} />
+                      <span className="text-sm">{technician.is_active ? 'Active' : 'Inactive'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(technician)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(technician.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
-
-      {/* Registration Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Register Staff Member</DialogTitle>
-            <DialogDescription>
-              Complete the registration for {selectedProfile?.full_name}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input
-                    id="first_name"
-                    value={formData.first_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, first_name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    value={formData.last_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, last_name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="professional_capacity">Professional Capacity</Label>
-                <Select 
-                  value={formData.professional_capacity} 
-                  onValueChange={(value: ProfessionalCapacity) => setFormData({ ...formData, professional_capacity: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select professional capacity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="doctor">Doctor</SelectItem>
-                    <SelectItem value="nurse">Nurse</SelectItem>
-                    <SelectItem value="optician">Optician</SelectItem>
-                    <SelectItem value="dentist">Dentist</SelectItem>
-                    <SelectItem value="dental_technician">Dental Technician</SelectItem>
-                    <SelectItem value="registration_technician">Registration Technician</SelectItem>
-                    <SelectItem value="administration">Administration</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                Register Staff Member
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
