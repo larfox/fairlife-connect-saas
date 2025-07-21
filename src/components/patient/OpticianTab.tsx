@@ -54,12 +54,11 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
 
       if (assessmentsError) throw assessmentsError;
 
-      // Fetch staff for dropdown (opticians and doctors who can perform eye exams)
+      // Fetch doctors for dropdown (doctors who can perform eye exams)
       const { data: staffData, error: staffError } = await supabase
-        .from("staff")
-        .select("id, first_name, last_name, professional_capacity")
-        .eq("is_active", true)
-        .in("professional_capacity", ["doctor", "optician", "nurse"]);
+        .from("doctors")
+        .select("id, first_name, last_name, specialization")
+        .eq("is_active", true);
 
       if (staffError) throw staffError;
 
@@ -224,7 +223,7 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
               <SelectContent>
                 {staff.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
-                    {member.first_name} {member.last_name} ({member.professional_capacity})
+                    {member.first_name} {member.last_name} {member.specialization ? `(${member.specialization})` : '(Doctor)'}
                   </SelectItem>
                 ))}</SelectContent>
             </Select>
@@ -306,7 +305,7 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
                       {staffMember && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <User className="h-3 w-3" />
-                          {staffMember.first_name} {staffMember.last_name} ({staffMember.professional_capacity})
+                          {staffMember.first_name} {staffMember.last_name} {staffMember.specialization ? `(${staffMember.specialization})` : '(Doctor)'}
                         </div>
                       )}
                     </div>
