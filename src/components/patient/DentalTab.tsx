@@ -82,12 +82,16 @@ const DentalTab = ({ patientVisitId }: DentalTabProps) => {
 
     try {
       setSaving(true);
+      // Convert dental_professional_id to null if empty string to avoid constraint issues
+      const insertData = {
+        ...assessmentForm,
+        patient_visit_id: patientVisitId,
+        dental_professional_id: assessmentForm.dental_professional_id || null
+      };
+      
       const { error } = await supabase
         .from("dental_assessments")
-        .insert({
-          ...assessmentForm,
-          patient_visit_id: patientVisitId
-        });
+        .insert(insertData);
 
       if (error) throw error;
 
