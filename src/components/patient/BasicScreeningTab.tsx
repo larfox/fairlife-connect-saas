@@ -66,27 +66,25 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     notes: "",
     height_unit: "cm",
     weight_unit: "kg",
-    screened_by: "",
-    service_provided_by: ""
+    health_professional: ""
   });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchBasicScreening();
     getCurrentStaff();
-    getCurrentDoctor();
     fetchProfessionals();
   }, [patientVisitId]);
 
-  // Update form data when current doctor is loaded
+  // Update form data when current professional is loaded
   useEffect(() => {
-    if (currentDoctor && !basicScreening && formData.service_provided_by === "") {
+    if (currentStaff && !basicScreening && formData.health_professional === "") {
       setFormData(prev => ({
         ...prev,
-        service_provided_by: currentDoctor.id
+        health_professional: currentStaff.id
       }));
     }
-  }, [currentDoctor, basicScreening, formData.service_provided_by]);
+  }, [currentStaff, basicScreening, formData.health_professional]);
 
   const getCurrentStaff = async () => {
     try {
@@ -105,34 +103,6 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     }
   };
 
-  const getCurrentDoctor = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Check if current user is a doctor by looking at staff table with professional_capacity
-        const { data: staffData } = await supabase
-          .from("staff")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("professional_capacity", "doctor")
-          .maybeSingle();
-        
-        if (staffData) {
-          // Find the corresponding doctor record
-          const { data: doctorData } = await supabase
-            .from("doctors")
-            .select("*")
-            .eq("email", staffData.email)
-            .eq("is_active", true)
-            .maybeSingle();
-          
-          setCurrentDoctor(doctorData);
-        }
-      }
-    } catch (error) {
-      console.error("Error getting current doctor:", error);
-    }
-  };
 
   const fetchProfessionals = async () => {
     try {
@@ -232,8 +202,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           notes: transformedScreeningData.notes || "",
           height_unit: "cm",
           weight_unit: "kg",
-          screened_by: transformedScreeningData.screened_by ? transformedScreeningData.screened_by.first_name + " " + transformedScreeningData.screened_by.last_name : "",
-          service_provided_by: currentDoctor?.id || ""
+          health_professional: currentStaff?.id || ""
         });
       }
       
@@ -317,7 +286,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
 
   const handleInputChange = (field: string, value: string) => {
     // Only update if validation passes for numeric fields
-    if (field.includes('_unit') || field === 'notes' || field === 'screened_by' || field === 'service_provided_by' || validateInput(field, value)) {
+    if (field.includes('_unit') || field === 'notes' || field === 'health_professional' || validateInput(field, value)) {
       const newFormData = { ...formData, [field]: value };
       setFormData(newFormData);
     }
@@ -330,31 +299,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       console.log("=== SAVING SCREENING DATA ===");
       console.log("Form data:", formData);
       
-      // Determine screened_by: use current staff or selected professional
-      let screenedById = null;
-      if (currentStaff) {
-        screenedById = currentStaff.id;
-      } else if (formData.screened_by) {
-        // Find the selected professional in staff table
-        const selectedProfessional = professionals.find(p => p.id === formData.screened_by && p.type === 'staff');
-        if (selectedProfessional) {
-          screenedById = selectedProfessional.id;
-        } else {
-          toast({
-            title: "Error",
-            description: "Please select a valid staff member for 'Screened by' field.",
-            variant: "destructive",
-          });
-          return;
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: "Please select who performed the screening.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Use current staff as screened_by
+      let screenedById = currentStaff?.id || null;
       
       // Validate all numeric inputs before saving
       const numericFields = ['height', 'weight', 'blood_pressure_systolic', 'blood_pressure_diastolic', 
@@ -476,8 +422,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         notes: basicScreening.notes || "",
         height_unit: "cm",
         weight_unit: "kg",
-        screened_by: basicScreening.screened_by ? basicScreening.screened_by.first_name + " " + basicScreening.screened_by.last_name : "",
-        service_provided_by: currentDoctor?.id || ""
+        health_professional: currentStaff?.id || ""
       });
     } else {
       // Clear form for new entry
@@ -494,8 +439,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         notes: "",
         height_unit: "cm",
         weight_unit: "kg",
-        screened_by: "",
-        service_provided_by: currentDoctor?.id || ""
+        health_professional: currentStaff?.id || ""
       });
     }
     setIsEditing(false);
@@ -676,13 +620,13 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
               </div>
             )}
             
-            {/* Professional Selection Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+            {/* Health Professional Field */}
+            <div className="p-4 bg-muted/30 rounded-lg">
               <div className="space-y-2">
-                <Label htmlFor="screened_by">Screened by (Staff Member) *</Label>
-                <Select value={formData.screened_by} onValueChange={(value) => handleInputChange("screened_by", value)}>
+                <Label htmlFor="health_professional">Health Professional</Label>
+                <Select value={formData.health_professional} onValueChange={(value) => handleInputChange("health_professional", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder={currentStaff ? `${currentStaff.first_name} ${currentStaff.last_name} (Current User)` : "Select staff member"} />
+                    <SelectValue placeholder={currentStaff ? `${currentStaff.first_name} ${currentStaff.last_name} (Current User)` : "Select health professional"} />
                   </SelectTrigger>
                   <SelectContent>
                     {currentStaff && (
@@ -696,21 +640,16 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                         {professional.professional_capacity && ` (${professional.professional_capacity})`}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="service_provided_by">Doctor</Label>
-                <Select value={formData.service_provided_by} onValueChange={(value) => handleInputChange("service_provided_by", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select doctor" />
-                  </SelectTrigger>
-                  <SelectContent>
                     {professionals.filter(p => p.type === 'doctor').map((professional) => (
                       <SelectItem key={professional.id} value={professional.id}>
                         Dr. {professional.first_name} {professional.last_name}
                         {professional.specialization && ` (${professional.specialization})`}
+                      </SelectItem>
+                    ))}
+                    {professionals.filter(p => p.type === 'nurse').map((professional) => (
+                      <SelectItem key={professional.id} value={professional.id}>
+                        {professional.first_name} {professional.last_name} (Nurse)
+                        {professional.certification_level && ` - ${professional.certification_level}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
