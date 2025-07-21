@@ -27,6 +27,7 @@ interface BasicScreening {
   screened_by?: {
     first_name: string;
     last_name: string;
+    professional_capacity?: string;
   };
 }
 
@@ -84,9 +85,10 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         .from("basic_screening")
         .select(`
           *,
-          staff (
+          staff:screened_by (
             first_name,
-            last_name
+            last_name,
+            professional_capacity
           )
         `)
         .eq("patient_visit_id", patientVisitId)
@@ -305,16 +307,21 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       fetchBasicScreening();
     } catch (error: any) {
       console.error("Error saving basic screening:", error);
+      console.error("Full error object:", JSON.stringify(error, null, 2));
       
       let errorMessage = "Failed to save basic screening data";
-      if (error.message.includes("numeric field overflow")) {
+      if (error.message?.includes("numeric field overflow")) {
         errorMessage = "One or more values are too large. Please check your entries and try again.";
+      } else if (error.message?.includes("foreign key constraint")) {
+        errorMessage = "Invalid staff member selected. Please contact administrator.";
       } else if (error.message) {
         errorMessage = error.message;
+      } else if (error.details) {
+        errorMessage = error.details;
       }
       
       toast({
-        title: "Error",
+        title: "Save Error",
         description: errorMessage,
         variant: "destructive",
       });
@@ -633,7 +640,14 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
             {basicScreening.screened_by && (
               <div className="space-y-1 md:col-span-2">
                 <Badge variant="outline" className="mb-2">Screened by</Badge>
-                <p className="text-sm font-medium">{basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}</p>
+                <p className="text-sm font-medium">
+                  {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
+                  {basicScreening.screened_by.professional_capacity && (
+                    <span className="text-muted-foreground ml-2">
+                      ({basicScreening.screened_by.professional_capacity})
+                    </span>
+                  )}
+                </p>
               </div>
             )}
           </div>
