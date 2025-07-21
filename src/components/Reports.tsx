@@ -433,7 +433,7 @@ const Reports = ({ onBack }: ReportsProps) => {
           )
         `);
 
-      if (selectedEvent) {
+      if (selectedEvent && selectedEvent !== "all") {
         query = query.eq("patient_visits.event_id", selectedEvent);
       }
 
@@ -503,7 +503,7 @@ const Reports = ({ onBack }: ReportsProps) => {
           event:events(name, event_date, locations(name))
         `);
 
-      if (selectedEvent) {
+      if (selectedEvent && selectedEvent !== "all") {
         query = query.eq("event_id", selectedEvent);
       }
 
@@ -571,7 +571,7 @@ const Reports = ({ onBack }: ReportsProps) => {
           )
         `);
 
-      if (selectedEvent) {
+      if (selectedEvent && selectedEvent !== "all") {
         query = query.eq("patient_visit.event_id", selectedEvent);
       }
 
@@ -1169,7 +1169,7 @@ const Reports = ({ onBack }: ReportsProps) => {
                         <SelectValue placeholder="All events or select specific" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Events</SelectItem>
+                        <SelectItem value="all">All Events</SelectItem>
                         {events.map((event) => (
                           <SelectItem key={event.id} value={event.id}>
                             {event.name} - {format(new Date(event.event_date), "MMM dd, yyyy")}
