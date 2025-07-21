@@ -54,12 +54,11 @@ const DentalTab = ({ patientVisitId }: DentalTabProps) => {
 
       if (assessmentsError) throw assessmentsError;
 
-      // Fetch staff for dropdown (dentists and doctors who can perform dental exams)
+      // Fetch doctors for dropdown (who can perform dental exams)
       const { data: staffData, error: staffError } = await supabase
-        .from("staff")
-        .select("id, first_name, last_name, professional_capacity")
-        .eq("is_active", true)
-        .in("professional_capacity", ["doctor", "dentist", "dental_technician"]);
+        .from("doctors")
+        .select("id, first_name, last_name, specialization")
+        .eq("is_active", true);
 
       if (staffError) throw staffError;
 
@@ -82,16 +81,12 @@ const DentalTab = ({ patientVisitId }: DentalTabProps) => {
 
     try {
       setSaving(true);
-      // Convert dental_professional_id to null if empty string to avoid constraint issues
-      const insertData = {
-        ...assessmentForm,
-        patient_visit_id: patientVisitId,
-        dental_professional_id: assessmentForm.dental_professional_id || null
-      };
-      
       const { error } = await supabase
         .from("dental_assessments")
-        .insert(insertData);
+        .insert({
+          ...assessmentForm,
+          patient_visit_id: patientVisitId
+        });
 
       if (error) throw error;
 
@@ -243,7 +238,7 @@ const DentalTab = ({ patientVisitId }: DentalTabProps) => {
               <SelectContent>
                 {staff.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
-                    {member.first_name} {member.last_name} ({member.professional_capacity})
+                    Dr. {member.first_name} {member.last_name} {member.specialization ? `(${member.specialization})` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -333,9 +328,9 @@ const DentalTab = ({ patientVisitId }: DentalTabProps) => {
 
                       {staffMember && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <User className="h-3 w-3" />
-                          {staffMember.first_name} {staffMember.last_name} ({staffMember.professional_capacity})
-                        </div>
+                        <User className="h-3 w-3" />
+                        Dr. {staffMember.first_name} {staffMember.last_name} {staffMember.specialization ? `(${staffMember.specialization})` : ''}
+                      </div>
                       )}
                     </div>
                   </div>
