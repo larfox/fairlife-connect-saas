@@ -29,6 +29,7 @@ import PrescriptionsTab from "../patient/PrescriptionsTab";
 import ECGTab from "../patient/ECGTab";
 import OpticianTab from "../patient/OpticianTab";
 import DentalTab from "../patient/DentalTab";
+import BackToSchoolTab from "../patient/BackToSchoolTab";
 
 interface PatientDetailsModalProps {
   patient: any;
@@ -289,11 +290,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
       id: "back-to-school",
       label: "Back to School",
       icon: FileText,
-      component: currentVisit ? (
-        <div className="text-center py-8 text-muted-foreground">
-          Back to School assessment functionality coming soon
-        </div>
-      ) : (
+      component: currentVisit ? <BackToSchoolTab patientVisitId={currentVisit.id} /> : (
         <div className="text-center py-8 text-muted-foreground">
           No visit data available
         </div>
