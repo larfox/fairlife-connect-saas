@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChart3, PieChart, ArrowLeft } from "lucide-react";
+import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChart3, PieChart, ArrowLeft, Upload, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +69,10 @@ const Reports = ({ onBack }: ReportsProps) => {
   const [serviceReport, setServiceReport] = useState<ServiceReport[]>([]);
   const [parishReport, setParishReport] = useState<ParishReport[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  
+  // Import/Export state
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
   
   const { toast } = useToast();
 
@@ -413,6 +417,350 @@ const Reports = ({ onBack }: ReportsProps) => {
     }, 1000);
   };
 
+  // Export functions
+  const exportAllPatients = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("patients")
+        .select(`
+          *,
+          parish:parishes(name),
+          town:towns(name),
+          patient_visits(
+            *,
+            event:events(name, event_date, locations(name))
+          )
+        `);
+
+      if (selectedEvent) {
+        query = query.eq("patient_visits.event_id", selectedEvent);
+      }
+
+      const { data: patients, error } = await query;
+
+      if (error) throw error;
+
+      if (!patients || patients.length === 0) {
+        toast({
+          title: "No patients found",
+          description: "No patient data available for export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const exportData = patients.map(patient => ({
+        patient_number: patient.patient_number,
+        first_name: patient.first_name,
+        last_name: patient.last_name,
+        date_of_birth: patient.date_of_birth,
+        gender: patient.gender,
+        phone: patient.phone,
+        email: patient.email,
+        parish: patient.parish?.name,
+        town: patient.town?.name,
+        medical_conditions: patient.medical_conditions,
+        allergies: patient.allergies,
+        medications: patient.medications,
+        insurance_provider: patient.insurance_provider,
+        insurance_number: patient.insurance_number,
+        emergency_contact_name: patient.emergency_contact_name,
+        emergency_contact_phone: patient.emergency_contact_phone,
+        created_at: patient.created_at
+      }));
+
+      if (exportFormat === 'csv') {
+        exportToCSV(exportData, 'all_patients');
+      } else {
+        exportToJSON(exportData, 'all_patients');
+      }
+
+      toast({
+        title: "Export successful",
+        description: `Exported ${exportData.length} patients.`,
+      });
+    } catch (error) {
+      console.error("Error exporting patients:", error);
+      toast({
+        title: "Export failed",
+        description: "Failed to export patient data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportPatientVisits = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("patient_visits")
+        .select(`
+          *,
+          patient:patients(first_name, last_name, patient_number, phone),
+          event:events(name, event_date, locations(name))
+        `);
+
+      if (selectedEvent) {
+        query = query.eq("event_id", selectedEvent);
+      }
+
+      const { data: visits, error } = await query;
+
+      if (error) throw error;
+
+      if (!visits || visits.length === 0) {
+        toast({
+          title: "No visits found",
+          description: "No patient visit data available for export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const exportData = visits.map(visit => ({
+        visit_id: visit.id,
+        patient_name: `${visit.patient?.first_name} ${visit.patient?.last_name}`,
+        patient_number: visit.patient?.patient_number,
+        patient_phone: visit.patient?.phone,
+        event_name: visit.event?.name,
+        event_date: visit.event?.event_date,
+        location: visit.event?.locations?.name,
+        visit_date: visit.visit_date,
+        queue_number: visit.queue_number,
+        status: visit.status,
+        basic_screening_completed: visit.basic_screening_completed,
+        created_at: visit.created_at
+      }));
+
+      if (exportFormat === 'csv') {
+        exportToCSV(exportData, 'patient_visits');
+      } else {
+        exportToJSON(exportData, 'patient_visits');
+      }
+
+      toast({
+        title: "Export successful",
+        description: `Exported ${exportData.length} patient visits.`,
+      });
+    } catch (error) {
+      console.error("Error exporting patient visits:", error);
+      toast({
+        title: "Export failed",
+        description: "Failed to export patient visit data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportServiceQueues = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("service_queue")
+        .select(`
+          *,
+          service:services(name),
+          patient_visit:patient_visits(
+            patient:patients(first_name, last_name, patient_number),
+            event:events(name, event_date)
+          )
+        `);
+
+      if (selectedEvent) {
+        query = query.eq("patient_visit.event_id", selectedEvent);
+      }
+
+      const { data: serviceQueues, error } = await query;
+
+      if (error) throw error;
+
+      if (!serviceQueues || serviceQueues.length === 0) {
+        toast({
+          title: "No service records found",
+          description: "No service queue data available for export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const exportData = serviceQueues.map(queue => ({
+        queue_id: queue.id,
+        service_name: queue.service?.name,
+        patient_name: `${queue.patient_visit?.patient?.first_name} ${queue.patient_visit?.patient?.last_name}`,
+        patient_number: queue.patient_visit?.patient?.patient_number,
+        event_name: queue.patient_visit?.event?.name,
+        event_date: queue.patient_visit?.event?.event_date,
+        status: queue.status,
+        queue_position: queue.queue_position,
+        started_at: queue.started_at,
+        completed_at: queue.completed_at,
+        created_at: queue.created_at
+      }));
+
+      if (exportFormat === 'csv') {
+        exportToCSV(exportData, 'service_queues');
+      } else {
+        exportToJSON(exportData, 'service_queues');
+      }
+
+      toast({
+        title: "Export successful",
+        description: `Exported ${exportData.length} service records.`,
+      });
+    } catch (error) {
+      console.error("Error exporting service queues:", error);
+      toast({
+        title: "Export failed",
+        description: "Failed to export service queue data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportToJSON = (data: any[], filename: string) => {
+    const jsonContent = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}_${format(new Date(), "yyyy-MM-dd")}.json`;
+    link.click();
+  };
+
+  const downloadTemplate = (format: 'csv' | 'json') => {
+    const templateData = [{
+      first_name: "John",
+      last_name: "Doe",
+      date_of_birth: "1980-01-01",
+      gender: "Male",
+      phone: "876-123-4567",
+      email: "john.doe@email.com",
+      parish_id: "", // Leave empty - will be filled with actual parish IDs
+      town_id: "", // Leave empty - will be filled with actual town IDs
+      medical_conditions: "None",
+      allergies: "None",
+      medications: "None",
+      insurance_provider: "SAGICOR",
+      insurance_number: "INS123456",
+      emergency_contact_name: "Jane Doe",
+      emergency_contact_phone: "876-987-6543"
+    }];
+
+    if (format === 'csv') {
+      exportToCSV(templateData, 'patient_import_template');
+    } else {
+      exportToJSON(templateData, 'patient_import_template');
+    }
+
+    toast({
+      title: "Template downloaded",
+      description: `${format.toUpperCase()} template file has been downloaded.`,
+    });
+  };
+
+  const importPatients = async () => {
+    if (!importFile) return;
+
+    setLoading(true);
+    try {
+      const fileContent = await importFile.text();
+      let importData: any[] = [];
+
+      if (importFile.name.endsWith('.csv')) {
+        // Parse CSV
+        const lines = fileContent.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        
+        for (let i = 1; i < lines.length; i++) {
+          if (lines[i].trim()) {
+            const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+            const row: any = {};
+            headers.forEach((header, index) => {
+              row[header] = values[index] || '';
+            });
+            importData.push(row);
+          }
+        }
+      } else {
+        // Parse JSON
+        importData = JSON.parse(fileContent);
+      }
+
+      if (!Array.isArray(importData) || importData.length === 0) {
+        toast({
+          title: "Invalid file format",
+          description: "File must contain an array of patient records.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate required fields
+      const requiredFields = ['first_name', 'last_name'];
+      const validRecords = importData.filter(record => 
+        requiredFields.every(field => record[field] && record[field].trim())
+      );
+
+      if (validRecords.length === 0) {
+        toast({
+          title: "No valid records found",
+          description: "All records must have at least first_name and last_name.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Insert patients
+      const { data: insertedPatients, error } = await supabase
+        .from("patients")
+        .insert(validRecords.map(record => ({
+          first_name: record.first_name?.trim(),
+          last_name: record.last_name?.trim(),
+          date_of_birth: record.date_of_birth || null,
+          gender: record.gender || null,
+          phone: record.phone || null,
+          email: record.email || null,
+          parish_id: record.parish_id || null,
+          town_id: record.town_id || null,
+          medical_conditions: record.medical_conditions || null,
+          allergies: record.allergies || null,
+          medications: record.medications || null,
+          insurance_provider: record.insurance_provider || null,
+          insurance_number: record.insurance_number || null,
+          emergency_contact_name: record.emergency_contact_name || null,
+          emergency_contact_phone: record.emergency_contact_phone || null
+        })));
+
+      if (error) throw error;
+
+      toast({
+        title: "Import successful",
+        description: `Successfully imported ${validRecords.length} patients. ${importData.length - validRecords.length} records were skipped due to missing required fields.`,
+      });
+
+      setImportFile(null);
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
+    } catch (error) {
+      console.error("Error importing patients:", error);
+      toast({
+        title: "Import failed",
+        description: "Failed to import patient data. Please check file format and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       {/* Header */}
@@ -434,7 +782,7 @@ const Reports = ({ onBack }: ReportsProps) => {
       </div>
 
       <Tabs defaultValue="location" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="location" className="gap-2">
             <MapPin className="h-4 w-4" />
             Location Reports
@@ -446,6 +794,10 @@ const Reports = ({ onBack }: ReportsProps) => {
           <TabsTrigger value="parish" className="gap-2">
             <Users className="h-4 w-4" />
             Parish Reports
+          </TabsTrigger>
+          <TabsTrigger value="import-export" className="gap-2">
+            <Database className="h-4 w-4" />
+            Import/Export
           </TabsTrigger>
           <TabsTrigger value="analytics" className="gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -780,6 +1132,154 @@ const Reports = ({ onBack }: ReportsProps) => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Import/Export Tab */}
+        <TabsContent value="import-export">
+          <div className="grid gap-6">
+            {/* Export Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  Export Patient Data
+                </CardTitle>
+                <CardDescription>
+                  Download all patient information and related data
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Export Format</Label>
+                    <Select value={exportFormat} onValueChange={(value: 'csv' | 'json') => setExportFormat(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="csv">CSV Format</SelectItem>
+                        <SelectItem value="json">JSON Format</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Select Event (Optional)</Label>
+                    <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All events or select specific" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All Events</SelectItem>
+                        {events.map((event) => (
+                          <SelectItem key={event.id} value={event.id}>
+                            {event.name} - {format(new Date(event.event_date), "MMM dd, yyyy")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <Button 
+                    onClick={() => exportAllPatients()} 
+                    disabled={loading} 
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export All Patients
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => exportPatientVisits()} 
+                    disabled={loading} 
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Patient Visits
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => exportServiceQueues()} 
+                    disabled={loading} 
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Service Records
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Import Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Import Patient Data
+                </CardTitle>
+                <CardDescription>
+                  Upload patient information from CSV or JSON files
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Select File</Label>
+                    <Input
+                      type="file"
+                      accept=".csv,.json"
+                      onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Supported formats: CSV, JSON. File should contain patient information with columns: first_name, last_name, phone, email, parish_id, etc.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Template Download</Label>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => downloadTemplate('csv')}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        CSV Template
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => downloadTemplate('json')}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        JSON Template
+                      </Button>
+                    </div>
+                  </div>
+
+                  {importFile && (
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-sm font-medium">Selected File:</p>
+                      <p className="text-sm text-muted-foreground">{importFile.name} ({(importFile.size / 1024).toFixed(2)} KB)</p>
+                    </div>
+                  )}
+
+                  <Button 
+                    onClick={() => importPatients()} 
+                    disabled={!importFile || loading} 
+                    className="gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import Patients
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Analytics Tab */}
