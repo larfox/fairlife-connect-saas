@@ -66,7 +66,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     height_unit: "cm",
     weight_unit: "kg",
     screened_by: "",
-    service_provided_by: ""
+    service_provided_by: "none"
   });
   const { toast } = useToast();
 
@@ -192,7 +192,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           height_unit: "cm",
           weight_unit: "kg",
           screened_by: transformedScreeningData.screened_by ? transformedScreeningData.screened_by.first_name + " " + transformedScreeningData.screened_by.last_name : "",
-          service_provided_by: ""
+          service_provided_by: "none"
         });
       }
       
@@ -436,7 +436,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         height_unit: "cm",
         weight_unit: "kg",
         screened_by: basicScreening.screened_by ? basicScreening.screened_by.first_name + " " + basicScreening.screened_by.last_name : "",
-        service_provided_by: ""
+        service_provided_by: "none"
       });
     } else {
       // Clear form for new entry
@@ -454,7 +454,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         height_unit: "cm",
         weight_unit: "kg",
         screened_by: "",
-        service_provided_by: ""
+        service_provided_by: "none"
       });
     }
     setIsEditing(false);
@@ -666,7 +666,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                     <SelectValue placeholder="Select doctor or nurse" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {professionals.filter(p => p.type === 'doctor').map((professional) => (
                       <SelectItem key={professional.id} value={professional.id}>
                         Dr. {professional.first_name} {professional.last_name}
