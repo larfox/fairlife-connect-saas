@@ -88,12 +88,16 @@ const PrescriptionsTab = ({ patientVisitId }: PrescriptionsTabProps) => {
 
     try {
       setSaving(true);
+      // Convert prescribed_by to null if empty string to avoid foreign key constraint
+      const insertData = {
+        ...prescriptionForm,
+        patient_visit_id: patientVisitId,
+        prescribed_by: prescriptionForm.prescribed_by || null
+      };
+      
       const { error } = await supabase
         .from("prescriptions")
-        .insert({
-          ...prescriptionForm,
-          patient_visit_id: patientVisitId
-        });
+        .insert(insertData);
 
       if (error) throw error;
 

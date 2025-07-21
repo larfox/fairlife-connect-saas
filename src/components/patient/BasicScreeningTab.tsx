@@ -97,11 +97,22 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       console.log("Current user:", user);
       if (user) {
-        const { data: staffData } = await supabase
+        // Try staff table first
+        let { data: staffData } = await supabase
           .from("staff")
-          .select("*")
+          .select("id, first_name, last_name, professional_capacity")
           .eq("user_id", user.id)
           .maybeSingle();
+        
+        // If not found in staff, try to find by email in staff table
+        if (!staffData && user.email) {
+          const { data: staffByEmail } = await supabase
+            .from("staff")
+            .select("id, first_name, last_name, professional_capacity")
+            .eq("email", user.email)
+            .maybeSingle();
+          staffData = staffByEmail;
+        }
         
         console.log("Staff data found:", staffData);
         setCurrentStaff(staffData);

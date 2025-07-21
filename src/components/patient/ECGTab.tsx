@@ -80,12 +80,16 @@ const ECGTab = ({ patientVisitId }: ECGTabProps) => {
 
     try {
       setSaving(true);
+      // Convert performed_by to null if empty string to avoid foreign key constraint
+      const insertData = {
+        ...ecgForm,
+        patient_visit_id: patientVisitId,
+        performed_by: ecgForm.performed_by || null
+      };
+      
       const { error } = await supabase
         .from("ecg_results")
-        .insert({
-          ...ecgForm,
-          patient_visit_id: patientVisitId
-        });
+        .insert(insertData);
 
       if (error) throw error;
 
