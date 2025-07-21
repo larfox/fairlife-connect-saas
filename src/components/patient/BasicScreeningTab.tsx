@@ -82,17 +82,20 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
 
   // Update form data when current staff is loaded and form is being initialized
   useEffect(() => {
-    if (currentStaff && isEditing && formData.health_professional === "") {
+    console.log("UseEffect triggered - currentStaff:", currentStaff, "isEditing:", isEditing, "health_professional:", formData.health_professional);
+    if (currentStaff && isEditing && (!formData.health_professional || formData.health_professional === "")) {
+      console.log("Setting default health professional to:", currentStaff.id);
       setFormData(prev => ({
         ...prev,
         health_professional: currentStaff.id
       }));
     }
-  }, [currentStaff, isEditing]);
+  }, [currentStaff, isEditing, formData.health_professional]);
 
   const getCurrentStaff = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      console.log("Current user:", user);
       if (user) {
         const { data: staffData } = await supabase
           .from("staff")
@@ -100,6 +103,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           .eq("user_id", user.id)
           .maybeSingle();
         
+        console.log("Staff data found:", staffData);
         setCurrentStaff(staffData);
       }
     } catch (error) {
@@ -633,9 +637,10 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
             <div className="p-4 bg-muted/30 rounded-lg">
               <div className="space-y-2">
                 <Label htmlFor="health_professional">Health Professional</Label>
+                <div className="text-xs text-muted-foreground mb-2">Debug: formData.health_professional = "{formData.health_professional}", currentStaff.id = "{currentStaff?.id}"</div>
                 <Select value={formData.health_professional} onValueChange={(value) => handleInputChange("health_professional", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder={currentStaff ? `${currentStaff.first_name} ${currentStaff.last_name} (Current User)` : "Select health professional"} />
+                    <SelectValue placeholder="Select health professional" />
                   </SelectTrigger>
                   <SelectContent>
                     {currentStaff && (
