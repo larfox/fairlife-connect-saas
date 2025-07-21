@@ -17,6 +17,7 @@ import ServicesManager from "@/components/foundation/ServicesManager";
 import DoctorsManager from "@/components/foundation/DoctorsManager";
 import NursesManager from "@/components/foundation/NursesManager";
 import StaffManager from "@/components/foundation/StaffManager";
+import RegistrationManager from "@/components/foundation/RegistrationManager";
 
 interface FoundationManagementProps {
   onBack?: () => void;
@@ -53,6 +54,13 @@ const FoundationManagement = ({ onBack }: FoundationManagementProps) => {
       icon: Shield,
       description: "Manage nursing staff profiles",
       component: NursesManager
+    },
+    {
+      id: "registration",
+      label: "Registration",
+      icon: UserCheck,
+      description: "Register staff from signup pool",
+      component: RegistrationManager
     },
     {
       id: "admin",
@@ -98,7 +106,7 @@ const FoundationManagement = ({ onBack }: FoundationManagementProps) => {
 
         {/* Management Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl mx-auto">
+          <TabsList className="grid grid-cols-7 w-full max-w-5xl mx-auto">
             {tabs.map((tab) => {
               const IconComponent = tab.icon;
               return (
