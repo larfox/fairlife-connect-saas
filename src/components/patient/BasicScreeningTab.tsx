@@ -51,6 +51,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<any>(null);
+  const [currentDoctor, setCurrentDoctor] = useState<any>(null);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [formData, setFormData] = useState({
     height: "",
@@ -66,15 +67,26 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     height_unit: "cm",
     weight_unit: "kg",
     screened_by: "",
-    service_provided_by: "none"
+    service_provided_by: ""
   });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchBasicScreening();
     getCurrentStaff();
+    getCurrentDoctor();
     fetchProfessionals();
   }, [patientVisitId]);
+
+  // Update form data when current doctor is loaded
+  useEffect(() => {
+    if (currentDoctor && !basicScreening && formData.service_provided_by === "") {
+      setFormData(prev => ({
+        ...prev,
+        service_provided_by: currentDoctor.id
+      }));
+    }
+  }, [currentDoctor, basicScreening, formData.service_provided_by]);
 
   const getCurrentStaff = async () => {
     try {
@@ -90,6 +102,35 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       }
     } catch (error) {
       console.error("Error getting current staff:", error);
+    }
+  };
+
+  const getCurrentDoctor = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Check if current user is a doctor by looking at staff table with professional_capacity
+        const { data: staffData } = await supabase
+          .from("staff")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("professional_capacity", "doctor")
+          .maybeSingle();
+        
+        if (staffData) {
+          // Find the corresponding doctor record
+          const { data: doctorData } = await supabase
+            .from("doctors")
+            .select("*")
+            .eq("email", staffData.email)
+            .eq("is_active", true)
+            .maybeSingle();
+          
+          setCurrentDoctor(doctorData);
+        }
+      }
+    } catch (error) {
+      console.error("Error getting current doctor:", error);
     }
   };
 
@@ -192,7 +233,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           height_unit: "cm",
           weight_unit: "kg",
           screened_by: transformedScreeningData.screened_by ? transformedScreeningData.screened_by.first_name + " " + transformedScreeningData.screened_by.last_name : "",
-          service_provided_by: "none"
+          service_provided_by: currentDoctor?.id || ""
         });
       }
       
@@ -436,7 +477,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         height_unit: "cm",
         weight_unit: "kg",
         screened_by: basicScreening.screened_by ? basicScreening.screened_by.first_name + " " + basicScreening.screened_by.last_name : "",
-        service_provided_by: "none"
+        service_provided_by: currentDoctor?.id || ""
       });
     } else {
       // Clear form for new entry
@@ -454,7 +495,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         height_unit: "cm",
         weight_unit: "kg",
         screened_by: "",
-        service_provided_by: "none"
+        service_provided_by: currentDoctor?.id || ""
       });
     }
     setIsEditing(false);
@@ -660,23 +701,16 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="service_provided_by">Service provided by (Optional)</Label>
+                <Label htmlFor="service_provided_by">Doctor</Label>
                 <Select value={formData.service_provided_by} onValueChange={(value) => handleInputChange("service_provided_by", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select doctor or nurse" />
+                    <SelectValue placeholder="Select doctor" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
                     {professionals.filter(p => p.type === 'doctor').map((professional) => (
                       <SelectItem key={professional.id} value={professional.id}>
                         Dr. {professional.first_name} {professional.last_name}
                         {professional.specialization && ` (${professional.specialization})`}
-                      </SelectItem>
-                    ))}
-                    {professionals.filter(p => p.type === 'nurse').map((professional) => (
-                      <SelectItem key={professional.id} value={professional.id}>
-                        {professional.first_name} {professional.last_name} (Nurse)
-                        {professional.certification_level && ` - ${professional.certification_level}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
