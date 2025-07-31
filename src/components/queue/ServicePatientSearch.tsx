@@ -183,7 +183,10 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
         // Get completed "Know Your Numbers" patients
         const { data: completedKynData, error: kynError } = await supabase
           .from('service_queue')
-          .select('patient_visit_id')
+          .select(`
+            patient_visit_id,
+            service:services!inner(name)
+          `)
           .in('patient_visit_id', visitIdList)
           .ilike('service.name', '%know your numbers%')
           .eq('status', 'completed');
