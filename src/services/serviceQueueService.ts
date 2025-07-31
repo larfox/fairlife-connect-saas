@@ -47,13 +47,15 @@ const processServiceQueueData = (queueData: any[], knowYourNumbersData: any[]): 
   // Create a map of patients who have completed "Know Your Numbers"
   const completedKnowYourNumbersPatients = new Set<string>();
   
-  console.log('=== KNOW YOUR NUMBERS FILTERING DEBUG ===');
-  console.log('Know Your Numbers data:', knowYourNumbersData);
+  console.log('=== FILTERING DEBUG START ===');
+  console.log('Total queue data items:', queueData.length);
+  console.log('Know Your Numbers data items:', knowYourNumbersData.length);
   
   knowYourNumbersData.forEach((item: any) => {
-    console.log(`KYN Item - Patient: ${item.patient_visit?.patient?.first_name} ${item.patient_visit?.patient?.last_name}, Status: ${item.status}, Visit ID: ${item.patient_visit_id}`);
+    console.log(`KYN: Visit ID ${item.patient_visit_id}, Status: ${item.status}`);
     if (item.status === 'completed') {
       completedKnowYourNumbersPatients.add(item.patient_visit_id);
+      console.log(`✓ Added completed KYN for visit ID: ${item.patient_visit_id}`);
     }
   });
 
@@ -77,23 +79,23 @@ const processServiceQueueData = (queueData: any[], knowYourNumbersData: any[]): 
     
     // For "Know Your Numbers" services, add all patients
     if (isKnowYourNumbers) {
-      console.log(`Adding ${patientName} to KYN service: ${item.service.name}`);
+      console.log(`[KYN SERVICE] Adding ${patientName} to ${item.service.name}`);
       groupedData[serviceId].patients.push(item);
     } else {
       // For other services, only add patients who have completed "Know Your Numbers"
       const hasCompletedKnowYourNumbers = completedKnowYourNumbersPatients.has(item.patient_visit_id);
       
-      console.log(`Checking ${patientName} for service ${item.service.name}: Visit ID ${item.patient_visit_id}, Has completed KYN: ${hasCompletedKnowYourNumbers}`);
-      
       if (hasCompletedKnowYourNumbers) {
-        console.log(`✓ Adding ${patientName} to ${item.service.name} (completed KYN)`);
+        console.log(`[OTHER SERVICE] ✓ Adding ${patientName} to ${item.service.name} (has completed KYN)`);
         groupedData[serviceId].patients.push(item);
       } else {
-        console.log(`✗ Excluding ${patientName} from ${item.service.name} (no KYN completion)`);
+        console.log(`[OTHER SERVICE] ✗ EXCLUDING ${patientName} from ${item.service.name} (no KYN completion)`);
       }
     }
   });
 
+  console.log('=== FILTERING DEBUG END ===');
+  
   return sortServiceGroups(Object.values(groupedData));
 };
 
