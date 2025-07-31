@@ -28,7 +28,10 @@ export const fetchServiceQueuesData = async (eventId: string): Promise<ServiceGr
     .select(`
       *,
       service:services(*),
-      patient_visit:patient_visits(*)
+      patient_visit:patient_visits(
+        *,
+        patient:patients(*)
+      )
     `)
     .eq('patient_visit.event_id', eventId)
     .ilike('service.name', '%know your numbers%');
