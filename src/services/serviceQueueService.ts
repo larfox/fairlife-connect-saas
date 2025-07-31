@@ -43,11 +43,18 @@ export const fetchServiceQueuesData = async (eventId: string): Promise<ServiceGr
 const processServiceQueueData = (queueData: any[], knowYourNumbersData: any[]): ServiceGroup[] => {
   // Create a map of patients who have completed "Know Your Numbers"
   const completedKnowYourNumbersPatients = new Set<string>();
+  
+  console.log('=== KNOW YOUR NUMBERS FILTERING DEBUG ===');
+  console.log('Know Your Numbers data:', knowYourNumbersData);
+  
   knowYourNumbersData.forEach((item: any) => {
+    console.log(`KYN Item - Patient: ${item.patient_visit?.patient?.first_name} ${item.patient_visit?.patient?.last_name}, Status: ${item.status}, Visit ID: ${item.patient_visit_id}`);
     if (item.status === 'completed') {
       completedKnowYourNumbersPatients.add(item.patient_visit_id);
     }
   });
+
+  console.log('Completed KYN patients (visit IDs):', Array.from(completedKnowYourNumbersPatients));
 
   // Group by service and filter patients based on screening requirements
   const groupedData: { [key: string]: ServiceGroup } = {};
@@ -55,6 +62,7 @@ const processServiceQueueData = (queueData: any[], knowYourNumbersData: any[]): 
   queueData.forEach((item: QueueItem) => {
     const serviceId = item.service.id;
     const isKnowYourNumbers = item.service.name.toLowerCase().includes('know your numbers');
+    const patientName = `${item.patient_visit.patient.first_name} ${item.patient_visit.patient.last_name}`;
     
     // Create service group if it doesn't exist
     if (!groupedData[serviceId]) {
@@ -66,13 +74,19 @@ const processServiceQueueData = (queueData: any[], knowYourNumbersData: any[]): 
     
     // For "Know Your Numbers" services, add all patients
     if (isKnowYourNumbers) {
+      console.log(`Adding ${patientName} to KYN service: ${item.service.name}`);
       groupedData[serviceId].patients.push(item);
     } else {
       // For other services, only add patients who have completed "Know Your Numbers"
       const hasCompletedKnowYourNumbers = completedKnowYourNumbersPatients.has(item.patient_visit_id);
       
+      console.log(`Checking ${patientName} for service ${item.service.name}: Visit ID ${item.patient_visit_id}, Has completed KYN: ${hasCompletedKnowYourNumbers}`);
+      
       if (hasCompletedKnowYourNumbers) {
+        console.log(`✓ Adding ${patientName} to ${item.service.name} (completed KYN)`);
         groupedData[serviceId].patients.push(item);
+      } else {
+        console.log(`✗ Excluding ${patientName} from ${item.service.name} (no KYN completion)`);
       }
     }
   });
