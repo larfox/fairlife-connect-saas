@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Activity, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { fetchServiceQueuesData } from '@/services/serviceQueueService';
 
 interface ServiceStats {
   id: string;
@@ -37,65 +38,28 @@ export function ServiceSummary({ selectedEvent, onStatsUpdate }: ServiceSummaryP
     try {
       setLoading(true);
 
-      // Fetch all service queue data for this event
-      const { data: queueData, error } = await supabase
-        .from('service_queue')
-        .select(`
-          *,
-          service:services(*),
-          patient_visit:patient_visits!inner(
-            event_id
-          )
-        `)
-        .eq('patient_visit.event_id', selectedEvent.id);
+      // Use the filtered service queue data that respects "Know Your Numbers" completion
+      const serviceGroups = await fetchServiceQueuesData(selectedEvent.id);
 
-      if (error) throw error;
-
-      // Group data by service and calculate stats
+      // Convert ServiceGroup[] to ServiceStats[]
       const serviceStatsMap: { [key: string]: ServiceStats } = {};
 
-      queueData?.forEach((item: any) => {
-        const serviceId = item.service.id;
+      serviceGroups.forEach((serviceGroup) => {
+        const serviceId = serviceGroup.service.id;
         
-        if (!serviceStatsMap[serviceId]) {
-          serviceStatsMap[serviceId] = {
-            id: item.service.id,
-            name: item.service.name,
-            description: item.service.description,
-            duration_minutes: item.service.duration_minutes,
-            totalRegistered: 0,
-            waiting: 0,
-            inProgress: 0,
-            completed: 0,
-          };
-        }
-
-        serviceStatsMap[serviceId].totalRegistered++;
-        
-        switch (item.status) {
-          case 'waiting':
-            serviceStatsMap[serviceId].waiting++;
-            break;
-          case 'in_progress':
-            serviceStatsMap[serviceId].inProgress++;
-            break;
-          case 'completed':
-            serviceStatsMap[serviceId].completed++;
-            break;
-        }
+        serviceStatsMap[serviceId] = {
+          id: serviceGroup.service.id,
+          name: serviceGroup.service.name,
+          description: serviceGroup.service.description,
+          duration_minutes: serviceGroup.service.duration_minutes,
+          totalRegistered: serviceGroup.patients.length,
+          waiting: serviceGroup.patients.filter(p => p.status === 'waiting').length,
+          inProgress: serviceGroup.patients.filter(p => p.status === 'in_progress').length,
+          completed: serviceGroup.patients.filter(p => p.status === 'completed').length,
+        };
       });
 
-      // Sort services with "Know Your Numbers" first
-      const sortedStats = Object.values(serviceStatsMap).sort((a, b) => {
-        const aIsKnowYourNumbers = a.name.toLowerCase().includes('know your numbers');
-        const bIsKnowYourNumbers = b.name.toLowerCase().includes('know your numbers');
-        
-        if (aIsKnowYourNumbers && !bIsKnowYourNumbers) return -1;
-        if (!aIsKnowYourNumbers && bIsKnowYourNumbers) return 1;
-        return a.name.localeCompare(b.name);
-      });
-
-      setServiceStats(sortedStats);
+      setServiceStats(Object.values(serviceStatsMap));
     } catch (error) {
       console.error('Error fetching service stats:', error);
       toast({
