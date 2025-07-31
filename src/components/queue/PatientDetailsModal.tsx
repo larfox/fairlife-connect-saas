@@ -1014,7 +1014,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                         </div>
 
                         <div>
-                          <Label htmlFor="blood_sugar">GMR (Blood Sugar Reading)</Label>
+                          <Label htmlFor="blood_sugar">Blood Sugar (mmol/L)</Label>
                           <Input
                             id="blood_sugar"
                             type="number"
@@ -1066,7 +1066,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                         </div>
 
                         <div>
-                          <Label htmlFor="cholesterol">Cholesterol (mg/dL)</Label>
+                          <Label htmlFor="cholesterol">Cholesterol (mmol/L)</Label>
                           <Input
                             id="cholesterol"
                             type="number"
@@ -1155,7 +1155,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                              )}
                              {(basicScreening as any).cholesterol && (
                                <div>
-                                 <span className="font-medium">Cholesterol:</span> {(basicScreening as any).cholesterol} mg/dL
+                                 <span className="font-medium">Cholesterol:</span> {(basicScreening as any).cholesterol} mmol/L
                                </div>
                              )}
                            </div>

@@ -291,8 +291,8 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
       blood_pressure_diastolic: { min: 0, max: 200 }, // mmHg
       heart_rate: { min: 0, max: 300 }, // bpm
       temperature: { min: 0, max: 50 }, // °C
-      blood_sugar: { min: 0, max: 1000 }, // mg/dL
-      cholesterol: { min: 0, max: 1000 }, // mg/dL
+      blood_sugar: { min: 0, max: 1000 }, // mmol/L
+      cholesterol: { min: 0, max: 1000 }, // mmol/L
       oxygen_saturation: { min: 0, max: 100 } // %
     };
     
@@ -595,7 +595,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="blood_sugar">Blood Sugar (mg/dL)</Label>
+                <Label htmlFor="blood_sugar">Blood Sugar (mmol/L)</Label>
                 <Input
                   id="blood_sugar"
                   type="number"
@@ -607,7 +607,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cholesterol">Cholesterol (mg/dL)</Label>
+                <Label htmlFor="cholesterol">Cholesterol (mmol/L)</Label>
                 <Input
                   id="cholesterol"
                   type="number"
@@ -756,13 +756,13 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
             {basicScreening.blood_sugar && (
               <div className="space-y-1">
                 <Badge variant="outline" className="mb-2">Blood Sugar</Badge>
-                <p className="text-sm font-medium">{basicScreening.blood_sugar} mg/dL</p>
+                <p className="text-sm font-medium">{basicScreening.blood_sugar} mmol/L</p>
               </div>
             )}
             {basicScreening.cholesterol && (
               <div className="space-y-1">
                 <Badge variant="outline" className="mb-2">Cholesterol</Badge>
-                <p className="text-sm font-medium">{basicScreening.cholesterol} mg/dL</p>
+                <p className="text-sm font-medium">{basicScreening.cholesterol} mmol/L</p>
               </div>
             )}
             {basicScreening.oxygen_saturation && (

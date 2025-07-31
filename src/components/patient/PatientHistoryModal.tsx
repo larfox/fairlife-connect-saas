@@ -386,13 +386,13 @@ const PatientHistoryModal = ({ isOpen, onClose, patientVisit }: PatientHistoryMo
                       {basicScreening.blood_sugar && (
                         <div className="space-y-1">
                           <span className="font-medium">Blood Sugar:</span>
-                          <p>{basicScreening.blood_sugar} mg/dL</p>
+                          <p>{basicScreening.blood_sugar} mmol/L</p>
                         </div>
                       )}
                       {basicScreening.cholesterol && (
                         <div className="space-y-1">
                           <span className="font-medium">Cholesterol:</span>
-                          <p>{basicScreening.cholesterol} mg/dL</p>
+                          <p>{basicScreening.cholesterol} mmol/L</p>
                         </div>
                       )}
                       {basicScreening.oxygen_saturation && (
