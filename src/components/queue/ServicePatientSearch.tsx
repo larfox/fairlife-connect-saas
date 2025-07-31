@@ -126,36 +126,117 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
 
   const fetchQueueData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("service_queue")
-        .select(`
-          *,
-          patient_visit:patient_visits!inner(
+      console.log('=== SERVICE PATIENT SEARCH - FETCHQUEUEDATA ===');
+      console.log('Service ID:', serviceId);
+      console.log('Service Name:', serviceName);
+      console.log('Event ID:', selectedEvent.id);
+      
+      let fetchedData: any[] = [];
+      
+      // Check if this is "Know Your Numbers" service
+      const isKnowYourNumbers = serviceName.toLowerCase().includes('know your numbers');
+      console.log('Is Know Your Numbers service:', isKnowYourNumbers);
+      
+      if (isKnowYourNumbers) {
+        // For "Know Your Numbers", fetch all patients normally
+        const { data, error } = await supabase
+          .from("service_queue")
+          .select(`
             *,
-            patient:patients(*)
-          ),
-          service:services(*),
-          doctor:doctors(*),
-          nurse:nurses(*)
-        `)
-        .eq("service_id", serviceId)
-        .eq("patient_visit.event_id", selectedEvent.id)
-        .order("created_at", { ascending: true });
+            patient_visit:patient_visits!inner(
+              *,
+              patient:patients(*)
+            ),
+            service:services(*),
+            doctor:doctors(*),
+            nurse:nurses(*)
+          `)
+          .eq("service_id", serviceId)
+          .eq("patient_visit.event_id", selectedEvent.id)
+          .order("created_at", { ascending: true });
 
-      if (error) throw error;
+        if (error) throw error;
+        console.log('KYN service queue data:', data);
+        fetchedData = data || [];
+      } else {
+        // For other services, only show patients who have completed "Know Your Numbers"
+        
+        // First, get patient visit IDs for this event
+        const { data: visitIds, error: visitsError } = await supabase
+          .from('patient_visits')
+          .select('id')
+          .eq('event_id', selectedEvent.id);
 
-      setQueueData(data || []);
+        if (visitsError) throw visitsError;
+        const visitIdList = visitIds?.map(v => v.id) || [];
+        
+        if (visitIdList.length === 0) {
+          console.log('No patient visits for this event');
+          setQueueData([]);
+          setQueueStats({ waiting: 0, inProgress: 0, completed: 0, unavailable: 0 });
+          setFilteredQueueData([]);
+          return;
+        }
+
+        // Get completed "Know Your Numbers" patients
+        const { data: completedKynData, error: kynError } = await supabase
+          .from('service_queue')
+          .select('patient_visit_id')
+          .in('patient_visit_id', visitIdList)
+          .ilike('service.name', '%know your numbers%')
+          .eq('status', 'completed');
+
+        if (kynError) throw kynError;
+        
+        const completedKynPatientVisits = new Set(
+          completedKynData?.map(item => item.patient_visit_id) || []
+        );
+        
+        console.log('Completed KYN patient visits:', Array.from(completedKynPatientVisits));
+
+        if (completedKynPatientVisits.size === 0) {
+          console.log('No patients have completed Know Your Numbers yet');
+          setQueueData([]);
+          setQueueStats({ waiting: 0, inProgress: 0, completed: 0, unavailable: 0 });
+          setFilteredQueueData([]);
+          return;
+        }
+
+        // Now get service queue data for this specific service, filtered by completed KYN
+        const { data, error } = await supabase
+          .from("service_queue")
+          .select(`
+            *,
+            patient_visit:patient_visits!inner(
+              *,
+              patient:patients(*)
+            ),
+            service:services(*),
+            doctor:doctors(*),
+            nurse:nurses(*)
+          `)
+          .eq("service_id", serviceId)
+          .in('patient_visit_id', Array.from(completedKynPatientVisits))
+          .order("created_at", { ascending: true });
+
+        if (error) throw error;
+        console.log('Filtered service queue data:', data);
+        fetchedData = data || [];
+      }
+      
+      // Update queue data
+      setQueueData(fetchedData);
       
       // Calculate stats including unavailable status
-      const waiting = data?.filter(q => q.status === 'waiting').length || 0;
-      const inProgress = data?.filter(q => q.status === 'in_progress').length || 0;
-      const completed = data?.filter(q => q.status === 'completed').length || 0;
-      const unavailable = data?.filter(q => q.status === 'unavailable').length || 0;
+      const waiting = fetchedData.filter(q => q.status === 'waiting').length || 0;
+      const inProgress = fetchedData.filter(q => q.status === 'in_progress').length || 0;
+      const completed = fetchedData.filter(q => q.status === 'completed').length || 0;
+      const unavailable = fetchedData.filter(q => q.status === 'unavailable').length || 0;
       
       setQueueStats({ waiting, inProgress, completed, unavailable });
       
       // Apply current filter
-      applyStatusFilter(data || [], statusFilter);
+      applyStatusFilter(fetchedData, statusFilter);
     } catch (error) {
       console.error("Error fetching queue data:", error);
     }
