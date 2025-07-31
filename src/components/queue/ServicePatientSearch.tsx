@@ -13,6 +13,7 @@ import { StatusBadge } from "./StatusBadge";
 import { updateServiceStatusInDB } from "@/services/serviceQueueService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ServiceStatusFilter } from "./ServiceStatusFilter";
+import { useQueueRefresh } from "@/hooks/useQueueRefresh";
 
 interface ServicePatientSearchProps {
   selectedEvent: any;
@@ -54,6 +55,7 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
   const [statusFilter, setStatusFilter] = useState("all");
   const [queueStats, setQueueStats] = useState({ waiting: 0, inProgress: 0, completed: 0, unavailable: 0 });
   const { toast } = useToast();
+  const { refreshAllQueues } = useQueueRefresh();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -691,16 +693,30 @@ const ServicePatientSearch = ({ selectedEvent, serviceId, serviceName }: Service
                      console.log('=== ServicePatientSearch updateStatus CALLED ===');
                      console.log('Queue Item ID:', queueItemId);
                      console.log('New Status:', newStatus);
+                     console.log('Service Name:', serviceName);
                      
                      try {
                        console.log('Calling updateServiceStatusInDB...');
                        await updateServiceStatusInDB(queueItemId, newStatus);
                        console.log('updateServiceStatusInDB completed, refreshing data...');
                        
+                       // Refresh current queue data
                        fetchQueueData();
+                       
+                       // If this is "Know Your Numbers" and status is "completed", refresh all queues
+                       const isKnowYourNumbers = serviceName.toLowerCase().includes('know your numbers');
+                       if (isKnowYourNumbers && newStatus === 'completed') {
+                         console.log('Know Your Numbers completed - triggering global queue refresh');
+                         refreshAllQueues();
+                       }
+                       
                        toast({
                          title: "Status updated",
-                         description: `Patient status updated to ${newStatus}. Cross-service updates applied.`,
+                         description: `Patient status updated to ${newStatus}. ${
+                           isKnowYourNumbers && newStatus === 'completed' 
+                             ? 'Patient is now eligible for other services.' 
+                             : 'Cross-service updates applied.'
+                         }`,
                        });
                      } catch (error) {
                        console.error("Error updating status:", error);
