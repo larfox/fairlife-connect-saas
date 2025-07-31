@@ -2,6 +2,28 @@ import { supabase } from '@/integrations/supabase/client';
 import { QueueItem, ServiceGroup } from '@/types/serviceQueue';
 
 export const fetchServiceQueuesData = async (eventId: string): Promise<ServiceGroup[]> => {
+  console.log('=== FETCHING SERVICE QUEUE DATA ===');
+  console.log('Event ID:', eventId);
+  
+  // First get all patient visits for this event
+  const { data: visitIds, error: visitsError } = await supabase
+    .from('patient_visits')
+    .select('id')
+    .eq('event_id', eventId);
+
+  if (visitsError) {
+    console.error('Error fetching patient visits:', visitsError);
+    throw visitsError;
+  }
+
+  const visitIdList = visitIds?.map(v => v.id) || [];
+  console.log('Visit IDs for event:', visitIdList);
+
+  if (visitIdList.length === 0) {
+    console.log('No patient visits found for this event');
+    return [];
+  }
+
   const { data: queueData, error } = await supabase
     .from('service_queue')
     .select(`
@@ -14,8 +36,11 @@ export const fetchServiceQueuesData = async (eventId: string): Promise<ServiceGr
       doctor:doctors(*),
       nurse:nurses(*)
     `)
-    .eq('patient_visit.event_id', eventId)
+    .in('patient_visit_id', visitIdList)
     .order('queue_position', { ascending: true });
+
+  console.log('Queue data query result:', { data: queueData, error });
+  console.log('Queue data length:', queueData?.length || 0);
 
   if (error) {
     console.error('Error fetching service queues:', error);
@@ -33,8 +58,10 @@ export const fetchServiceQueuesData = async (eventId: string): Promise<ServiceGr
         patient:patients(*)
       )
     `)
-    .eq('patient_visit.event_id', eventId)
+    .in('patient_visit_id', visitIdList)
     .ilike('service.name', '%know your numbers%');
+
+  console.log('Know Your Numbers query result:', { data: knowYourNumbersData, error: kynError });
 
   if (kynError) {
     console.error('Error fetching Know Your Numbers data:', kynError);
