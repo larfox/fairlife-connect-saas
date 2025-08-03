@@ -34,8 +34,20 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
       console.log('Calling updateServiceStatusInDB...');
       await updateServiceStatusInDB(queueItemId, newStatus);
       console.log('updateServiceStatusInDB completed, refreshing data...');
-      fetchServiceQueues();
+      
+      // Always refresh the queue data to show real-time updates
+      await fetchServiceQueues();
       onStatsUpdate();
+      
+      // If this was a "Know Your Numbers" completion, add a small delay 
+      // and refresh again to ensure the trigger has time to execute
+      if (newStatus === 'completed') {
+        setTimeout(async () => {
+          console.log('Post-completion refresh to catch trigger updates...');
+          await fetchServiceQueues();
+          onStatsUpdate();
+        }, 1000);
+      }
     } catch (error) {
       console.error('Error in updateServiceStatus:', error);
     }
