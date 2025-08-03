@@ -110,6 +110,7 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
             selectedServices={selectedServices}
             onServiceToggle={handleServiceToggle}
             knowYourNumbersServiceId={knowYourNumbersServiceId}
+            patientGender={patientData.gender}
           />
 
           <div className="flex justify-end pt-4">

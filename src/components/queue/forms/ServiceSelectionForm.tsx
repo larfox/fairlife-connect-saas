@@ -11,9 +11,22 @@ interface ServiceSelectionFormProps {
   selectedServices: string[];
   onServiceToggle: (serviceId: string) => void;
   knowYourNumbersServiceId?: string;
+  patientGender?: string;
 }
 
-export const ServiceSelectionForm = ({ services, selectedServices, onServiceToggle, knowYourNumbersServiceId }: ServiceSelectionFormProps) => {
+export const ServiceSelectionForm = ({ services, selectedServices, onServiceToggle, knowYourNumbersServiceId, patientGender }: ServiceSelectionFormProps) => {
+  // Filter out PAP smear services for non-female patients
+  const getFilteredServices = () => {
+    return services.filter(service => {
+      const isPapSmear = service.name.toLowerCase().includes('pap') || service.name.toLowerCase().includes('smear');
+      if (isPapSmear && patientGender !== 'female') {
+        return false;
+      }
+      return true;
+    });
+  };
+
+  const filteredServices = getFilteredServices();
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -26,7 +39,7 @@ export const ServiceSelectionForm = ({ services, selectedServices, onServiceTogg
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {services.map((service) => {
+        {filteredServices.map((service) => {
           const isKnowYourNumbers = service.id === knowYourNumbersServiceId;
           const isRequired = isKnowYourNumbers;
           
