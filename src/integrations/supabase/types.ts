@@ -31,6 +31,7 @@ export type Database = {
           screened_by: string | null
           temperature: number | null
           updated_at: string
+          urine: string | null
           weight: number | null
         }
         Insert: {
@@ -49,6 +50,7 @@ export type Database = {
           screened_by?: string | null
           temperature?: number | null
           updated_at?: string
+          urine?: string | null
           weight?: number | null
         }
         Update: {
@@ -67,6 +69,7 @@ export type Database = {
           screened_by?: string | null
           temperature?: number | null
           updated_at?: string
+          urine?: string | null
           weight?: number | null
         }
         Relationships: [

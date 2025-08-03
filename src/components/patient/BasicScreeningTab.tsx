@@ -22,6 +22,7 @@ interface BasicScreening {
   blood_sugar: number | null;
   cholesterol: number | null;
   oxygen_saturation: number | null;
+  urine: string | null;
   notes: string | null;
   created_at: string;
   screened_by?: {
@@ -63,6 +64,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     blood_sugar: "",
     cholesterol: "",
     oxygen_saturation: "",
+    urine: "",
     notes: "",
     height_unit: "cm",
     weight_unit: "kg",
@@ -223,6 +225,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           blood_sugar: transformedScreeningData.blood_sugar?.toString() || "",
           cholesterol: transformedScreeningData.cholesterol?.toString() || "",
           oxygen_saturation: transformedScreeningData.oxygen_saturation?.toString() || "",
+          urine: transformedScreeningData.urine || "",
           notes: transformedScreeningData.notes || "",
           height_unit: "cm",
           weight_unit: "kg",
@@ -310,7 +313,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
 
   const handleInputChange = (field: string, value: string) => {
     // Only update if validation passes for numeric fields
-    if (field.includes('_unit') || field === 'notes' || field === 'health_professional' || validateInput(field, value)) {
+    if (field.includes('_unit') || field === 'notes' || field === 'urine' || field === 'health_professional' || validateInput(field, value)) {
       const newFormData = { ...formData, [field]: value };
       setFormData(newFormData);
     }
@@ -367,6 +370,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         blood_sugar: formData.blood_sugar ? parseInt(formData.blood_sugar) : null,
         cholesterol: formData.cholesterol ? parseInt(formData.cholesterol) : null,
         oxygen_saturation: formData.oxygen_saturation ? parseInt(formData.oxygen_saturation) : null,
+        urine: formData.urine || null,
         notes: notes || null,
         screened_by: screenedById
       };
@@ -443,6 +447,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         blood_sugar: basicScreening.blood_sugar?.toString() || "",
         cholesterol: basicScreening.cholesterol?.toString() || "",
         oxygen_saturation: basicScreening.oxygen_saturation?.toString() || "",
+        urine: basicScreening.urine || "",
         notes: basicScreening.notes || "",
         height_unit: "cm",
         weight_unit: "kg",
@@ -460,6 +465,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
         blood_sugar: "",
         cholesterol: "",
         oxygen_saturation: "",
+        urine: "",
         notes: "",
         height_unit: "cm",
         weight_unit: "kg",
@@ -630,6 +636,16 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   max="100"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="urine">Urine</Label>
+                <Textarea
+                  id="urine"
+                  placeholder="Urine test results or observations"
+                  value={formData.urine}
+                  onChange={(e) => handleInputChange("urine", e.target.value)}
+                  rows={2}
+                />
+              </div>
             </div>
             
             {/* Blood Pressure Interpretation */}
@@ -769,6 +785,12 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
               <div className="space-y-1">
                 <Badge variant="outline" className="mb-2">Oxygen Saturation</Badge>
                 <p className="text-sm font-medium">{basicScreening.oxygen_saturation}%</p>
+              </div>
+            )}
+            {basicScreening.urine && (
+              <div className="space-y-1 md:col-span-2">
+                <Badge variant="outline" className="mb-2">Urine</Badge>
+                <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.urine}</p>
               </div>
             )}
             {basicScreening.notes && (
