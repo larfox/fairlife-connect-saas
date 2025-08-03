@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart, Edit, Save, X } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Heart, Edit, Save, X, Grid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -51,6 +52,7 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTableView, setIsTableView] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<any>(null);
   const [currentDoctor, setCurrentDoctor] = useState<any>(null);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
@@ -526,12 +528,24 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
             <Heart className="h-5 w-5" />
             Basic Health Screening
           </CardTitle>
-          {!isEditing && basicScreening && (
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isEditing && basicScreening && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsTableView(!isTableView)}
+                >
+                  {isTableView ? <Grid className="h-4 w-4 mr-2" /> : <List className="h-4 w-4 mr-2" />}
+                  {isTableView ? "Card View" : "Table View"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -767,102 +781,229 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
             </div>
           </div>
         ) : basicScreening ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {basicScreening.height && (
-              <div className="space-y-1">
-                <Badge variant="outline" className="mb-2">Height</Badge>
-                <p className="text-sm font-medium">{basicScreening.height} cm</p>
-              </div>
-            )}
-            {basicScreening.weight && (
-              <div className="space-y-1">
-                <Badge variant="outline" className="mb-2">Weight</Badge>
-                <p className="text-sm font-medium">{basicScreening.weight} kg</p>
-              </div>
-            )}
-            {basicScreening.bmi && (
-              <div className={`space-y-1 p-3 rounded-lg border ${getBMIStatus(basicScreening.bmi).bgColor}`}>
-                <Badge variant="outline" className="mb-2">BMI</Badge>
-                <p className="text-sm font-medium">{basicScreening.bmi}</p>
-                <p className={`text-xs font-medium ${getBMIStatus(basicScreening.bmi).color}`}>
-                  {getBMIStatus(basicScreening.bmi).status}
-                </p>
-              </div>
-            )}
-            {(basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic) && (
-              <div className={`space-y-1 p-3 rounded-lg border ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).bgColor}`}>
-                <Badge variant="outline" className="mb-2">Blood Pressure</Badge>
-                <p className="text-sm font-medium">{basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg</p>
-                <p className={`text-xs font-medium ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).color}`}>
-                  {getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).status}
-                </p>
-              </div>
-            )}
-            {basicScreening.heart_rate && (
-              <div className="space-y-1">
-                <Badge variant="outline" className="mb-2">Heart Rate</Badge>
-                <p className="text-sm font-medium">{basicScreening.heart_rate} bpm</p>
-              </div>
-            )}
-            {basicScreening.temperature && (
-              <div className="space-y-1">
-                <Badge variant="outline" className="mb-2">Temperature</Badge>
-                <p className="text-sm font-medium">{basicScreening.temperature}°C</p>
-              </div>
-            )}
-            {basicScreening.blood_sugar && (
-              <div className={`space-y-1 p-3 rounded-lg border ${getBloodSugarStatus(basicScreening.blood_sugar).bgColor}`}>
-                <Badge variant="outline" className="mb-2">Blood Sugar</Badge>
-                <p className="text-sm font-medium">{basicScreening.blood_sugar} mmol/L</p>
-                <p className={`text-xs font-medium ${getBloodSugarStatus(basicScreening.blood_sugar).color}`}>
-                  {getBloodSugarStatus(basicScreening.blood_sugar).status}
-                </p>
-              </div>
-            )}
-            {basicScreening.cholesterol && (
-              <div className={`space-y-1 p-3 rounded-lg border ${getCholesterolStatus(basicScreening.cholesterol).bgColor}`}>
-                <Badge variant="outline" className="mb-2">Cholesterol</Badge>
-                <p className="text-sm font-medium">{basicScreening.cholesterol} mmol/L</p>
-                <p className={`text-xs font-medium ${getCholesterolStatus(basicScreening.cholesterol).color}`}>
-                  {getCholesterolStatus(basicScreening.cholesterol).status}
-                </p>
-              </div>
-            )}
-            {basicScreening.oxygen_saturation && (
-              <div className={`space-y-1 p-3 rounded-lg border ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor}`}>
-                <Badge variant="outline" className="mb-2">Oxygen Saturation</Badge>
-                <p className="text-sm font-medium">{basicScreening.oxygen_saturation}%</p>
-                <p className={`text-xs font-medium ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).color}`}>
-                  {getOxygenSaturationStatus(basicScreening.oxygen_saturation).status}
-                </p>
-              </div>
-            )}
-            {basicScreening.urine && (
-              <div className="space-y-1 md:col-span-2">
-                <Badge variant="outline" className="mb-2">Urine</Badge>
-                <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.urine}</p>
-              </div>
-            )}
-            {basicScreening.notes && (
-              <div className="space-y-1 md:col-span-2">
-                <Badge variant="outline" className="mb-2">Notes</Badge>
-                <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.notes}</p>
-              </div>
-            )}
-            {basicScreening.screened_by && (
-              <div className="space-y-1 md:col-span-2">
-                <Badge variant="outline" className="mb-2">Screened by</Badge>
-                <p className="text-sm font-medium">
-                  {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
-                  {basicScreening.screened_by.professional_capacity && (
-                    <span className="text-muted-foreground ml-2">
-                      ({basicScreening.screened_by.professional_capacity})
-                    </span>
+          isTableView ? (
+            // Table View
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Metric</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {basicScreening.height && (
+                    <TableRow>
+                      <TableCell className="font-medium">Height</TableCell>
+                      <TableCell>{basicScreening.height} cm</TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
                   )}
-                </p>
-              </div>
-            )}
-          </div>
+                  {basicScreening.weight && (
+                    <TableRow>
+                      <TableCell className="font-medium">Weight</TableCell>
+                      <TableCell>{basicScreening.weight} kg</TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.bmi && (
+                    <TableRow className={getBMIStatus(basicScreening.bmi).bgColor}>
+                      <TableCell className="font-medium">BMI</TableCell>
+                      <TableCell>{basicScreening.bmi}</TableCell>
+                      <TableCell className={getBMIStatus(basicScreening.bmi).color}>
+                        {getBMIStatus(basicScreening.bmi).status}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {(basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic) && (
+                    <TableRow className={getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).bgColor}>
+                      <TableCell className="font-medium">Blood Pressure</TableCell>
+                      <TableCell>{basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg</TableCell>
+                      <TableCell className={getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).color}>
+                        {getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).status}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.heart_rate && (
+                    <TableRow>
+                      <TableCell className="font-medium">Heart Rate</TableCell>
+                      <TableCell>{basicScreening.heart_rate} bpm</TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.temperature && (
+                    <TableRow>
+                      <TableCell className="font-medium">Temperature</TableCell>
+                      <TableCell>{basicScreening.temperature}°C</TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.blood_sugar && (
+                    <TableRow className={getBloodSugarStatus(basicScreening.blood_sugar).bgColor}>
+                      <TableCell className="font-medium">Blood Sugar</TableCell>
+                      <TableCell>{basicScreening.blood_sugar} mmol/L</TableCell>
+                      <TableCell className={getBloodSugarStatus(basicScreening.blood_sugar).color}>
+                        {getBloodSugarStatus(basicScreening.blood_sugar).status}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.cholesterol && (
+                    <TableRow className={getCholesterolStatus(basicScreening.cholesterol).bgColor}>
+                      <TableCell className="font-medium">Cholesterol</TableCell>
+                      <TableCell>{basicScreening.cholesterol} mmol/L</TableCell>
+                      <TableCell className={getCholesterolStatus(basicScreening.cholesterol).color}>
+                        {getCholesterolStatus(basicScreening.cholesterol).status}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.oxygen_saturation && (
+                    <TableRow className={getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor}>
+                      <TableCell className="font-medium">Oxygen Saturation</TableCell>
+                      <TableCell>{basicScreening.oxygen_saturation}%</TableCell>
+                      <TableCell className={getOxygenSaturationStatus(basicScreening.oxygen_saturation).color}>
+                        {getOxygenSaturationStatus(basicScreening.oxygen_saturation).status}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.urine && (
+                    <TableRow>
+                      <TableCell className="font-medium">Urine</TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="bg-muted p-2 rounded text-sm whitespace-pre-line">
+                          {basicScreening.urine}
+                        </div>
+                      </TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.notes && (
+                    <TableRow>
+                      <TableCell className="font-medium">Notes</TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="bg-muted p-2 rounded text-sm whitespace-pre-line">
+                          {basicScreening.notes}
+                        </div>
+                      </TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                  )}
+                  {basicScreening.screened_by && (
+                    <TableRow>
+                      <TableCell className="font-medium">Screened by</TableCell>
+                      <TableCell>
+                        {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
+                        {basicScreening.screened_by.professional_capacity && (
+                          <span className="text-muted-foreground ml-2">
+                            ({basicScreening.screened_by.professional_capacity})
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            // Card View
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {basicScreening.height && (
+                <div className="space-y-1">
+                  <Badge variant="outline" className="mb-2">Height</Badge>
+                  <p className="text-sm font-medium">{basicScreening.height} cm</p>
+                </div>
+              )}
+              {basicScreening.weight && (
+                <div className="space-y-1">
+                  <Badge variant="outline" className="mb-2">Weight</Badge>
+                  <p className="text-sm font-medium">{basicScreening.weight} kg</p>
+                </div>
+              )}
+              {basicScreening.bmi && (
+                <div className={`space-y-1 p-3 rounded-lg border ${getBMIStatus(basicScreening.bmi).bgColor}`}>
+                  <Badge variant="outline" className="mb-2">BMI</Badge>
+                  <p className="text-sm font-medium">{basicScreening.bmi}</p>
+                  <p className={`text-xs font-medium ${getBMIStatus(basicScreening.bmi).color}`}>
+                    {getBMIStatus(basicScreening.bmi).status}
+                  </p>
+                </div>
+              )}
+              {(basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic) && (
+                <div className={`space-y-1 p-3 rounded-lg border ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).bgColor}`}>
+                  <Badge variant="outline" className="mb-2">Blood Pressure</Badge>
+                  <p className="text-sm font-medium">{basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg</p>
+                  <p className={`text-xs font-medium ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).color}`}>
+                    {getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).status}
+                  </p>
+                </div>
+              )}
+              {basicScreening.heart_rate && (
+                <div className="space-y-1">
+                  <Badge variant="outline" className="mb-2">Heart Rate</Badge>
+                  <p className="text-sm font-medium">{basicScreening.heart_rate} bpm</p>
+                </div>
+              )}
+              {basicScreening.temperature && (
+                <div className="space-y-1">
+                  <Badge variant="outline" className="mb-2">Temperature</Badge>
+                  <p className="text-sm font-medium">{basicScreening.temperature}°C</p>
+                </div>
+              )}
+              {basicScreening.blood_sugar && (
+                <div className={`space-y-1 p-3 rounded-lg border ${getBloodSugarStatus(basicScreening.blood_sugar).bgColor}`}>
+                  <Badge variant="outline" className="mb-2">Blood Sugar</Badge>
+                  <p className="text-sm font-medium">{basicScreening.blood_sugar} mmol/L</p>
+                  <p className={`text-xs font-medium ${getBloodSugarStatus(basicScreening.blood_sugar).color}`}>
+                    {getBloodSugarStatus(basicScreening.blood_sugar).status}
+                  </p>
+                </div>
+              )}
+              {basicScreening.cholesterol && (
+                <div className={`space-y-1 p-3 rounded-lg border ${getCholesterolStatus(basicScreening.cholesterol).bgColor}`}>
+                  <Badge variant="outline" className="mb-2">Cholesterol</Badge>
+                  <p className="text-sm font-medium">{basicScreening.cholesterol} mmol/L</p>
+                  <p className={`text-xs font-medium ${getCholesterolStatus(basicScreening.cholesterol).color}`}>
+                    {getCholesterolStatus(basicScreening.cholesterol).status}
+                  </p>
+                </div>
+              )}
+              {basicScreening.oxygen_saturation && (
+                <div className={`space-y-1 p-3 rounded-lg border ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor}`}>
+                  <Badge variant="outline" className="mb-2">Oxygen Saturation</Badge>
+                  <p className="text-sm font-medium">{basicScreening.oxygen_saturation}%</p>
+                  <p className={`text-xs font-medium ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).color}`}>
+                    {getOxygenSaturationStatus(basicScreening.oxygen_saturation).status}
+                  </p>
+                </div>
+              )}
+              {basicScreening.urine && (
+                <div className="space-y-1 md:col-span-2">
+                  <Badge variant="outline" className="mb-2">Urine</Badge>
+                  <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.urine}</p>
+                </div>
+              )}
+              {basicScreening.notes && (
+                <div className="space-y-1 md:col-span-2">
+                  <Badge variant="outline" className="mb-2">Notes</Badge>
+                  <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.notes}</p>
+                </div>
+              )}
+              {basicScreening.screened_by && (
+                <div className="space-y-1 md:col-span-2">
+                  <Badge variant="outline" className="mb-2">Screened by</Badge>
+                  <p className="text-sm font-medium">
+                    {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
+                    {basicScreening.screened_by.professional_capacity && (
+                      <span className="text-muted-foreground ml-2">
+                        ({basicScreening.screened_by.professional_capacity})
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+          )
         ) : (
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">No basic screening data recorded for this visit</p>
