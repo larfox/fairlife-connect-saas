@@ -42,9 +42,26 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [currentVisit, setCurrentVisit] = useState<any>(null);
+  const [patientServices, setPatientServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const permissions = useStaffPermissions(user);
+
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth: string | null): string => {
+    if (!dateOfBirth) return 'Not provided';
+    
+    const birth = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return `${age} years old`;
+  };
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -92,6 +109,28 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
       }
       
       setCurrentVisit(visits);
+
+      // Fetch services the patient is enrolled in for this visit
+      if (visits) {
+        const { data: servicesData, error: servicesError } = await supabase
+          .from("service_queue")
+          .select(`
+            *,
+            services!inner(
+              id,
+              name,
+              description
+            )
+          `)
+          .eq("patient_visit_id", visits.id)
+          .order("created_at", { ascending: true });
+
+        if (servicesError) {
+          console.error("Error fetching patient services:", servicesError);
+        } else {
+          setPatientServices(servicesData || []);
+        }
+      }
     } catch (error) {
       console.error("Error fetching current visit:", error);
       toast({
@@ -141,12 +180,20 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
                     <p className="text-sm">{patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : 'Not provided'}</p>
                   </div>
                   <div>
+                    <Badge variant="outline" className="mb-2">Age</Badge>
+                    <p className="text-sm font-medium">{calculateAge(patient.date_of_birth)}</p>
+                  </div>
+                  <div>
                     <Badge variant="outline" className="mb-2">Gender</Badge>
                     <p className="text-sm">{patient.gender || 'Not specified'}</p>
                   </div>
                   <div>
                     <Badge variant="outline" className="mb-2">Phone</Badge>
                     <p className="text-sm">{patient.phone || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <Badge variant="outline" className="mb-2">Patient Number</Badge>
+                    <p className="text-sm">{patient.patient_number || 'Not assigned'}</p>
                   </div>
                 </div>
                 
@@ -203,6 +250,60 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
               </CardContent>
             </Card>
           </div>
+          
+          {/* Services Card - Full width */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Services Enrolled
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {patientServices.length > 0 ? (
+                <div className="space-y-3">
+                  {patientServices.map((serviceItem, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+                      <div className="flex-1">
+                        <p className="font-medium">{serviceItem.services.name}</p>
+                        {serviceItem.services.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {serviceItem.services.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={
+                            serviceItem.status === 'completed' ? 'default' :
+                            serviceItem.status === 'in_progress' ? 'secondary' :
+                            serviceItem.status === 'waiting' ? 'outline' :
+                            'destructive'
+                          }
+                        >
+                          {serviceItem.status === 'in_progress' ? 'In Progress' : 
+                           serviceItem.status === 'completed' ? 'Completed' :
+                           serviceItem.status === 'waiting' ? 'Waiting' :
+                           serviceItem.status === 'unavailable' ? 'Unavailable' :
+                           serviceItem.status}
+                        </Badge>
+                        {serviceItem.completed_at && (
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(serviceItem.completed_at).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No services enrolled for this visit</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )
     },
