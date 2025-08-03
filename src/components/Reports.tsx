@@ -57,11 +57,17 @@ type ParishReport = {
 type RegistrationReport = {
   patient_number: string;
   patient_name: string;
-  services: string[];
   patient_id: string;
   phone?: string;
   email?: string;
   parish?: string;
+  services: string[];
+  serviceMap: { [serviceName: string]: boolean }; // For checkmark display
+};
+
+type RegistrationReportData = {
+  patients: RegistrationReport[];
+  availableServices: string[];
 };
 
 const Reports = ({ onBack }: ReportsProps) => {
@@ -78,7 +84,7 @@ const Reports = ({ onBack }: ReportsProps) => {
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
   const [serviceReport, setServiceReport] = useState<ServiceReport[]>([]);
   const [parishReport, setParishReport] = useState<ParishReport[]>([]);
-  const [registrationReport, setRegistrationReport] = useState<RegistrationReport[]>([]);
+  const [registrationReport, setRegistrationReport] = useState<RegistrationReportData>({ patients: [], availableServices: [] });
   const [chartData, setChartData] = useState<any[]>([]);
   
   // Import/Export state
@@ -317,6 +323,17 @@ const Reports = ({ onBack }: ReportsProps) => {
 
     setLoading(true);
     try {
+      // First get all services for this event
+      const { data: eventServices, error: servicesError } = await supabase
+        .from("event_services")
+        .select("service:services(name)")
+        .eq("event_id", selectedEvent);
+
+      if (servicesError) throw servicesError;
+
+      const availableServices = eventServices?.map(es => es.service?.name).filter(Boolean) || [];
+
+      // Get registration data
       const { data: registrationData, error } = await supabase
         .from("patient_visits")
         .select(`
@@ -341,6 +358,12 @@ const Reports = ({ onBack }: ReportsProps) => {
         const patientKey = patient.id;
         
         if (!registrationMap[patientKey]) {
+          // Initialize serviceMap with all services set to false
+          const serviceMap: { [serviceName: string]: boolean } = {};
+          availableServices.forEach(service => {
+            serviceMap[service] = false;
+          });
+
           registrationMap[patientKey] = {
             patient_id: patient.id,
             patient_number: patient.patient_number || '',
@@ -348,25 +371,33 @@ const Reports = ({ onBack }: ReportsProps) => {
             phone: patient.phone || '',
             email: patient.email || '',
             parish: patient.parish?.name || '',
-            services: []
+            services: [],
+            serviceMap: serviceMap
           };
         }
         
         // Add services from service_queue
         visit.service_queue?.forEach((queueItem: any) => {
           const serviceName = queueItem.service?.name;
-          if (serviceName && !registrationMap[patientKey].services.includes(serviceName)) {
-            registrationMap[patientKey].services.push(serviceName);
+          if (serviceName) {
+            if (!registrationMap[patientKey].services.includes(serviceName)) {
+              registrationMap[patientKey].services.push(serviceName);
+            }
+            registrationMap[patientKey].serviceMap[serviceName] = true;
           }
         });
       });
 
-      const reportData = Object.values(registrationMap);
+      const reportData: RegistrationReportData = {
+        patients: Object.values(registrationMap),
+        availableServices: availableServices
+      };
+      
       setRegistrationReport(reportData);
       
       toast({
         title: "Registration report generated",
-        description: `Found ${reportData.length} registered patients.`,
+        description: `Found ${reportData.patients.length} registered patients.`,
       });
     } catch (error) {
       console.error("Error generating registration report:", error);
@@ -436,13 +467,13 @@ const Reports = ({ onBack }: ReportsProps) => {
         }
         break;
       case "registration":
-        if (registrationReport.length > 0) {
+        if (registrationReport.patients.length > 0) {
           title = "Patient Registration Report";
           subtitle = "Service Registration Details";
           reportData = [{
             section_name: "Patient Registrations",
-            patient_count: registrationReport.length,
-            patients: registrationReport.map(reg => ({
+            patient_count: registrationReport.patients.length,
+            patients: registrationReport.patients.map(reg => ({
               ...reg,
               first_name: reg.patient_name.split(' ')[0],
               last_name: reg.patient_name.split(' ').slice(1).join(' '),
@@ -450,7 +481,9 @@ const Reports = ({ onBack }: ReportsProps) => {
               parish: { name: reg.parish },
               phone: reg.phone,
               email: reg.email,
-              services: reg.services
+              services: reg.services,
+              availableServices: registrationReport.availableServices,
+              serviceMap: reg.serviceMap
             }))
           }];
         }
@@ -1276,7 +1309,7 @@ const Reports = ({ onBack }: ReportsProps) => {
                 Generate Registration Report
               </Button>
 
-              {registrationReport.length > 0 && (
+              {registrationReport.patients.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Registration Report Results</h3>
@@ -1285,14 +1318,20 @@ const Reports = ({ onBack }: ReportsProps) => {
                         variant="outline" 
                         size="sm" 
                         onClick={() => exportToCSV(
-                          registrationReport.map(reg => ({
-                            patient_number: reg.patient_number,
-                            patient_name: reg.patient_name,
-                            phone: reg.phone,
-                            email: reg.email,
-                            parish: reg.parish,
-                            services: reg.services.join('; ')
-                          })),
+                          registrationReport.patients.map(reg => {
+                            const exportData: any = {
+                              patient_number: reg.patient_number,
+                              patient_name: reg.patient_name,
+                              phone: reg.phone,
+                              email: reg.email,
+                              parish: reg.parish
+                            };
+                            // Add service columns
+                            registrationReport.availableServices.forEach(service => {
+                              exportData[service] = reg.serviceMap[service] ? 'Yes' : 'No';
+                            });
+                            return exportData;
+                          }),
                           "registration_report"
                         )}
                         className="gap-2"
@@ -1310,7 +1349,7 @@ const Reports = ({ onBack }: ReportsProps) => {
                   <Card>
                     <CardHeader>
                       <CardTitle>Registration Summary</CardTitle>
-                      <CardDescription>{registrationReport.length} registered patients</CardDescription>
+                      <CardDescription>{registrationReport.patients.length} registered patients</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
@@ -1321,11 +1360,13 @@ const Reports = ({ onBack }: ReportsProps) => {
                               <th className="text-left p-3 font-medium">Name</th>
                               <th className="text-left p-3 font-medium">Contact</th>
                               <th className="text-left p-3 font-medium">Parish</th>
-                              <th className="text-left p-3 font-medium">Registered Services</th>
+                              {registrationReport.availableServices.map(service => (
+                                <th key={service} className="text-center p-3 font-medium text-xs">{service}</th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody>
-                            {registrationReport.map((registration, index) => (
+                            {registrationReport.patients.map((registration, index) => (
                               <tr key={registration.patient_id} className={index % 2 === 0 ? "bg-muted/20" : ""}>
                                 <td className="p-3 font-mono text-sm">{registration.patient_number}</td>
                                 <td className="p-3 font-medium">{registration.patient_name}</td>
@@ -1336,18 +1377,15 @@ const Reports = ({ onBack }: ReportsProps) => {
                                   </div>
                                 </td>
                                 <td className="p-3 text-sm">{registration.parish}</td>
-                                <td className="p-3">
-                                  <div className="flex flex-wrap gap-1">
-                                    {registration.services.map((service, serviceIndex) => (
-                                      <Badge key={serviceIndex} variant="secondary" className="text-xs">
-                                        {service}
-                                      </Badge>
-                                    ))}
-                                    {registration.services.length === 0 && (
-                                      <Badge variant="outline" className="text-xs">No services</Badge>
+                                {registrationReport.availableServices.map(service => (
+                                  <td key={service} className="p-3 text-center">
+                                    {registration.serviceMap[service] ? (
+                                      <span className="text-green-600 font-bold text-lg">✓</span>
+                                    ) : (
+                                      <span className="text-gray-300">—</span>
                                     )}
-                                  </div>
-                                </td>
+                                  </td>
+                                ))}
                               </tr>
                             ))}
                           </tbody>

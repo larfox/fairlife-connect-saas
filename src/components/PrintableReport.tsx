@@ -10,6 +10,8 @@ interface Patient {
   parish?: { name: string } | null;
   town?: { name: string } | null;
   services?: string[]; // For registration reports
+  availableServices?: string[]; // Available services for registration reports
+  serviceMap?: { [serviceName: string]: boolean }; // Service checkmarks
 }
 
 interface PrintableReportProps {
@@ -148,8 +150,9 @@ export const PrintableReport = ({
       </div>
 
       {data.map((section, sectionIndex) => {
-        // Check if this is a registration report by looking for services in the first patient
-        const isRegistrationReport = section.patients.length > 0 && section.patients[0].services !== undefined;
+        // Check if this is a registration report by looking for serviceMap in the first patient
+        const isRegistrationReport = section.patients.length > 0 && section.patients[0].serviceMap !== undefined;
+        const availableServices = section.patients.length > 0 ? section.patients[0].availableServices || [] : [];
         
         return (
           <div key={sectionIndex} className={`print-section ${sectionIndex > 0 ? 'page-break' : ''}`}>
@@ -160,13 +163,18 @@ export const PrintableReport = ({
             <table className="print-table">
               <thead>
                 <tr>
-                  <th style={{ width: '8%' }}>#</th>
-                  <th style={{ width: '25%' }}>Name</th>
-                  <th style={{ width: '15%' }}>Patient #</th>
-                  <th style={{ width: '17%' }}>Phone</th>
-                  <th style={{ width: isRegistrationReport ? '15%' : '20%' }}>Parish</th>
+                  <th style={{ width: '5%' }}>#</th>
+                  <th style={{ width: '20%' }}>Name</th>
+                  <th style={{ width: '12%' }}>Patient #</th>
+                  <th style={{ width: '12%' }}>Phone</th>
+                  <th style={{ width: '15%' }}>Parish</th>
                   {!isRegistrationReport && <th style={{ width: '15%' }}>Town</th>}
-                  {isRegistrationReport && <th style={{ width: '20%' }}>Services</th>}
+                  {isRegistrationReport && availableServices.map(service => (
+                    <th key={service} style={{ width: `${Math.max(6, 36 / availableServices.length)}%`, textAlign: 'center', fontSize: '9px' }}>
+                      {service}
+                    </th>
+                  ))}
+                  {!isRegistrationReport && <th style={{ width: '21%' }}>Services</th>}
                 </tr>
               </thead>
               <tbody>
@@ -178,7 +186,12 @@ export const PrintableReport = ({
                     <td>{patient.phone || 'N/A'}</td>
                     <td>{patient.parish?.name || 'N/A'}</td>
                     {!isRegistrationReport && <td>{patient.town?.name || 'N/A'}</td>}
-                    {isRegistrationReport && (
+                    {isRegistrationReport && availableServices.map(service => (
+                      <td key={service} style={{ textAlign: 'center', fontSize: '12px' }}>
+                        {patient.serviceMap?.[service] ? '✓' : '—'}
+                      </td>
+                    ))}
+                    {!isRegistrationReport && (
                       <td style={{ fontSize: '10px' }}>
                         {patient.services && patient.services.length > 0 
                           ? patient.services.join(', ') 
