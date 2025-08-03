@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChart3, PieChart, ArrowLeft, Upload, Database, UserCheck } from "lucide-react";
+import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChart3, PieChart, ArrowLeft, Upload, Database, UserCheck, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
@@ -79,6 +79,7 @@ const Reports = ({ onBack }: ReportsProps) => {
   const [selectedEvent, setSelectedEvent] = useState<string>("");
   const [selectedService, setSelectedService] = useState<string>("");
   const [selectedParish, setSelectedParish] = useState<string>("");
+  const [selectedServiceFilter, setSelectedServiceFilter] = useState<string>("all");
   
   // Report data
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
@@ -410,6 +411,32 @@ const Reports = ({ onBack }: ReportsProps) => {
     }
   };
 
+  // Function to get service counts and filtered data
+  const getServiceCounts = () => {
+    if (!registrationReport.patients.length) return {};
+    
+    const counts: { [serviceName: string]: number } = {};
+    counts['all'] = registrationReport.patients.length;
+    
+    registrationReport.availableServices.forEach(service => {
+      counts[service] = registrationReport.patients.filter(patient => 
+        patient.serviceMap[service]
+      ).length;
+    });
+    
+    return counts;
+  };
+
+  const getFilteredPatients = () => {
+    if (selectedServiceFilter === 'all') {
+      return registrationReport.patients;
+    }
+    
+    return registrationReport.patients.filter(patient => 
+      patient.serviceMap[selectedServiceFilter]
+    );
+  };
+
   const exportToCSV = (data: any[], filename: string) => {
     if (data.length === 0) return;
 
@@ -468,12 +495,19 @@ const Reports = ({ onBack }: ReportsProps) => {
         break;
       case "registration":
         if (registrationReport.patients.length > 0) {
-          title = "Patient Registration Report";
-          subtitle = "Service Registration Details";
+          const filteredPatients = getFilteredPatients();
+          title = selectedServiceFilter === 'all' 
+            ? "Patient Registration Report" 
+            : `Patient Registration Report - ${selectedServiceFilter}`;
+          subtitle = selectedServiceFilter === 'all' 
+            ? "Service Registration Details" 
+            : `Patients Registered for ${selectedServiceFilter}`;
           reportData = [{
-            section_name: "Patient Registrations",
-            patient_count: registrationReport.patients.length,
-            patients: registrationReport.patients.map(reg => ({
+            section_name: selectedServiceFilter === 'all' 
+              ? "Patient Registrations" 
+              : `${selectedServiceFilter} Registrations`,
+            patient_count: filteredPatients.length,
+            patients: filteredPatients.map(reg => ({
               ...reg,
               first_name: reg.patient_name.split(' ')[0],
               last_name: reg.patient_name.split(' ').slice(1).join(' '),
@@ -1311,37 +1345,91 @@ const Reports = ({ onBack }: ReportsProps) => {
 
               {registrationReport.patients.length > 0 && (
                 <div className="space-y-4">
+                  {/* Service Filter Section */}
+                  <Card className="bg-muted/20">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Filter className="h-4 w-4" />
+                        Filter by Service
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Filter by Service</Label>
+                        <Select value={selectedServiceFilter} onValueChange={setSelectedServiceFilter}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Services" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Services ({getServiceCounts()['all']} patients)</SelectItem>
+                            {registrationReport.availableServices.map((service) => (
+                              <SelectItem key={service} value={service}>
+                                {service} ({getServiceCounts()[service]} patients)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* Service Count Summary */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <div className="bg-white p-3 rounded-lg border">
+                          <p className="text-sm font-medium text-muted-foreground">Total Patients</p>
+                          <p className="text-2xl font-bold text-primary">{getServiceCounts()['all']}</p>
+                        </div>
+                        {registrationReport.availableServices.map((service) => (
+                          <div key={service} className="bg-white p-3 rounded-lg border">
+                            <p className="text-sm font-medium text-muted-foreground truncate" title={service}>
+                              {service}
+                            </p>
+                            <p className="text-2xl font-bold text-blue-600">{getServiceCounts()[service]}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Registration Report Results</h3>
+                    <h3 className="text-lg font-semibold">
+                      Registration Report Results 
+                      {selectedServiceFilter !== 'all' && (
+                        <span className="text-base font-normal text-muted-foreground ml-2">
+                          (Filtered by: {selectedServiceFilter})
+                        </span>
+                      )}
+                    </h3>
                     <div className="flex gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => exportToCSV(
-                          registrationReport.patients.map(reg => {
-                            const exportData: any = {
-                              patient_number: reg.patient_number,
-                              patient_name: reg.patient_name,
-                              phone: reg.phone,
-                              email: reg.email,
-                              parish: reg.parish
-                            };
-                            // Add service columns
-                            registrationReport.availableServices.forEach(service => {
-                              exportData[service] = reg.serviceMap[service] ? 'Yes' : 'No';
-                            });
-                            return exportData;
-                          }),
-                          "registration_report"
-                        )}
+                        onClick={() => {
+                          const filteredPatients = getFilteredPatients();
+                          exportToCSV(
+                            filteredPatients.map(reg => {
+                              const exportData: any = {
+                                patient_number: reg.patient_number,
+                                patient_name: reg.patient_name,
+                                phone: reg.phone,
+                                email: reg.email,
+                                parish: reg.parish
+                              };
+                              // Add service columns
+                              registrationReport.availableServices.forEach(service => {
+                                exportData[service] = reg.serviceMap[service] ? 'Yes' : 'No';
+                              });
+                              return exportData;
+                            }),
+                            selectedServiceFilter === 'all' ? "registration_report" : `registration_report_${selectedServiceFilter.toLowerCase().replace(/\s+/g, '_')}`
+                          );
+                        }}
                         className="gap-2"
                       >
                         <Download className="h-4 w-4" />
-                        Export CSV
+                        Export CSV ({getFilteredPatients().length})
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => printReport("registration")} className="gap-2">
                         <Printer className="h-4 w-4" />
-                        Print
+                        Print ({getFilteredPatients().length})
                       </Button>
                     </div>
                   </div>
@@ -1349,7 +1437,10 @@ const Reports = ({ onBack }: ReportsProps) => {
                   <Card>
                     <CardHeader>
                       <CardTitle>Registration Summary</CardTitle>
-                      <CardDescription>{registrationReport.patients.length} registered patients</CardDescription>
+                      <CardDescription>
+                        {getFilteredPatients().length} patients 
+                        {selectedServiceFilter !== 'all' && ` registered for ${selectedServiceFilter}`}
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
@@ -1366,7 +1457,7 @@ const Reports = ({ onBack }: ReportsProps) => {
                             </tr>
                           </thead>
                           <tbody>
-                            {registrationReport.patients.map((registration, index) => (
+                            {getFilteredPatients().map((registration, index) => (
                               <tr key={registration.patient_id} className={index % 2 === 0 ? "bg-muted/20" : ""}>
                                 <td className="p-3 font-mono text-sm">{registration.patient_number}</td>
                                 <td className="p-3 font-medium">{registration.patient_name}</td>
