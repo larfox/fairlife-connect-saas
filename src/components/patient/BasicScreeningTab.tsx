@@ -268,6 +268,41 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     return 0;
   };
 
+  // Health status helper functions
+  const getBMIStatus = (bmi: number) => {
+    if (bmi < 18.5) return { status: "Underweight", color: "text-yellow-600", bgColor: "bg-yellow-50 border-yellow-200" };
+    if (bmi >= 18.5 && bmi < 25) return { status: "Normal", color: "text-green-600", bgColor: "bg-green-50 border-green-200" };
+    if (bmi >= 25 && bmi < 30) return { status: "Overweight", color: "text-orange-600", bgColor: "bg-orange-50 border-orange-200" };
+    return { status: "Obese", color: "text-red-600", bgColor: "bg-red-50 border-red-200" };
+  };
+
+  const getBloodSugarStatus = (bloodSugar: number) => {
+    if (bloodSugar < 4.0) return { status: "Low", color: "text-blue-600", bgColor: "bg-blue-50 border-blue-200" };
+    if (bloodSugar >= 4.0 && bloodSugar <= 7.8) return { status: "Normal", color: "text-green-600", bgColor: "bg-green-50 border-green-200" };
+    if (bloodSugar > 7.8 && bloodSugar <= 11.0) return { status: "High", color: "text-orange-600", bgColor: "bg-orange-50 border-orange-200" };
+    return { status: "Very High", color: "text-red-600", bgColor: "bg-red-50 border-red-200" };
+  };
+
+  const getBloodPressureStatus = (systolic: number, diastolic: number) => {
+    if (systolic < 90 || diastolic < 60) return { status: "Low", color: "text-blue-600", bgColor: "bg-blue-50 border-blue-200" };
+    if (systolic <= 120 && diastolic <= 80) return { status: "Normal", color: "text-green-600", bgColor: "bg-green-50 border-green-200" };
+    if (systolic <= 139 || diastolic <= 89) return { status: "High Normal", color: "text-yellow-600", bgColor: "bg-yellow-50 border-yellow-200" };
+    if (systolic <= 159 || diastolic <= 99) return { status: "High", color: "text-orange-600", bgColor: "bg-orange-50 border-orange-200" };
+    return { status: "Very High", color: "text-red-600", bgColor: "bg-red-50 border-red-200" };
+  };
+
+  const getCholesterolStatus = (cholesterol: number) => {
+    if (cholesterol < 5.2) return { status: "Normal", color: "text-green-600", bgColor: "bg-green-50 border-green-200" };
+    if (cholesterol >= 5.2 && cholesterol < 6.2) return { status: "Borderline High", color: "text-yellow-600", bgColor: "bg-yellow-50 border-yellow-200" };
+    return { status: "High", color: "text-red-600", bgColor: "bg-red-50 border-red-200" };
+  };
+
+  const getOxygenSaturationStatus = (oxygenSat: number) => {
+    if (oxygenSat >= 95) return { status: "Normal", color: "text-green-600", bgColor: "bg-green-50 border-green-200" };
+    if (oxygenSat >= 90) return { status: "Low", color: "text-yellow-600", bgColor: "bg-yellow-50 border-yellow-200" };
+    return { status: "Very Low", color: "text-red-600", bgColor: "bg-red-50 border-red-200" };
+  };
+
   const getBloodPressureInterpretation = (systolic: number, diastolic: number): string => {
     if (systolic < 120 && diastolic < 80) {
       return "Normal blood pressure";
@@ -746,15 +781,21 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
               </div>
             )}
             {basicScreening.bmi && (
-              <div className="space-y-1">
+              <div className={`space-y-1 p-3 rounded-lg border ${getBMIStatus(basicScreening.bmi).bgColor}`}>
                 <Badge variant="outline" className="mb-2">BMI</Badge>
                 <p className="text-sm font-medium">{basicScreening.bmi}</p>
+                <p className={`text-xs font-medium ${getBMIStatus(basicScreening.bmi).color}`}>
+                  {getBMIStatus(basicScreening.bmi).status}
+                </p>
               </div>
             )}
             {(basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic) && (
-              <div className="space-y-1">
+              <div className={`space-y-1 p-3 rounded-lg border ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).bgColor}`}>
                 <Badge variant="outline" className="mb-2">Blood Pressure</Badge>
                 <p className="text-sm font-medium">{basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg</p>
+                <p className={`text-xs font-medium ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).color}`}>
+                  {getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).status}
+                </p>
               </div>
             )}
             {basicScreening.heart_rate && (
@@ -770,21 +811,30 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
               </div>
             )}
             {basicScreening.blood_sugar && (
-              <div className="space-y-1">
+              <div className={`space-y-1 p-3 rounded-lg border ${getBloodSugarStatus(basicScreening.blood_sugar).bgColor}`}>
                 <Badge variant="outline" className="mb-2">Blood Sugar</Badge>
                 <p className="text-sm font-medium">{basicScreening.blood_sugar} mmol/L</p>
+                <p className={`text-xs font-medium ${getBloodSugarStatus(basicScreening.blood_sugar).color}`}>
+                  {getBloodSugarStatus(basicScreening.blood_sugar).status}
+                </p>
               </div>
             )}
             {basicScreening.cholesterol && (
-              <div className="space-y-1">
+              <div className={`space-y-1 p-3 rounded-lg border ${getCholesterolStatus(basicScreening.cholesterol).bgColor}`}>
                 <Badge variant="outline" className="mb-2">Cholesterol</Badge>
                 <p className="text-sm font-medium">{basicScreening.cholesterol} mmol/L</p>
+                <p className={`text-xs font-medium ${getCholesterolStatus(basicScreening.cholesterol).color}`}>
+                  {getCholesterolStatus(basicScreening.cholesterol).status}
+                </p>
               </div>
             )}
             {basicScreening.oxygen_saturation && (
-              <div className="space-y-1">
+              <div className={`space-y-1 p-3 rounded-lg border ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor}`}>
                 <Badge variant="outline" className="mb-2">Oxygen Saturation</Badge>
                 <p className="text-sm font-medium">{basicScreening.oxygen_saturation}%</p>
+                <p className={`text-xs font-medium ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).color}`}>
+                  {getOxygenSaturationStatus(basicScreening.oxygen_saturation).status}
+                </p>
               </div>
             )}
             {basicScreening.urine && (
