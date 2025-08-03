@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChart3, PieChart, ArrowLeft, Upload, Database } from "lucide-react";
+import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChart3, PieChart, ArrowLeft, Upload, Database, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +54,16 @@ type ParishReport = {
   showAll?: boolean;
 };
 
+type RegistrationReport = {
+  patient_number: string;
+  patient_name: string;
+  services: string[];
+  patient_id: string;
+  phone?: string;
+  email?: string;
+  parish?: string;
+};
+
 const Reports = ({ onBack }: ReportsProps) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [services, setServices] = useState<Tables<"services">[]>([]);
@@ -68,6 +78,7 @@ const Reports = ({ onBack }: ReportsProps) => {
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
   const [serviceReport, setServiceReport] = useState<ServiceReport[]>([]);
   const [parishReport, setParishReport] = useState<ParishReport[]>([]);
+  const [registrationReport, setRegistrationReport] = useState<RegistrationReport[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   
   // Import/Export state
@@ -295,6 +306,79 @@ const Reports = ({ onBack }: ReportsProps) => {
     }
   };
 
+  const generateRegistrationReport = async () => {
+    if (!selectedEvent) {
+      toast({
+        title: "Please select an event",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: registrationData, error } = await supabase
+        .from("patient_visits")
+        .select(`
+          *,
+          patient:patients(
+            *,
+            parish:parishes(name)
+          ),
+          service_queue(
+            service:services(name)
+          )
+        `)
+        .eq("event_id", selectedEvent);
+
+      if (error) throw error;
+
+      // Process the data to group services by patient
+      const registrationMap: { [key: string]: RegistrationReport } = {};
+      
+      registrationData?.forEach(visit => {
+        const patient = visit.patient;
+        const patientKey = patient.id;
+        
+        if (!registrationMap[patientKey]) {
+          registrationMap[patientKey] = {
+            patient_id: patient.id,
+            patient_number: patient.patient_number || '',
+            patient_name: `${patient.first_name} ${patient.last_name}`,
+            phone: patient.phone || '',
+            email: patient.email || '',
+            parish: patient.parish?.name || '',
+            services: []
+          };
+        }
+        
+        // Add services from service_queue
+        visit.service_queue?.forEach((queueItem: any) => {
+          const serviceName = queueItem.service?.name;
+          if (serviceName && !registrationMap[patientKey].services.includes(serviceName)) {
+            registrationMap[patientKey].services.push(serviceName);
+          }
+        });
+      });
+
+      const reportData = Object.values(registrationMap);
+      setRegistrationReport(reportData);
+      
+      toast({
+        title: "Registration report generated",
+        description: `Found ${reportData.length} registered patients.`,
+      });
+    } catch (error) {
+      console.error("Error generating registration report:", error);
+      toast({
+        title: "Error generating report",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const exportToCSV = (data: any[], filename: string) => {
     if (data.length === 0) return;
 
@@ -349,6 +433,26 @@ const Reports = ({ onBack }: ReportsProps) => {
             patient_count: parish.patient_count,
             patients: parish.patients
           }));
+        }
+        break;
+      case "registration":
+        if (registrationReport.length > 0) {
+          title = "Patient Registration Report";
+          subtitle = "Service Registration Details";
+          reportData = [{
+            section_name: "Patient Registrations",
+            patient_count: registrationReport.length,
+            patients: registrationReport.map(reg => ({
+              ...reg,
+              first_name: reg.patient_name.split(' ')[0],
+              last_name: reg.patient_name.split(' ').slice(1).join(' '),
+              patient_number: reg.patient_number,
+              parish: { name: reg.parish },
+              phone: reg.phone,
+              email: reg.email,
+              services: reg.services
+            }))
+          }];
         }
         break;
     }
@@ -782,7 +886,7 @@ const Reports = ({ onBack }: ReportsProps) => {
       </div>
 
       <Tabs defaultValue="location" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="location" className="gap-2">
             <MapPin className="h-4 w-4" />
             Location Reports
@@ -794,6 +898,10 @@ const Reports = ({ onBack }: ReportsProps) => {
           <TabsTrigger value="parish" className="gap-2">
             <Users className="h-4 w-4" />
             Parish Reports
+          </TabsTrigger>
+          <TabsTrigger value="registration" className="gap-2">
+            <UserCheck className="h-4 w-4" />
+            Registration Reports
           </TabsTrigger>
           <TabsTrigger value="import-export" className="gap-2">
             <Database className="h-4 w-4" />
@@ -1128,6 +1236,125 @@ const Reports = ({ onBack }: ReportsProps) => {
                       </Card>
                     ))}
                   </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Registration Reports */}
+        <TabsContent value="registration">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                Patient Registration Reports
+              </CardTitle>
+              <CardDescription>
+                View patient registration details and their selected services
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Select Event</Label>
+                <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.name} - {event.locations?.name} ({format(new Date(event.event_date), "MMM dd, yyyy")})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={generateRegistrationReport} disabled={loading} className="gap-2">
+                <FileText className="h-4 w-4" />
+                Generate Registration Report
+              </Button>
+
+              {registrationReport.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Registration Report Results</h3>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => exportToCSV(
+                          registrationReport.map(reg => ({
+                            patient_number: reg.patient_number,
+                            patient_name: reg.patient_name,
+                            phone: reg.phone,
+                            email: reg.email,
+                            parish: reg.parish,
+                            services: reg.services.join('; ')
+                          })),
+                          "registration_report"
+                        )}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Export CSV
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => printReport("registration")} className="gap-2">
+                        <Printer className="h-4 w-4" />
+                        Print
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Registration Summary</CardTitle>
+                      <CardDescription>{registrationReport.length} registered patients</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left p-3 font-medium">Patient #</th>
+                              <th className="text-left p-3 font-medium">Name</th>
+                              <th className="text-left p-3 font-medium">Contact</th>
+                              <th className="text-left p-3 font-medium">Parish</th>
+                              <th className="text-left p-3 font-medium">Registered Services</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {registrationReport.map((registration, index) => (
+                              <tr key={registration.patient_id} className={index % 2 === 0 ? "bg-muted/20" : ""}>
+                                <td className="p-3 font-mono text-sm">{registration.patient_number}</td>
+                                <td className="p-3 font-medium">{registration.patient_name}</td>
+                                <td className="p-3 text-sm">
+                                  <div>
+                                    {registration.phone && <div>{registration.phone}</div>}
+                                    {registration.email && <div className="text-muted-foreground">{registration.email}</div>}
+                                  </div>
+                                </td>
+                                <td className="p-3 text-sm">{registration.parish}</td>
+                                <td className="p-3">
+                                  <div className="flex flex-wrap gap-1">
+                                    {registration.services.map((service, serviceIndex) => (
+                                      <Badge key={serviceIndex} variant="secondary" className="text-xs">
+                                        {service}
+                                      </Badge>
+                                    ))}
+                                    {registration.services.length === 0 && (
+                                      <Badge variant="outline" className="text-xs">No services</Badge>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </CardContent>

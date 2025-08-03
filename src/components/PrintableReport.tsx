@@ -9,6 +9,7 @@ interface Patient {
   email: string | null;
   parish?: { name: string } | null;
   town?: { name: string } | null;
+  services?: string[]; // For registration reports
 }
 
 interface PrintableReportProps {
@@ -146,44 +147,58 @@ export const PrintableReport = ({
         </div>
       </div>
 
-      {data.map((section, sectionIndex) => (
-        <div key={sectionIndex} className={`print-section ${sectionIndex > 0 ? 'page-break' : ''}`}>
-          <h2 className="print-section-title">
-            {section.section_name} ({section.patient_count} patients)
-          </h2>
-          
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th style={{ width: '8%' }}>#</th>
-                <th style={{ width: '25%' }}>Name</th>
-                <th style={{ width: '15%' }}>Patient #</th>
-                <th style={{ width: '17%' }}>Phone</th>
-                <th style={{ width: '20%' }}>Parish</th>
-                <th style={{ width: '15%' }}>Town</th>
-              </tr>
-            </thead>
-            <tbody>
-              {section.patients.map((patient, patientIndex) => (
-                <tr key={patient.id}>
-                  <td>{patientIndex + 1}</td>
-                  <td>{patient.first_name} {patient.last_name}</td>
-                  <td>{patient.patient_number || 'N/A'}</td>
-                  <td>{patient.phone || 'N/A'}</td>
-                  <td>{patient.parish?.name || 'N/A'}</td>
-                  <td>{patient.town?.name || 'N/A'}</td>
+      {data.map((section, sectionIndex) => {
+        // Check if this is a registration report by looking for services in the first patient
+        const isRegistrationReport = section.patients.length > 0 && section.patients[0].services !== undefined;
+        
+        return (
+          <div key={sectionIndex} className={`print-section ${sectionIndex > 0 ? 'page-break' : ''}`}>
+            <h2 className="print-section-title">
+              {section.section_name} ({section.patient_count} patients)
+            </h2>
+            
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '8%' }}>#</th>
+                  <th style={{ width: '25%' }}>Name</th>
+                  <th style={{ width: '15%' }}>Patient #</th>
+                  <th style={{ width: '17%' }}>Phone</th>
+                  <th style={{ width: isRegistrationReport ? '15%' : '20%' }}>Parish</th>
+                  {!isRegistrationReport && <th style={{ width: '15%' }}>Town</th>}
+                  {isRegistrationReport && <th style={{ width: '20%' }}>Services</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {section.patients.length === 0 && (
-            <p style={{ textAlign: 'center', color: '#666', fontStyle: 'italic', padding: '20px' }}>
-              No patients found for this section.
-            </p>
-          )}
-        </div>
-      ))}
+              </thead>
+              <tbody>
+                {section.patients.map((patient, patientIndex) => (
+                  <tr key={patient.id || patientIndex}>
+                    <td>{patientIndex + 1}</td>
+                    <td>{patient.first_name} {patient.last_name}</td>
+                    <td>{patient.patient_number || 'N/A'}</td>
+                    <td>{patient.phone || 'N/A'}</td>
+                    <td>{patient.parish?.name || 'N/A'}</td>
+                    {!isRegistrationReport && <td>{patient.town?.name || 'N/A'}</td>}
+                    {isRegistrationReport && (
+                      <td style={{ fontSize: '10px' }}>
+                        {patient.services && patient.services.length > 0 
+                          ? patient.services.join(', ') 
+                          : 'No services'
+                        }
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {section.patients.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#666', fontStyle: 'italic', padding: '20px' }}>
+                No patients found for this section.
+              </p>
+            )}
+          </div>
+        );
+      })}
       
       <div className="print-footer">
         Page {data.length > 1 ? 'Multiple Pages' : '1 of 1'}
