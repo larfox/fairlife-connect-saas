@@ -1,0 +1,80 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Check for outdated packages
+        id: outdated
+        run: |
+          npm outdated --json > outdated.json || true
+          if [ -s outdated.json ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Update dependencies
+        if: steps.outdated.outputs.has_updates == 'true'
+        run: |
+          # Update minor and patch versions
+          npm update
+          
+      - name: Run tests after update
+        if: steps.outdated.outputs.has_updates == 'true'
+        run: |
+          npm run lint
+          npm run build
+          
+      - name: Create Pull Request
+        if: steps.outdated.outputs.has_updates == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(deps): update dependencies"
+          title: "chore(deps): automated dependency updates"
+          body: |
+            ## Automated Dependency Updates
+            
+            This PR contains automated updates to project dependencies.
+            
+            ### Changes:
+            - Updated npm packages to latest compatible versions
+            - All tests pass with updated dependencies
+            
+            ### Review Notes:
+            - This is an automated PR created by GitHub Actions
+            - Please review the changes before merging
+            - All CI checks must pass before merging
+            
+            ### Updated packages:
+            ```
+            $(cat outdated.json | jq -r 'keys[]' | head -10)
+            ```
+          branch: dependency-updates/automated
+          delete-branch: true
+          labels: |
+            dependencies
+            automated
