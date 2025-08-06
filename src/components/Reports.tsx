@@ -809,8 +809,8 @@ const Reports = ({ onBack }: ReportsProps) => {
       first_name: "John",
       last_name: "Doe",
       gender: "Male",
-      town_id: "", // Leave empty - will be filled with actual town IDs
-      parish_id: "" // Leave empty - will be filled with actual parish IDs
+      town_name: "Downtown Kingston", // Use actual town name
+      parish_name: "Kingston" // Use actual parish name
     }];
 
     if (format === 'csv') {
@@ -821,7 +821,7 @@ const Reports = ({ onBack }: ReportsProps) => {
 
     toast({
       title: "Template downloaded",
-      description: `${format.toUpperCase()} template file has been downloaded.`,
+      description: `${format.toUpperCase()} template file has been downloaded. Use town_name and parish_name fields.`,
     });
   };
 
@@ -877,16 +877,40 @@ const Reports = ({ onBack }: ReportsProps) => {
         return;
       }
 
-      // Insert patients
-      const { data: insertedPatients, error } = await supabase
-        .from("patients")
-        .insert(validRecords.map(record => ({
+      // Get parishes and towns for name lookup
+      const { data: parishes } = await supabase.from('parishes').select('id, name');
+      const { data: towns } = await supabase.from('towns').select('id, name');
+
+      // Process records and convert names to IDs
+      const processedRecords = validRecords.map(record => {
+        let town_id = null;
+        let parish_id = null;
+
+        // Convert town name to ID
+        if (record.town_name && towns) {
+          const town = towns.find(t => t.name.toLowerCase() === record.town_name.toLowerCase());
+          town_id = town?.id || null;
+        }
+
+        // Convert parish name to ID  
+        if (record.parish_name && parishes) {
+          const parish = parishes.find(p => p.name.toLowerCase() === record.parish_name.toLowerCase());
+          parish_id = parish?.id || null;
+        }
+
+        return {
           first_name: record.first_name?.trim(),
           last_name: record.last_name?.trim(),
           gender: record.gender || null,
-          town_id: record.town_id || null,
-          parish_id: record.parish_id || null
-        })));
+          town_id,
+          parish_id
+        };
+      });
+
+      // Insert patients
+      const { data: insertedPatients, error } = await supabase
+        .from("patients")
+        .insert(processedRecords);
 
       if (error) throw error;
 
