@@ -223,16 +223,28 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
 
     setLoading(true);
     try {
+      console.log("Updating patient with data:", formData);
+      console.log("Patient ID:", patient.id);
+      
+      const updateData = {
+        ...formData,
+        parish_id: formData.parish_id || null,
+        town_id: formData.town_id || null,
+      };
+      
+      console.log("Update data being sent:", updateData);
+      
       const { error } = await supabase
         .from("patients")
-        .update({
-          ...formData,
-          parish_id: formData.parish_id || null,
-          town_id: formData.town_id || null,
-        })
+        .update(updateData)
         .eq("id", patient.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase update error:", error);
+        throw error;
+      }
+
+      console.log("Patient update successful");
 
       // Update service selections if patient has a visit for this event
       const { data: visitData, error: visitError } = await supabase
