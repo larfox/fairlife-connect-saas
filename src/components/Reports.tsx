@@ -808,19 +808,8 @@ const Reports = ({ onBack }: ReportsProps) => {
     const templateData = [{
       first_name: "John",
       last_name: "Doe",
-      date_of_birth: "1980-01-01",
-      gender: "Male",
-      phone: "876-123-4567",
-      email: "john.doe@email.com",
-      parish_id: "", // Leave empty - will be filled with actual parish IDs
       town_id: "", // Leave empty - will be filled with actual town IDs
-      medical_conditions: "None",
-      allergies: "None",
-      medications: "None",
-      insurance_provider: "SAGICOR",
-      insurance_number: "INS123456",
-      emergency_contact_name: "Jane Doe",
-      emergency_contact_phone: "876-987-6543"
+      parish_id: "" // Leave empty - will be filled with actual parish IDs
     }];
 
     if (format === 'csv') {
@@ -881,7 +870,7 @@ const Reports = ({ onBack }: ReportsProps) => {
       if (validRecords.length === 0) {
         toast({
           title: "No valid records found",
-          description: "All records must have at least first_name and last_name.",
+          description: "All records must have first_name and last_name.",
           variant: "destructive",
         });
         return;
@@ -893,19 +882,8 @@ const Reports = ({ onBack }: ReportsProps) => {
         .insert(validRecords.map(record => ({
           first_name: record.first_name?.trim(),
           last_name: record.last_name?.trim(),
-          date_of_birth: record.date_of_birth || null,
-          gender: record.gender || null,
-          phone: record.phone || null,
-          email: record.email || null,
-          parish_id: record.parish_id || null,
           town_id: record.town_id || null,
-          medical_conditions: record.medical_conditions || null,
-          allergies: record.allergies || null,
-          medications: record.medications || null,
-          insurance_provider: record.insurance_provider || null,
-          insurance_number: record.insurance_number || null,
-          emergency_contact_name: record.emergency_contact_name || null,
-          emergency_contact_phone: record.emergency_contact_phone || null
+          parish_id: record.parish_id || null
         })));
 
       if (error) throw error;
