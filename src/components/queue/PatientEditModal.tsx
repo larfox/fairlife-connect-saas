@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
 import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
+import { Combobox } from "@/components/ui/combobox";
 
 type Parish = Tables<"parishes">;
 type Town = Tables<"towns">;
@@ -34,6 +35,7 @@ interface PatientFormData {
   email: string;
   parish_id: string;
   town_id: string;
+  town_name: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
   medical_conditions: string;
@@ -53,6 +55,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
     email: "",
     parish_id: "",
     town_id: "",
+    town_name: "",
     emergency_contact_name: "",
     emergency_contact_phone: "",
     medical_conditions: "",
@@ -64,6 +67,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
   const [parishes, setParishes] = useState<Parish[]>([]);
   const [towns, setTowns] = useState<Town[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [customTownName, setCustomTownName] = useState<string>("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -80,6 +84,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         email: patient.email || "",
         parish_id: patient.parish_id || "",
         town_id: patient.town_id || "",
+        town_name: patient.town_name || "",
         emergency_contact_name: patient.emergency_contact_name || "",
         emergency_contact_phone: patient.emergency_contact_phone || "",
         medical_conditions: patient.medical_conditions || "",
@@ -230,6 +235,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         ...formData,
         parish_id: formData.parish_id || null,
         town_id: formData.town_id || null,
+        date_of_birth: formData.date_of_birth || null,
       };
       
       console.log("Update data being sent:", updateData);
@@ -434,22 +440,26 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
                 </div>
                 <div>
                   <Label htmlFor="town">Town/Community</Label>
-                  <Select 
-                    value={formData.town_id} 
-                    onValueChange={(value) => updateFormData("town_id", value)}
+                  <Combobox
+                    options={towns.map(town => ({ value: town.id, label: town.name }))}
+                    value={formData.town_id || formData.town_name}
+                    onValueChange={(value) => {
+                      // Check if it's an existing town ID or a custom town name
+                      const existingTown = towns.find(town => town.id === value);
+                      if (existingTown) {
+                        updateFormData("town_id", value);
+                        updateFormData("town_name", "");
+                      } else {
+                        updateFormData("town_id", "");
+                        updateFormData("town_name", value);
+                      }
+                    }}
+                    placeholder="Select or type town/community"
+                    searchPlaceholder="Search towns or type custom..."
                     disabled={!formData.parish_id}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select town/community" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {towns.map((town) => (
-                        <SelectItem key={town.id} value={town.id}>
-                          {town.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    allowCustom={true}
+                    customLabel="Add custom town"
+                  />
                 </div>
               </div>
             </CardContent>
