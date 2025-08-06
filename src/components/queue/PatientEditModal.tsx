@@ -12,7 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
 import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
-import { Combobox } from "@/components/ui/combobox";
 
 type Parish = Tables<"parishes">;
 type Town = Tables<"towns">;
@@ -67,7 +66,6 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
   const [parishes, setParishes] = useState<Parish[]>([]);
   const [towns, setTowns] = useState<Town[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [customTownName, setCustomTownName] = useState<string>("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -441,26 +439,45 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
                 </div>
                 <div>
                   <Label htmlFor="town">Town/Community</Label>
-                  <Combobox
-                    options={towns.map(town => ({ value: town.id, label: town.name }))}
-                    value={formData.town_id || formData.town_name}
-                    onValueChange={(value) => {
-                      // Check if it's an existing town ID or a custom town name
-                      const existingTown = towns.find(town => town.id === value);
-                      if (existingTown) {
+                  <div className="space-y-2">
+                    <Select 
+                      value={formData.town_id} 
+                      onValueChange={(value) => {
+                        if (value === "custom") {
+                          // Don't change anything, let user type in the input below
+                          return;
+                        }
                         updateFormData("town_id", value);
                         updateFormData("town_name", "");
-                      } else {
-                        updateFormData("town_id", "");
-                        updateFormData("town_name", value);
-                      }
-                    }}
-                    placeholder="Select or type town/community"
-                    searchPlaceholder="Search towns or type custom..."
-                    disabled={!formData.parish_id}
-                    allowCustom={true}
-                    customLabel="Add custom town"
-                  />
+                      }}
+                      disabled={!formData.parish_id}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select town/community" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {towns.map((town) => (
+                          <SelectItem key={town.id} value={town.id}>
+                            {town.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">+ Add custom town</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {(!formData.town_id || formData.town_name) && (
+                      <div>
+                        <Input
+                          placeholder="Enter custom town/community name"
+                          value={formData.town_name}
+                          onChange={(e) => {
+                            updateFormData("town_name", e.target.value);
+                            updateFormData("town_id", "");
+                          }}
+                          disabled={!formData.parish_id}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
