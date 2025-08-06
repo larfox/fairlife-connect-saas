@@ -808,6 +808,7 @@ const Reports = ({ onBack }: ReportsProps) => {
     const templateData = [{
       first_name: "John",
       last_name: "Doe",
+      gender: "Male",
       town_id: "", // Leave empty - will be filled with actual town IDs
       parish_id: "" // Leave empty - will be filled with actual parish IDs
     }];
@@ -882,6 +883,7 @@ const Reports = ({ onBack }: ReportsProps) => {
         .insert(validRecords.map(record => ({
           first_name: record.first_name?.trim(),
           last_name: record.last_name?.trim(),
+          gender: record.gender || null,
           town_id: record.town_id || null,
           parish_id: record.parish_id || null
         })));
