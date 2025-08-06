@@ -203,6 +203,76 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleCustomTownSubmit = async (townName: string) => {
+    if (!townName.trim() || !formData.parish_id) return;
+
+    try {
+      // Check if town already exists for this parish
+      const { data: existingTown, error: checkError } = await supabase
+        .from("towns")
+        .select("id")
+        .eq("parish_id", formData.parish_id)
+        .ilike("name", townName.trim())
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("Error checking existing town:", checkError);
+        return;
+      }
+
+      if (existingTown) {
+        // Town already exists, use it
+        updateFormData("town_id", existingTown.id);
+        updateFormData("town_name", "");
+        toast({
+          title: "Town found",
+          description: "This town already exists and has been selected.",
+        });
+        return;
+      }
+
+      // Create new town
+      const { data: newTown, error: insertError } = await supabase
+        .from("towns")
+        .insert({
+          name: townName.trim(),
+          parish_id: formData.parish_id
+        })
+        .select("id, name")
+        .single();
+
+      if (insertError) {
+        console.error("Error creating town:", insertError);
+        toast({
+          title: "Error",
+          description: "Failed to add new town. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update form data to use the new town ID
+      updateFormData("town_id", newTown.id);
+      updateFormData("town_name", "");
+
+      // Refresh towns list to include the new town
+      await fetchTowns(formData.parish_id);
+
+      toast({
+        title: "Town added",
+        description: `"${newTown.name}" has been added and is now available for everyone.`,
+      });
+
+    } catch (error) {
+      console.error("Error handling custom town:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process custom town. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleServiceToggle = (serviceId: string) => {
     // Don't allow toggling of "Know Your Numbers" service
     if (serviceId === knowYourNumbersServiceId) return;
@@ -465,7 +535,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
                       </SelectContent>
                     </Select>
                     {(!formData.town_id || formData.town_name) && (
-                      <div>
+                      <div className="flex gap-2">
                         <Input
                           placeholder="Enter custom town/community name"
                           value={formData.town_name}
@@ -474,7 +544,20 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
                             updateFormData("town_id", "");
                           }}
                           disabled={!formData.parish_id}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && formData.town_name.trim()) {
+                              handleCustomTownSubmit(formData.town_name);
+                            }
+                          }}
                         />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleCustomTownSubmit(formData.town_name)}
+                          disabled={!formData.parish_id || !formData.town_name.trim()}
+                        >
+                          Add
+                        </Button>
                       </div>
                     )}
                   </div>
