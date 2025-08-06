@@ -296,6 +296,13 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
 
     setLoading(true);
     try {
+      // First, handle custom town if present
+      if (formData.town_name && !formData.town_id && formData.parish_id) {
+        await handleCustomTownSubmit(formData.town_name);
+        // Wait a bit for state to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       console.log("Updating patient with data:", formData);
       console.log("Patient ID:", patient.id);
       
@@ -303,7 +310,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         ...formData,
         parish_id: formData.parish_id || null,
         town_id: formData.town_id || null,
-        town_name: formData.town_name || null,
+        town_name: null, // Always clear custom town name after processing
         date_of_birth: formData.date_of_birth || null,
       };
       
