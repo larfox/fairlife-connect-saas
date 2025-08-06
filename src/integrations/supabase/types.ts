@@ -833,6 +833,7 @@ export type Database = {
           patient_number: string | null
           phone: string | null
           town_id: string | null
+          town_name: string | null
           updated_at: string
         }
         Insert: {
@@ -856,6 +857,7 @@ export type Database = {
           patient_number?: string | null
           phone?: string | null
           town_id?: string | null
+          town_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -879,6 +881,7 @@ export type Database = {
           patient_number?: string | null
           phone?: string | null
           town_id?: string | null
+          town_name?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -235,6 +235,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         ...formData,
         parish_id: formData.parish_id || null,
         town_id: formData.town_id || null,
+        town_name: formData.town_name || null,
         date_of_birth: formData.date_of_birth || null,
       };
       
