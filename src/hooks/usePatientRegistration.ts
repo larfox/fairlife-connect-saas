@@ -11,6 +11,7 @@ interface PatientData {
   email: string;
   parish_id: string;
   town_id: string;
+  town_name: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
   medical_conditions: string;
@@ -23,6 +24,8 @@ interface PatientData {
 export const usePatientRegistration = (selectedEvent: any, onRegistrationComplete: () => void) => {
   const [loading, setLoading] = useState(false);
   const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>('');
+  const [duplicatePatient, setDuplicatePatient] = useState<any>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const { toast } = useToast();
 
   const initialPatientData: PatientData = {
@@ -34,6 +37,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     email: "",
     parish_id: "",
     town_id: "",
+    town_name: "",
     emergency_contact_name: "",
     emergency_contact_phone: "",
     medical_conditions: "",
@@ -86,6 +90,80 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     );
   };
 
+  const checkDuplicatePatient = async () => {
+    try {
+      const { data: existingPatients, error } = await supabase
+        .from("patients")
+        .select("*")
+        .ilike("first_name", patientData.first_name.trim())
+        .ilike("last_name", patientData.last_name.trim())
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      if (existingPatients && existingPatients.length > 0) {
+        setDuplicatePatient(existingPatients[0]);
+        setShowDuplicateDialog(true);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking for duplicate patient:", error);
+      return false;
+    }
+  };
+
+  const handleCustomTownSubmit = async (townName: string) => {
+    if (!townName.trim() || !patientData.parish_id) return;
+
+    try {
+      // Check if town already exists
+      const { data: existingTown, error: checkError } = await supabase
+        .from("towns")
+        .select("id")
+        .eq("name", townName.trim())
+        .eq("parish_id", patientData.parish_id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingTown) {
+        // Town exists, update selection
+        updatePatientData("town_id", existingTown.id);
+        updatePatientData("town_name", "");
+        return;
+      }
+
+      // Create new town
+      const { data: newTown, error: insertError } = await supabase
+        .from("towns")
+        .insert([{
+          name: townName.trim(),
+          parish_id: patientData.parish_id
+        }])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Update selection to new town
+      updatePatientData("town_id", newTown.id);
+      updatePatientData("town_name", "");
+
+      toast({
+        title: "Town added",
+        description: `${townName} has been added to the system.`,
+      });
+    } catch (error) {
+      console.error("Error adding custom town:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add custom town. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleRegisterPatient = async () => {
     if (!patientData.first_name || !patientData.last_name) {
       toast({
@@ -96,8 +174,20 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
       return;
     }
 
+    // Check for duplicate patient
+    const isDuplicate = await checkDuplicatePatient();
+    if (isDuplicate) {
+      return;
+    }
+
     setLoading(true);
     try {
+      // Handle custom town if present
+      if (patientData.town_name && !patientData.town_id && patientData.parish_id) {
+        await handleCustomTownSubmit(patientData.town_name);
+        // Wait a bit for state to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       // Create patient record
       const { data: patient, error: patientError } = await supabase
         .from("patients")
@@ -105,6 +195,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
           ...patientData,
           parish_id: patientData.parish_id || null,
           town_id: patientData.town_id || null,
+          town_name: null, // Always clear custom town name after processing
           event_id: selectedEvent.id
         }])
         .select()
@@ -198,13 +289,140 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     }
   };
 
+  const handleUpdateExistingPatient = () => {
+    setShowDuplicateDialog(false);
+    // Navigate to edit patient or handle update logic
+    toast({
+      title: "Update functionality",
+      description: "Update existing patient functionality would be implemented here.",
+    });
+  };
+
+  const handleContinueRegistration = async () => {
+    setShowDuplicateDialog(false);
+    setDuplicatePatient(null);
+    
+    setLoading(true);
+    try {
+      // Handle custom town if present
+      if (patientData.town_name && !patientData.town_id && patientData.parish_id) {
+        await handleCustomTownSubmit(patientData.town_name);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Create patient record
+      const { data: patient, error: patientError } = await supabase
+        .from("patients")
+        .insert([{
+          ...patientData,
+          parish_id: patientData.parish_id || null,
+          town_id: patientData.town_id || null,
+          town_name: null,
+          event_id: selectedEvent.id
+        }])
+        .select()
+        .single();
+
+      if (patientError) throw patientError;
+
+      // Continue with visit and queue creation...
+      // Get next queue number
+      const { data: existingVisits, error: visitsError } = await supabase
+        .from("patient_visits")
+        .select("queue_number")
+        .eq("event_id", selectedEvent.id)
+        .order("queue_number", { ascending: false })
+        .limit(1);
+
+      if (visitsError) throw visitsError;
+
+      const nextQueueNumber = (existingVisits?.[0]?.queue_number || 0) + 1;
+
+      // Create patient visit record
+      const { data: visit, error: visitError } = await supabase
+        .from("patient_visits")
+        .insert([{
+          patient_id: patient.id,
+          event_id: selectedEvent.id,
+          queue_number: nextQueueNumber,
+          status: 'checked_in'
+        }])
+        .select()
+        .single();
+
+      if (visitError) throw visitError;
+
+      // Get "Know Your Numbers" service ID
+      const { data: knowYourNumbersService, error: serviceError } = await supabase
+        .from("services")
+        .select("id")
+        .ilike("name", "%know your numbers%")
+        .single();
+
+      if (serviceError) throw serviceError;
+
+      // Prepare service queue entries
+      const serviceQueueEntries = [
+        {
+          patient_visit_id: visit.id,
+          service_id: knowYourNumbersService.id,
+          queue_position: 1,
+          status: 'waiting'
+        }
+      ];
+
+      if (selectedServices.length > 0) {
+        const otherServiceEntries = selectedServices
+          .filter(serviceId => serviceId !== knowYourNumbersService.id)
+          .map((serviceId, index) => ({
+            patient_visit_id: visit.id,
+            service_id: serviceId,
+            queue_position: index + 2,
+            status: 'waiting'
+          }));
+        
+        serviceQueueEntries.push(...otherServiceEntries);
+      }
+
+      const { error: queueError } = await supabase
+        .from("service_queue")
+        .insert(serviceQueueEntries);
+
+      if (queueError) throw queueError;
+
+      toast({
+        title: "Patient registered successfully",
+        description: `${patient.first_name} ${patient.last_name} has been assigned queue number ${nextQueueNumber}.`,
+      });
+
+      // Reset form
+      setPatientData(initialPatientData);
+      setSelectedServices([knowYourNumbersServiceId]);
+      onRegistrationComplete();
+
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description: "Failed to register patient. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     patientData,
     selectedServices,
     loading,
     knowYourNumbersServiceId,
+    duplicatePatient,
+    showDuplicateDialog,
     updatePatientData,
     handleServiceToggle,
-    handleRegisterPatient
+    handleRegisterPatient,
+    handleUpdateExistingPatient,
+    handleContinueRegistration,
+    setShowDuplicateDialog
   };
 };

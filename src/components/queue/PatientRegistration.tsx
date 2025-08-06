@@ -11,6 +11,7 @@ import { PatientMedicalInfoForm } from "./forms/PatientMedicalInfoForm";
 import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
 import { usePatientRegistration } from "@/hooks/usePatientRegistration";
 import AutocompletePatientSearch from "./AutocompletePatientSearch";
+import { DuplicatePatientDialog } from "./DuplicatePatientDialog";
 
 interface PatientRegistrationProps {
   selectedEvent: any;
@@ -30,9 +31,14 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
     selectedServices,
     loading,
     knowYourNumbersServiceId,
+    duplicatePatient,
+    showDuplicateDialog,
     updatePatientData,
     handleServiceToggle,
-    handleRegisterPatient
+    handleRegisterPatient,
+    handleUpdateExistingPatient,
+    handleContinueRegistration,
+    setShowDuplicateDialog
   } = usePatientRegistration(selectedEvent, onRegistrationComplete);
 
   useEffect(() => {
@@ -125,6 +131,14 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
           </div>
         </CardContent>
       </Card>
+
+      <DuplicatePatientDialog
+        isOpen={showDuplicateDialog}
+        duplicatePatient={duplicatePatient}
+        onClose={() => setShowDuplicateDialog(false)}
+        onUpdateExisting={handleUpdateExistingPatient}
+        onContinueRegistration={handleContinueRegistration}
+      />
     </div>
   );
 };
