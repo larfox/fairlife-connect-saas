@@ -412,18 +412,16 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
           });
         }
         
-        // Add other services only if "Know Your Numbers" is completed or not required
-        if (kynCompleted || !knowYourNumbersServiceId) {
-          selectedServices.forEach(serviceId => {
-            if (serviceId !== knowYourNumbersServiceId) {
-              queueEntriesToAdd.push({
-                patient_visit_id: patientVisitId,
-                service_id: serviceId,
-                status: 'waiting'
-              });
-            }
-          });
-        }
+        // Add other selected services
+        selectedServices.forEach(serviceId => {
+          if (serviceId !== knowYourNumbersServiceId) {
+            queueEntriesToAdd.push({
+              patient_visit_id: patientVisitId,
+              service_id: serviceId,
+              status: kynCompleted ? 'waiting' : 'unavailable'
+            });
+          }
+        });
 
         if (queueEntriesToAdd.length > 0) {
           const { error: insertError } = await supabase
