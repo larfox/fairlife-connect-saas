@@ -26,6 +26,8 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
   const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>('');
   const [duplicatePatient, setDuplicatePatient] = useState<any>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [existingPatientId, setExistingPatientId] = useState<string>('');
   const { toast } = useToast();
 
   const initialPatientData: PatientData = {
@@ -174,10 +176,12 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
       return;
     }
 
-    // Check for duplicate patient
-    const isDuplicate = await checkDuplicatePatient();
-    if (isDuplicate) {
-      return;
+    // Check for duplicate patient only if not in update mode
+    if (!isUpdateMode) {
+      const isDuplicate = await checkDuplicatePatient();
+      if (isDuplicate) {
+        return;
+      }
     }
 
     setLoading(true);
@@ -188,20 +192,41 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
         // Wait a bit for state to update
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      // Create patient record
-      const { data: patient, error: patientError } = await supabase
-        .from("patients")
-        .insert([{
-          ...patientData,
-          parish_id: patientData.parish_id || null,
-          town_id: patientData.town_id || null,
-          town_name: null, // Always clear custom town name after processing
-          event_id: selectedEvent.id
-        }])
-        .select()
-        .single();
+      let patient;
+      
+      if (isUpdateMode && existingPatientId) {
+        // Update existing patient record
+        const { data: updatedPatient, error: updateError } = await supabase
+          .from("patients")
+          .update({
+            ...patientData,
+            parish_id: patientData.parish_id || null,
+            town_id: patientData.town_id || null,
+            town_name: null, // Always clear custom town name after processing
+          })
+          .eq("id", existingPatientId)
+          .select()
+          .single();
 
-      if (patientError) throw patientError;
+        if (updateError) throw updateError;
+        patient = updatedPatient;
+      } else {
+        // Create new patient record
+        const { data: newPatient, error: patientError } = await supabase
+          .from("patients")
+          .insert([{
+            ...patientData,
+            parish_id: patientData.parish_id || null,
+            town_id: patientData.town_id || null,
+            town_name: null, // Always clear custom town name after processing
+            event_id: selectedEvent.id
+          }])
+          .select()
+          .single();
+
+        if (patientError) throw patientError;
+        patient = newPatient;
+      }
 
       // Get next queue number
       const { data: existingVisits, error: visitsError } = await supabase
@@ -269,13 +294,16 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
       if (queueError) throw queueError;
 
       toast({
-        title: "Patient registered successfully",
+        title: isUpdateMode ? "Patient updated and registered successfully" : "Patient registered successfully",
         description: `${patient.first_name} ${patient.last_name} has been assigned queue number ${nextQueueNumber}.`,
       });
 
       // Reset form
       setPatientData(initialPatientData);
       setSelectedServices([knowYourNumbersServiceId]); // Keep "Know Your Numbers" selected
+      setIsUpdateMode(false);
+      setExistingPatientId('');
+      setDuplicatePatient(null);
       onRegistrationComplete();
 
     } catch (error) {
@@ -290,12 +318,30 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
   };
 
   const handleUpdateExistingPatient = () => {
+    if (duplicatePatient) {
+      // Pre-populate form with existing patient data
+      setPatientData({
+        first_name: duplicatePatient.first_name || "",
+        last_name: duplicatePatient.last_name || "",
+        date_of_birth: duplicatePatient.date_of_birth || "",
+        gender: duplicatePatient.gender || "",
+        phone: duplicatePatient.phone || "",
+        email: duplicatePatient.email || "",
+        parish_id: duplicatePatient.parish_id || "",
+        town_id: duplicatePatient.town_id || "",
+        town_name: duplicatePatient.town_name || "",
+        emergency_contact_name: duplicatePatient.emergency_contact_name || "",
+        emergency_contact_phone: duplicatePatient.emergency_contact_phone || "",
+        medical_conditions: duplicatePatient.medical_conditions || "",
+        allergies: duplicatePatient.allergies || "",
+        medications: duplicatePatient.medications || "",
+        insurance_provider: duplicatePatient.insurance_provider || "",
+        insurance_number: duplicatePatient.insurance_number || ""
+      });
+      setExistingPatientId(duplicatePatient.id);
+      setIsUpdateMode(true);
+    }
     setShowDuplicateDialog(false);
-    // Navigate to edit patient or handle update logic
-    toast({
-      title: "Update functionality",
-      description: "Update existing patient functionality would be implemented here.",
-    });
   };
 
   const handleContinueRegistration = async () => {
@@ -418,6 +464,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     knowYourNumbersServiceId,
     duplicatePatient,
     showDuplicateDialog,
+    isUpdateMode,
     updatePatientData,
     handleServiceToggle,
     handleRegisterPatient,

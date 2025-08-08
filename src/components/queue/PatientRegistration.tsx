@@ -33,6 +33,7 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
     knowYourNumbersServiceId,
     duplicatePatient,
     showDuplicateDialog,
+    isUpdateMode,
     updatePatientData,
     handleServiceToggle,
     handleRegisterPatient,
@@ -126,7 +127,10 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
               className="gap-2"
             >
               <Calendar className="h-4 w-4" />
-              {loading ? "Registering..." : "Register Patient"}
+              {loading 
+                ? (isUpdateMode ? "Updating..." : "Registering...") 
+                : (isUpdateMode ? "Update and Register" : "Register Patient")
+              }
             </Button>
           </div>
         </CardContent>
