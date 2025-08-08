@@ -19,21 +19,6 @@ interface PatientData {
   medications: string;
   insurance_provider: string;
   insurance_number: string;
-  wears_glasses: boolean;
-  wears_contacts: boolean;
-  eye_symptoms: string[];
-  eye_injury_history: string;
-  eye_surgery_history: string;
-  family_eye_history: {
-    hypertension?: { has: boolean; relationship: string };
-    diabetes?: { has: boolean; relationship: string };
-    thyroid_disease?: { has: boolean; relationship: string };
-    glaucoma?: { has: boolean; relationship: string };
-    cataracts?: { has: boolean; relationship: string };
-    cancer?: { has: boolean; relationship: string };
-    macular_degeneration?: { has: boolean; relationship: string };
-    other?: string;
-  };
 }
 
 export const usePatientRegistration = (selectedEvent: any, onRegistrationComplete: () => void) => {
@@ -61,13 +46,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     allergies: "",
     medications: "",
     insurance_provider: "",
-    insurance_number: "",
-    wears_glasses: false,
-    wears_contacts: false,
-    eye_symptoms: [],
-    eye_injury_history: "",
-    eye_surgery_history: "",
-    family_eye_history: {}
+    insurance_number: ""
   };
 
   const [patientData, setPatientData] = useState<PatientData>(initialPatientData);
@@ -482,13 +461,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
         allergies: duplicatePatient.allergies || "",
         medications: duplicatePatient.medications || "",
         insurance_provider: duplicatePatient.insurance_provider || "",
-        insurance_number: duplicatePatient.insurance_number || "",
-        wears_glasses: duplicatePatient.wears_glasses || false,
-        wears_contacts: duplicatePatient.wears_contacts || false,
-        eye_symptoms: duplicatePatient.eye_symptoms || [],
-        eye_injury_history: duplicatePatient.eye_injury_history || "",
-        eye_surgery_history: duplicatePatient.eye_surgery_history || "",
-        family_eye_history: duplicatePatient.family_eye_history || {}
+        insurance_number: duplicatePatient.insurance_number || ""
       });
       setExistingPatientId(duplicatePatient.id);
       setIsUpdateMode(true);

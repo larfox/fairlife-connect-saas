@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PatientOpticianInfoForm } from "@/components/queue/forms/PatientOpticianInfoForm";
 
 interface OpticianTabProps {
   patientVisitId: string;
@@ -24,8 +25,10 @@ interface OpticianTabProps {
 const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
   const [assessments, setAssessments] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingPatientInfo, setSavingPatientInfo] = useState(false);
   const { toast } = useToast();
 
   // Form state
@@ -45,6 +48,28 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
     try {
       setLoading(true);
       
+      // Fetch patient data via patient_visits
+      const { data: visitData, error: visitError } = await supabase
+        .from("patient_visits")
+        .select(`
+          *,
+          patients (
+            id,
+            first_name,
+            last_name,
+            wears_glasses,
+            wears_contacts,
+            eye_symptoms,
+            eye_injury_history,
+            eye_surgery_history,
+            family_eye_history
+          )
+        `)
+        .eq("id", patientVisitId)
+        .single();
+
+      if (visitError) throw visitError;
+      
       // Fetch optician assessments
       const { data: assessmentsData, error: assessmentsError } = await supabase
         .from("optician_assessments")
@@ -62,13 +87,14 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
 
       if (staffError) throw staffError;
 
+      setPatient(visitData?.patients);
       setAssessments(assessmentsData || []);
       setStaff(staffData || []);
     } catch (error) {
       console.error("Error fetching optician data:", error);
       toast({
         title: "Error",
-        description: "Failed to load optician assessments.",
+        description: "Failed to load optician data.",
         variant: "destructive",
       });
     } finally {
@@ -143,6 +169,38 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
     }
   };
 
+  const handlePatientInfoUpdate = async (field: string, value: any) => {
+    if (!patient) return;
+    
+    try {
+      setSavingPatientInfo(true);
+      
+      const { error } = await supabase
+        .from("patients")
+        .update({ [field]: value })
+        .eq("id", patient.id);
+
+      if (error) throw error;
+      
+      // Update local state
+      setPatient(prev => ({ ...prev, [field]: value }));
+      
+      toast({
+        title: "Success",
+        description: "Patient information updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating patient info:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update patient information.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPatientInfo(false);
+    }
+  };
+
   const getStaffMember = (staffId: string) => {
     return staff.find(s => s.id === staffId);
   };
@@ -159,6 +217,36 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Patient Eye & Vision History */}
+      {patient && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-blue-500" />
+              Patient Eye & Vision History - {patient.first_name} {patient.last_name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PatientOpticianInfoForm
+              patientData={{
+                wears_glasses: patient.wears_glasses || false,
+                wears_contacts: patient.wears_contacts || false,
+                eye_symptoms: patient.eye_symptoms || [],
+                eye_injury_history: patient.eye_injury_history || "",
+                eye_surgery_history: patient.eye_surgery_history || "",
+                family_eye_history: patient.family_eye_history || {}
+              }}
+              onChange={handlePatientInfoUpdate}
+            />
+            {savingPatientInfo && (
+              <div className="mt-4 text-sm text-muted-foreground">
+                Saving changes...
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      
       {/* Add New Assessment */}
       <Card>
         <CardHeader>
