@@ -166,6 +166,126 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     }
   };
 
+  const handleRegisterPatientForEvent = async (patientId: string) => {
+    setLoading(true);
+    try {
+      // Check if patient already has a visit for this event
+      const { data: existingVisit, error: visitCheckError } = await supabase
+        .from("patient_visits")
+        .select("id")
+        .eq("patient_id", patientId)
+        .eq("event_id", selectedEvent.id)
+        .maybeSingle();
+
+      if (visitCheckError) throw visitCheckError;
+
+      if (existingVisit) {
+        toast({
+          title: "Patient already registered",
+          description: "This patient is already registered for this event.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get next queue number
+      const { data: existingVisits, error: visitsError } = await supabase
+        .from("patient_visits")
+        .select("queue_number")
+        .eq("event_id", selectedEvent.id)
+        .order("queue_number", { ascending: false })
+        .limit(1);
+
+      if (visitsError) throw visitsError;
+
+      const nextQueueNumber = (existingVisits?.[0]?.queue_number || 0) + 1;
+
+      // Create patient visit record
+      const { data: visit, error: visitError } = await supabase
+        .from("patient_visits")
+        .insert([{
+          patient_id: patientId,
+          event_id: selectedEvent.id,
+          queue_number: nextQueueNumber,
+          status: 'checked_in'
+        }])
+        .select()
+        .single();
+
+      if (visitError) throw visitError;
+
+      // Get "Know Your Numbers" service ID
+      const { data: knowYourNumbersService, error: serviceError } = await supabase
+        .from("services")
+        .select("id")
+        .ilike("name", "%know your numbers%")
+        .single();
+
+      if (serviceError) throw serviceError;
+
+      // Prepare service queue entries - always start with "Know Your Numbers"
+      const serviceQueueEntries = [
+        {
+          patient_visit_id: visit.id,
+          service_id: knowYourNumbersService.id,
+          queue_position: 1,
+          status: 'waiting'
+        }
+      ];
+
+      // Add other selected services after "Know Your Numbers"
+      if (selectedServices.length > 0) {
+        const otherServiceEntries = selectedServices
+          .filter(serviceId => serviceId !== knowYourNumbersService.id)
+          .map((serviceId, index) => ({
+            patient_visit_id: visit.id,
+            service_id: serviceId,
+            queue_position: index + 2,
+            status: 'waiting'
+          }));
+        
+        serviceQueueEntries.push(...otherServiceEntries);
+      }
+
+      const { error: queueError } = await supabase
+        .from("service_queue")
+        .insert(serviceQueueEntries);
+
+      if (queueError) throw queueError;
+
+      // Get patient name for success message
+      const { data: patientData, error: patientError } = await supabase
+        .from("patients")
+        .select("first_name, last_name")
+        .eq("id", patientId)
+        .single();
+
+      if (patientError) throw patientError;
+
+      toast({
+        title: "Patient registered successfully",
+        description: `${patientData.first_name} ${patientData.last_name} has been assigned queue number ${nextQueueNumber}.`,
+      });
+
+      // Reset form
+      setPatientData(initialPatientData);
+      setSelectedServices([knowYourNumbersServiceId]);
+      setIsUpdateMode(false);
+      setExistingPatientId('');
+      setDuplicatePatient(null);
+      onRegistrationComplete();
+
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description: "Failed to register patient for this event. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRegisterPatient = async () => {
     if (!patientData.first_name || !patientData.last_name) {
       toast({
@@ -210,6 +330,10 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
 
         if (updateError) throw updateError;
         patient = updatedPatient;
+        
+        // After updating, register for the current event
+        await handleRegisterPatientForEvent(patient.id);
+        return;
       } else {
         // Create new patient record
         const { data: newPatient, error: patientError } = await supabase
@@ -317,7 +441,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     }
   };
 
-  const handleUpdateExistingPatient = () => {
+  const handleUpdateExistingPatient = async () => {
     if (duplicatePatient) {
       // Pre-populate form with existing patient data
       setPatientData({
@@ -340,8 +464,11 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
       });
       setExistingPatientId(duplicatePatient.id);
       setIsUpdateMode(true);
+      setShowDuplicateDialog(false);
+      
+      // Automatically proceed with registration for the current event
+      await handleRegisterPatientForEvent(duplicatePatient.id);
     }
-    setShowDuplicateDialog(false);
   };
 
   const handleContinueRegistration = async () => {
