@@ -328,20 +328,65 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
 
       console.log("Patient update successful");
 
-      // Update service selections if patient has a visit for this event
+      // Check if patient has a visit for this event, if not create one
       const { data: visitData, error: visitError } = await supabase
         .from("patient_visits")
         .select("id")
         .eq("patient_id", patient.id)
         .eq("event_id", selectedEvent.id)
-        .single();
+        .maybeSingle();
 
-      if (visitData && !visitError) {
+      if (visitError && visitError.code !== 'PGRST116') {
+        throw visitError;
+      }
+
+      let patientVisitId = visitData?.id;
+
+      // If no visit exists, create one
+      if (!visitData) {
+        console.log("No existing visit found, creating new visit for current event");
+        
+        // Get next queue number
+        const { data: existingVisits, error: queueError } = await supabase
+          .from("patient_visits")
+          .select("queue_number")
+          .eq("event_id", selectedEvent.id)
+          .order("queue_number", { ascending: false })
+          .limit(1);
+
+        if (queueError) throw queueError;
+
+        const nextQueueNumber = (existingVisits?.[0]?.queue_number || 0) + 1;
+
+        // Create new visit
+        const { data: newVisit, error: createVisitError } = await supabase
+          .from("patient_visits")
+          .insert([{
+            patient_id: patient.id,
+            event_id: selectedEvent.id,
+            queue_number: nextQueueNumber,
+            status: 'checked_in'
+          }])
+          .select("id")
+          .single();
+
+        if (createVisitError) throw createVisitError;
+        
+        patientVisitId = newVisit.id;
+        
+        toast({
+          title: "Patient registered for event",
+          description: `Patient has been assigned queue number ${nextQueueNumber} for this event.`,
+        });
+      }
+
+      // Update service selections for the visit
+      if (patientVisitId) {
         // Check if patient has completed "Know Your Numbers" before deleting
         const { data: kynStatus } = await supabase
           .from("service_queue")
           .select("status")
-          .eq("patient_visit_id", visitData.id)
+          .eq("patient_visit_id", patientVisitId)
           .eq("service_id", knowYourNumbersServiceId)
           .maybeSingle();
           
@@ -351,7 +396,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         const { error: deleteError } = await supabase
           .from("service_queue")
           .delete()
-          .eq("patient_visit_id", visitData.id);
+          .eq("patient_visit_id", patientVisitId);
 
         if (deleteError) throw deleteError;
 
@@ -361,7 +406,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         
         if (knowYourNumbersServiceId) {
           queueEntriesToAdd.push({
-            patient_visit_id: visitData.id,
+            patient_visit_id: patientVisitId,
             service_id: knowYourNumbersServiceId,
             status: kynCompleted ? 'completed' : 'waiting'
           });
@@ -372,7 +417,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
           selectedServices.forEach(serviceId => {
             if (serviceId !== knowYourNumbersServiceId) {
               queueEntriesToAdd.push({
-                patient_visit_id: visitData.id,
+                patient_visit_id: patientVisitId,
                 service_id: serviceId,
                 status: 'waiting'
               });
@@ -383,8 +428,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         if (queueEntriesToAdd.length > 0) {
           const { error: insertError } = await supabase
             .from("service_queue")
-            .insert(queueEntriesToAdd
-            );
+            .insert(queueEntriesToAdd);
 
           if (insertError) throw insertError;
         }
