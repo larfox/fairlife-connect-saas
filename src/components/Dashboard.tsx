@@ -554,27 +554,31 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
                             <Eye className="h-4 w-4" />
                             Queue
                           </Button>
-                          {event.status === 'open' ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCloseEvent(event.id)}
-                              className="gap-1"
-                            >
-                              <X className="h-4 w-4" />
-                              Close
-                            </Button>
-                          ) : event.status === 'closed' ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenEvent(event.id)}
-                              className="gap-1"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                              Reopen
-                            </Button>
-                          ) : null}
+                          {permissions.isAdmin && (
+                            <>
+                              {event.status === 'open' ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCloseEvent(event.id)}
+                                  className="gap-1"
+                                >
+                                  <X className="h-4 w-4" />
+                                  Close
+                                </Button>
+                              ) : event.status === 'closed' ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenEvent(event.id)}
+                                  className="gap-1"
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  Reopen
+                                </Button>
+                              ) : null}
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
