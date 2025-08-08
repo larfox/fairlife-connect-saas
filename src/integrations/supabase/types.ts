@@ -820,6 +820,10 @@ export type Database = {
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           event_id: string | null
+          eye_injury_history: string | null
+          eye_surgery_history: string | null
+          eye_symptoms: string[] | null
+          family_eye_history: Json | null
           first_name: string
           gender: string | null
           id: string
@@ -835,6 +839,8 @@ export type Database = {
           town_id: string | null
           town_name: string | null
           updated_at: string
+          wears_contacts: boolean | null
+          wears_glasses: boolean | null
         }
         Insert: {
           allergies?: string | null
@@ -844,6 +850,10 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           event_id?: string | null
+          eye_injury_history?: string | null
+          eye_surgery_history?: string | null
+          eye_symptoms?: string[] | null
+          family_eye_history?: Json | null
           first_name: string
           gender?: string | null
           id?: string
@@ -859,6 +869,8 @@ export type Database = {
           town_id?: string | null
           town_name?: string | null
           updated_at?: string
+          wears_contacts?: boolean | null
+          wears_glasses?: boolean | null
         }
         Update: {
           allergies?: string | null
@@ -868,6 +880,10 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           event_id?: string | null
+          eye_injury_history?: string | null
+          eye_surgery_history?: string | null
+          eye_symptoms?: string[] | null
+          family_eye_history?: Json | null
           first_name?: string
           gender?: string | null
           id?: string
@@ -883,6 +899,8 @@ export type Database = {
           town_id?: string | null
           town_name?: string | null
           updated_at?: string
+          wears_contacts?: boolean | null
+          wears_glasses?: boolean | null
         }
         Relationships: [
           {

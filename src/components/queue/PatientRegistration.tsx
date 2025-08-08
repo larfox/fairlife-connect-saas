@@ -6,9 +6,7 @@ import { User, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
-import { PatientBasicInfoForm } from "./forms/PatientBasicInfoForm";
-import { PatientMedicalInfoForm } from "./forms/PatientMedicalInfoForm";
-import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
+import { PatientBasicInfoForm, PatientMedicalInfoForm, PatientOpticianInfoForm, ServiceSelectionForm } from "./forms";
 import { usePatientRegistration } from "@/hooks/usePatientRegistration";
 import AutocompletePatientSearch from "./AutocompletePatientSearch";
 import { DuplicatePatientDialog } from "./DuplicatePatientDialog";
@@ -106,6 +104,13 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
           <Separator />
 
           <PatientMedicalInfoForm
+            patientData={patientData}
+            onChange={updatePatientData}
+          />
+
+          <Separator />
+
+          <PatientOpticianInfoForm
             patientData={patientData}
             onChange={updatePatientData}
           />
