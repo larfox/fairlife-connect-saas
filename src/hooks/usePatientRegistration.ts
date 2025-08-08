@@ -443,6 +443,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
 
   const handleUpdateExistingPatient = async () => {
     if (duplicatePatient) {
+      console.log("Updating existing patient:", duplicatePatient);
       // Pre-populate form with existing patient data
       setPatientData({
         first_name: duplicatePatient.first_name || "",
@@ -466,8 +467,13 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
       setIsUpdateMode(true);
       setShowDuplicateDialog(false);
       
+      console.log("About to register patient for event:", duplicatePatient.id);
       // Automatically proceed with registration for the current event
-      await handleRegisterPatientForEvent(duplicatePatient.id);
+      try {
+        await handleRegisterPatientForEvent(duplicatePatient.id);
+      } catch (error) {
+        console.error("Error registering patient for event:", error);
+      }
     }
   };
 
