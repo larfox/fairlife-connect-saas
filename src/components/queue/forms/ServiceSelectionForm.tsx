@@ -19,7 +19,9 @@ export const ServiceSelectionForm = ({ services, selectedServices, onServiceTogg
   const getFilteredServices = () => {
     return services.filter(service => {
       const isPapSmear = service.name.toLowerCase().includes('pap') || service.name.toLowerCase().includes('smear');
-      if (isPapSmear && patientGender !== 'female') {
+      // Only filter out PAP smear if patient is explicitly male or other gender
+      // Allow PAP smear to show when gender is not yet selected or is female
+      if (isPapSmear && patientGender && patientGender !== 'female') {
         return false;
       }
       return true;
