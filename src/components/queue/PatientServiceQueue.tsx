@@ -4,7 +4,7 @@ import { ServiceQueueCard } from './ServiceQueueCard';
 import PatientDetailsModal from './PatientDetailsModalWithPermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { useStaffPermissions } from '@/hooks/useStaffPermissions';
+import { useStaffPermissions, clearPermissionsCache } from '@/hooks/useStaffPermissions';
 
 interface PatientServiceQueueProps {
   selectedEvent: any;
@@ -18,6 +18,10 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        // Ensure fresh permissions on load to reflect latest admin status
+        clearPermissionsCache(user.email);
+      }
       setCurrentUser(user);
     };
     fetchUser();
