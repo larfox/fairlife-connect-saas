@@ -256,3 +256,18 @@ export const deleteQueueItemInDB = async (queueItemId: string): Promise<void> =>
   }
   console.log('Queue item deleted successfully');
 };
+
+// Delete ALL queue items for a given patient visit (used for admin removal from registration/KYN)
+export const deleteAllQueueItemsForVisitInDB = async (patientVisitId: string): Promise<void> => {
+  console.log('=== DELETE deleteAllQueueItemsForVisitInDB ===');
+  console.log('Patient Visit ID:', patientVisitId);
+  const { error } = await supabase
+    .from('service_queue')
+    .delete()
+    .eq('patient_visit_id', patientVisitId);
+  if (error) {
+    console.error('Error deleting all queue items for visit:', error);
+    throw error;
+  }
+  console.log('All queue items for visit deleted successfully');
+};

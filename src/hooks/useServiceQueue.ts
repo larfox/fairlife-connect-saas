@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ServiceGroup } from '@/types/serviceQueue';
-import { fetchServiceQueuesData, updateServiceStatusInDB, deleteQueueItemInDB } from '@/services/serviceQueueService';
+import { fetchServiceQueuesData, updateServiceStatusInDB, deleteQueueItemInDB, deleteAllQueueItemsForVisitInDB } from '@/services/serviceQueueService';
 
 export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
   const [serviceQueues, setServiceQueues] = useState<ServiceGroup[]>([]);
@@ -53,15 +53,25 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
     }
   };
 
-  const deleteQueueItem = async (queueItemId: string) => {
-    try {
-      await deleteQueueItemInDB(queueItemId);
-      await fetchServiceQueues();
-      onStatsUpdate();
-    } catch (error) {
-      console.error('Error deleting queue item:', error);
-    }
-  };
+const deleteQueueItem = async (queueItemId: string) => {
+  try {
+    await deleteQueueItemInDB(queueItemId);
+    await fetchServiceQueues();
+    onStatsUpdate();
+  } catch (error) {
+    console.error('Error deleting queue item:', error);
+  }
+};
+
+const deleteAllQueueItemsForVisit = async (patientVisitId: string) => {
+  try {
+    await deleteAllQueueItemsForVisitInDB(patientVisitId);
+    await fetchServiceQueues();
+    onStatsUpdate();
+  } catch (error) {
+    console.error('Error deleting all queue items for visit:', error);
+  }
+};
 
   const getFilteredPatients = (serviceGroup: ServiceGroup) => {
     const filter = statusFilters[serviceGroup.service.id];
@@ -78,13 +88,14 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
     }));
   };
 
-  return {
-    serviceQueues,
-    loading,
-    statusFilters,
-    updateServiceStatus,
-    deleteQueueItem,
-    getFilteredPatients,
-    handleStatusFilterChange
-  };
+return {
+  serviceQueues,
+  loading,
+  statusFilters,
+  updateServiceStatus,
+  deleteQueueItem,
+  deleteAllQueueItemsForVisit,
+  getFilteredPatients,
+  handleStatusFilterChange
+};
 }

@@ -54,6 +54,8 @@ interface PatientQueueItemProps {
   onViewDetails: (patient: any) => void;
   onUpdateStatus: (queueItemId: string, newStatus: string) => void;
   onDeleteQueueItem?: (queueItemId: string) => void;
+  onDeleteAllQueuesForVisit?: (patientVisitId: string) => void;
+  isAdmin?: boolean;
 }
 
 export function PatientQueueItem({ 
@@ -61,7 +63,9 @@ export function PatientQueueItem({
   index, 
   onViewDetails, 
   onUpdateStatus,
-  onDeleteQueueItem
+  onDeleteQueueItem,
+  onDeleteAllQueuesForVisit,
+  isAdmin
 }: PatientQueueItemProps) {
   const getServiceProviderName = (patient: QueueItem) => {
     if (patient.doctor) {
@@ -133,28 +137,28 @@ export function PatientQueueItem({
             </DropdownMenuItem>
           )}
 
-          {onDeleteQueueItem && isKnowYourNumbers && (
+          {isKnowYourNumbers && isAdmin && onDeleteAllQueuesForVisit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem className="text-destructive">
-                  Delete from queue
+                  Delete from all queues
                 </DropdownMenuItem>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Remove from Know Your Numbers queue?</AlertDialogTitle>
+                  <AlertDialogTitle>Remove from all queues?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently remove the patient from this service queue. This action cannot be undone.
+                    This will permanently remove the patient from all service queues for this visit. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => {
-                      onDeleteQueueItem(patient.id);
+                      onDeleteAllQueuesForVisit(patient.patient_visit_id);
                       toast({
-                        title: 'Removed from queue',
-                        description: 'Patient removed from Know Your Numbers queue.',
+                        title: 'Removed from all queues',
+                        description: 'Patient removed from all service queues for this visit.',
                       });
                     }}
                   >

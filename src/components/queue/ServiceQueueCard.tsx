@@ -61,6 +61,8 @@ interface ServiceQueueCardProps {
   onViewDetails: (patient: any) => void;
   onUpdateStatus: (queueItemId: string, newStatus: string) => void;
   onDeleteQueueItem: (queueItemId: string) => void;
+  onDeleteAllQueuesForVisit: (patientVisitId: string) => void;
+  isAdmin: boolean;
   getFilteredPatients: (serviceGroup: ServiceGroup) => QueueItem[];
 }
 
@@ -71,6 +73,8 @@ export function ServiceQueueCard({
   onViewDetails,
   onUpdateStatus,
   onDeleteQueueItem,
+  onDeleteAllQueuesForVisit,
+  isAdmin,
   getFilteredPatients
 }: ServiceQueueCardProps) {
   const filteredPatients = getFilteredPatients(serviceGroup);
@@ -130,6 +134,8 @@ export function ServiceQueueCard({
                 onViewDetails={onViewDetails}
                 onUpdateStatus={onUpdateStatus}
                 onDeleteQueueItem={onDeleteQueueItem}
+                onDeleteAllQueuesForVisit={onDeleteAllQueuesForVisit}
+                isAdmin={isAdmin}
               />
             ))}
           </div>

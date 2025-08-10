@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useServiceQueue } from '@/hooks/useServiceQueue';
 import { ServiceQueueCard } from './ServiceQueueCard';
 import PatientDetailsModal from './PatientDetailsModalWithPermissions';
+import { supabase } from '@/integrations/supabase/client';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 
 interface PatientServiceQueueProps {
   selectedEvent: any;
@@ -10,6 +13,17 @@ interface PatientServiceQueueProps {
 
 export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientServiceQueueProps) {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    fetchUser();
+  }, []);
+
+  const { isAdmin } = useStaffPermissions(currentUser);
   
   const {
     serviceQueues,
@@ -17,6 +31,7 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
     statusFilters,
     updateServiceStatus,
     deleteQueueItem,
+    deleteAllQueueItemsForVisit,
     getFilteredPatients,
     handleStatusFilterChange
   } = useServiceQueue(selectedEvent, onStatsUpdate);
@@ -40,6 +55,8 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
           onViewDetails={setSelectedPatient}
           onUpdateStatus={updateServiceStatus}
           onDeleteQueueItem={deleteQueueItem}
+          onDeleteAllQueuesForVisit={deleteAllQueueItemsForVisit}
+          isAdmin={isAdmin}
           getFilteredPatients={getFilteredPatients}
         />
       ))}
