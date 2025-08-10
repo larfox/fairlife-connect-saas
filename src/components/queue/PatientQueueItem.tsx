@@ -4,6 +4,8 @@ import { Eye, MoreHorizontal } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 
 interface QueueItem {
   id: string;
@@ -51,13 +53,15 @@ interface PatientQueueItemProps {
   index: number;
   onViewDetails: (patient: any) => void;
   onUpdateStatus: (queueItemId: string, newStatus: string) => void;
+  onDeleteQueueItem?: (queueItemId: string) => void;
 }
 
 export function PatientQueueItem({ 
   patient, 
   index, 
   onViewDetails, 
-  onUpdateStatus 
+  onUpdateStatus,
+  onDeleteQueueItem
 }: PatientQueueItemProps) {
   const getServiceProviderName = (patient: QueueItem) => {
     if (patient.doctor) {
@@ -95,6 +99,7 @@ export function PatientQueueItem({
   };
 
   const getStatusChangeDropdown = (patient: QueueItem) => {
+    const isKnowYourNumbers = patient.service.name.toLowerCase().includes('know your numbers');
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -126,6 +131,38 @@ export function PatientQueueItem({
             <DropdownMenuItem onClick={() => onUpdateStatus(patient.id, 'unavailable')}>
               Change to Unavailable
             </DropdownMenuItem>
+          )}
+
+          {onDeleteQueueItem && isKnowYourNumbers && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <DropdownMenuItem className="text-destructive">
+                  Delete from queue
+                </DropdownMenuItem>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove from Know Your Numbers queue?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove the patient from this service queue. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      onDeleteQueueItem(patient.id);
+                      toast({
+                        title: 'Removed from queue',
+                        description: 'Patient removed from Know Your Numbers queue.',
+                      });
+                    }}
+                  >
+                    Confirm
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

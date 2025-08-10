@@ -242,3 +242,17 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
   
   console.log('=== END updateServiceStatusInDB ===');
 };
+
+export const deleteQueueItemInDB = async (queueItemId: string): Promise<void> => {
+  console.log('=== DELETE deleteQueueItemInDB ===');
+  console.log('Queue Item ID:', queueItemId);
+  const { error } = await supabase
+    .from('service_queue')
+    .delete()
+    .eq('id', queueItemId);
+  if (error) {
+    console.error('Error deleting queue item:', error);
+    throw error;
+  }
+  console.log('Queue item deleted successfully');
+};

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ServiceGroup } from '@/types/serviceQueue';
-import { fetchServiceQueuesData, updateServiceStatusInDB } from '@/services/serviceQueueService';
+import { fetchServiceQueuesData, updateServiceStatusInDB, deleteQueueItemInDB } from '@/services/serviceQueueService';
 
 export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
   const [serviceQueues, setServiceQueues] = useState<ServiceGroup[]>([]);
@@ -53,6 +53,16 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
     }
   };
 
+  const deleteQueueItem = async (queueItemId: string) => {
+    try {
+      await deleteQueueItemInDB(queueItemId);
+      await fetchServiceQueues();
+      onStatsUpdate();
+    } catch (error) {
+      console.error('Error deleting queue item:', error);
+    }
+  };
+
   const getFilteredPatients = (serviceGroup: ServiceGroup) => {
     const filter = statusFilters[serviceGroup.service.id];
     if (!filter || filter === 'all') {
@@ -73,6 +83,7 @@ export function useServiceQueue(selectedEvent: any, onStatsUpdate: () => void) {
     loading,
     statusFilters,
     updateServiceStatus,
+    deleteQueueItem,
     getFilteredPatients,
     handleStatusFilterChange
   };

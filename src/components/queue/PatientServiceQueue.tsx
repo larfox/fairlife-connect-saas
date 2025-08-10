@@ -16,6 +16,7 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
     loading,
     statusFilters,
     updateServiceStatus,
+    deleteQueueItem,
     getFilteredPatients,
     handleStatusFilterChange
   } = useServiceQueue(selectedEvent, onStatsUpdate);
@@ -38,6 +39,7 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
           onFilterChange={handleStatusFilterChange}
           onViewDetails={setSelectedPatient}
           onUpdateStatus={updateServiceStatus}
+          onDeleteQueueItem={deleteQueueItem}
           getFilteredPatients={getFilteredPatients}
         />
       ))}

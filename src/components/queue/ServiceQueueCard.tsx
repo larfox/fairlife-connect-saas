@@ -60,6 +60,7 @@ interface ServiceQueueCardProps {
   onFilterChange: (serviceId: string, status: string) => void;
   onViewDetails: (patient: any) => void;
   onUpdateStatus: (queueItemId: string, newStatus: string) => void;
+  onDeleteQueueItem: (queueItemId: string) => void;
   getFilteredPatients: (serviceGroup: ServiceGroup) => QueueItem[];
 }
 
@@ -69,6 +70,7 @@ export function ServiceQueueCard({
   onFilterChange,
   onViewDetails,
   onUpdateStatus,
+  onDeleteQueueItem,
   getFilteredPatients
 }: ServiceQueueCardProps) {
   const filteredPatients = getFilteredPatients(serviceGroup);
@@ -127,6 +129,7 @@ export function ServiceQueueCard({
                 index={index}
                 onViewDetails={onViewDetails}
                 onUpdateStatus={onUpdateStatus}
+                onDeleteQueueItem={onDeleteQueueItem}
               />
             ))}
           </div>
