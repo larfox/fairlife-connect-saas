@@ -104,6 +104,8 @@ export function PatientQueueItem({
 
   const getStatusChangeDropdown = (patient: QueueItem) => {
     const isKnowYourNumbers = patient.service.name.toLowerCase().includes('know your numbers');
+    const hasDeleteAll = Boolean(isAdmin && onDeleteAllQueuesForVisit);
+    console.debug('Status dropdown gates', { isKnowYourNumbers, isAdmin, hasDeleteAll, serviceName: patient.service.name, queueItemId: patient.id });
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -115,7 +117,7 @@ export function PatientQueueItem({
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="z-50 bg-popover text-popover-foreground shadow-md">
           {patient.status !== 'waiting' && (
             <DropdownMenuItem onClick={() => onUpdateStatus(patient.id, 'waiting')}>
               Change to Waiting

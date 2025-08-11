@@ -28,6 +28,7 @@ export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientSer
   }, []);
 
   const { isAdmin } = useStaffPermissions(currentUser);
+  console.debug('PatientServiceQueue permissions', { email: currentUser?.email, isAdmin });
   
   const {
     serviceQueues,
