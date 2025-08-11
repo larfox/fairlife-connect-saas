@@ -67,6 +67,10 @@ export function PatientQueueItem({
   onDeleteAllQueuesForVisit,
   isAdmin
 }: PatientQueueItemProps) {
+  const serviceName = (patient.service?.name || '').toLowerCase().trim();
+  const isKYN = serviceName.includes('know your numbers') || serviceName.includes('know-your-numbers') || serviceName.includes('kyn');
+  console.debug('PatientQueueItem KYN button gates', { serviceName, isKYN, isAdmin, hasDeleteItem: !!onDeleteQueueItem, queueItemId: patient.id });
+
   const getServiceProviderName = (patient: QueueItem) => {
     if (patient.doctor) {
       return `Dr. ${patient.doctor.first_name} ${patient.doctor.last_name}`;
@@ -103,9 +107,8 @@ export function PatientQueueItem({
   };
 
   const getStatusChangeDropdown = (patient: QueueItem) => {
-    const isKnowYourNumbers = patient.service.name.toLowerCase().includes('know your numbers');
     const hasDeleteAll = Boolean(isAdmin && onDeleteAllQueuesForVisit);
-    console.debug('Status dropdown gates', { isKnowYourNumbers, isAdmin, hasDeleteAll, serviceName: patient.service.name, queueItemId: patient.id });
+    console.debug('Status dropdown gates', { isKYN, isAdmin, hasDeleteAll, serviceName, queueItemId: patient.id });
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -140,7 +143,7 @@ export function PatientQueueItem({
           )}
 
           {/* Admin-only delete options for Know Your Numbers */}
-          {isKnowYourNumbers && isAdmin && (
+          {isKYN && isAdmin && (
             <>
               {onDeleteQueueItem && (
                 <AlertDialog>
@@ -254,7 +257,7 @@ export function PatientQueueItem({
         {getNextAvailableAction(patient)}
         
         {/* Quick delete for KYN (inline) */}
-        {patient.service.name.toLowerCase().includes('know your numbers') && onDeleteQueueItem && (
+        {isKYN && isAdmin && onDeleteQueueItem && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
