@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Eye, MoreHorizontal } from 'lucide-react';
+import { Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -253,6 +253,45 @@ export function PatientQueueItem({
         
         {getNextAvailableAction(patient)}
         
+        {/* Quick delete for KYN (inline) */}
+        {patient.service.name.toLowerCase().includes('know your numbers') && onDeleteQueueItem && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="ml-1 p-1 h-7"
+                aria-label="Remove from Know Your Numbers"
+                title="Remove from Know Your Numbers"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove from this service?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will remove the patient from the Know Your Numbers service queue only.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    onDeleteQueueItem(patient.id);
+                    toast({
+                      title: 'Removed from this service',
+                      description: 'Patient removed from the Know Your Numbers queue.',
+                    });
+                  }}
+                >
+                  Confirm
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
         {/* Status correction dropdown */}
         {getStatusChangeDropdown(patient)}
       </div>
