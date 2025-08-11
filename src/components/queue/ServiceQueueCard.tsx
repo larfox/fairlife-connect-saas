@@ -1,7 +1,12 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ServiceStatusFilter } from './ServiceStatusFilter';
 import { PatientQueueItem } from './PatientQueueItem';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface QueueItem {
   id: string;
@@ -78,6 +83,7 @@ export function ServiceQueueCard({
   getFilteredPatients
 }: ServiceQueueCardProps) {
   const filteredPatients = getFilteredPatients(serviceGroup);
+  const isKnowYourNumbers = serviceGroup.service.name.toLowerCase().includes('know your numbers');
   
   // Calculate service summary statistics
   const totalRegistered = serviceGroup.patients.length;
@@ -90,12 +96,62 @@ export function ServiceQueueCard({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>{serviceGroup.service.name}</span>
-          <ServiceStatusFilter
-            serviceId={serviceGroup.service.id}
-            currentFilter={statusFilter}
-            patientCount={filteredPatients.length}
-            onFilterChange={onFilterChange}
-          />
+          <div className="flex items-center gap-2">
+            <ServiceStatusFilter
+              serviceId={serviceGroup.service.id}
+              currentFilter={statusFilter}
+              patientCount={filteredPatients.length}
+              onFilterChange={onFilterChange}
+            />
+            {isKnowYourNumbers && isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Remove Patient
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Select Patient to Remove</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Choose a patient to permanently remove from all service queues for this visit. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {serviceGroup.patients.map((patient) => (
+                      <div key={patient.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <div className="font-medium">
+                            #{patient.patient_visit.queue_number} - {patient.patient_visit.patient.first_name} {patient.patient_visit.patient.last_name}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {patient.patient_visit.patient.patient_number}
+                          </div>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            onDeleteAllQueuesForVisit(patient.patient_visit_id);
+                            toast({
+                              title: 'Patient removed from all queues',
+                              description: `${patient.patient_visit.patient.first_name} ${patient.patient_visit.patient.last_name} has been removed from all service queues.`,
+                            });
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </CardTitle>
         {serviceGroup.service.description && (
           <p className="text-sm text-muted-foreground">{serviceGroup.service.description}</p>
