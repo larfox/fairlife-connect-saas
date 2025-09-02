@@ -213,6 +213,68 @@ export const PrintableReport = ({
         );
       })}
       
+      {/* Totals Section */}
+      <div className="print-section">
+        <h2 className="print-section-title">Report Totals</h2>
+        <div style={{ padding: '10px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6' }}>
+          {(() => {
+            const totalPatients = data.reduce((sum, section) => sum + section.patient_count, 0);
+            const isRegistrationReport = data.length > 0 && data[0].patients.length > 0 && data[0].patients[0].serviceMap !== undefined;
+            
+            if (isRegistrationReport && data.length > 0) {
+              const availableServices = data[0].patients[0].availableServices || [];
+              const serviceTotals: { [service: string]: number } = {};
+              
+              // Calculate service totals
+              availableServices.forEach(service => {
+                serviceTotals[service] = data.reduce((total, section) => {
+                  return total + section.patients.filter(patient => patient.serviceMap?.[service]).length;
+                }, 0);
+              });
+              
+              return (
+                <div>
+                  <p style={{ margin: '5px 0', fontWeight: 'bold', fontSize: '14px' }}>
+                    <strong>Total Patients Registered: {totalPatients}</strong>
+                  </p>
+                  <div style={{ marginTop: '10px' }}>
+                    <p style={{ margin: '5px 0', fontWeight: 'bold', fontSize: '12px' }}>Service Registration Totals:</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '5px', marginLeft: '10px' }}>
+                      {availableServices.map(service => (
+                        <p key={service} style={{ margin: '2px 0', fontSize: '11px' }}>
+                          • {service}: {serviceTotals[service]} patients
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            } else {
+              return (
+                <div>
+                  <p style={{ margin: '5px 0', fontWeight: 'bold', fontSize: '14px' }}>
+                    <strong>Total Patients: {totalPatients}</strong>
+                  </p>
+                  <p style={{ margin: '5px 0', fontSize: '12px' }}>
+                    Total Sections: {data.length}
+                  </p>
+                  <div style={{ marginTop: '10px' }}>
+                    <p style={{ margin: '5px 0', fontWeight: 'bold', fontSize: '12px' }}>Breakdown by Section:</p>
+                    <div style={{ marginLeft: '10px' }}>
+                      {data.map((section, index) => (
+                        <p key={index} style={{ margin: '2px 0', fontSize: '11px' }}>
+                          • {section.section_name}: {section.patient_count} patients
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+          })()}
+        </div>
+      </div>
+      
       <div className="print-footer">
         Page {data.length > 1 ? 'Multiple Pages' : '1 of 1'}
       </div>
