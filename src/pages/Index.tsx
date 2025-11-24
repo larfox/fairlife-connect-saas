@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Heart, 
   Calendar, 
@@ -25,24 +26,66 @@ const Index = () => {
   const [authModalTab, setAuthModalTab] = useState<"signin" | "signup">("signin");
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener with enhanced error handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        
+        // Handle different auth events
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('Token refreshed successfully');
+          setSession(session);
+          setUser(session?.user ?? null);
+        } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+          setSession(null);
+          setUser(null);
+        } else if (event === 'SIGNED_IN') {
+          console.log('User signed in');
+          setSession(session);
+          setUser(session?.user ?? null);
+        } else {
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
+    // Check for existing session with error handling
+    const initSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session initialization error:', error);
+          toast({
+            title: "Authentication Error",
+            description: "There was a problem with your session. Please sign in again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        console.log('Initial session:', session?.user?.email);
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (error) {
+        console.error('Failed to initialize session:', error);
+        toast({
+          title: "Connection Error",
+          description: "Unable to connect to authentication service. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    initSession();
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [toast]);
 
   const handleSignIn = () => {
     setAuthModalTab("signin");
