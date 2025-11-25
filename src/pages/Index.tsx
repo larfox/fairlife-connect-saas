@@ -17,6 +17,7 @@ import {
 import Header from "@/components/Header";
 import AuthModal from "@/components/AuthModal";
 import Dashboard from "@/components/Dashboard";
+import SessionRecoveryModal from "@/components/SessionRecoveryModal";
 import heroImage from "@/assets/health-fair-collage.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -26,10 +27,12 @@ const Index = () => {
   const [authModalTab, setAuthModalTab] = useState<"signin" | "signup">("signin");
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [isSessionRecoveryOpen, setIsSessionRecoveryOpen] = useState(false);
+  const [userEmailForRecovery, setUserEmailForRecovery] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener with enhanced error handling
+    // Set up auth state listener with session recovery
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email);
@@ -43,11 +46,22 @@ const Index = () => {
           console.log('User signed out');
           setSession(null);
           setUser(null);
+          setIsSessionRecoveryOpen(false);
         } else if (event === 'SIGNED_IN') {
           console.log('User signed in');
           setSession(session);
           setUser(session?.user ?? null);
+          setIsSessionRecoveryOpen(false);
+        } else if (event === 'USER_UPDATED') {
+          setSession(session);
+          setUser(session?.user ?? null);
         } else {
+          // For any other events, check if we lost the session unexpectedly
+          if (!session && user) {
+            console.log('Session lost unexpectedly, showing recovery modal');
+            setUserEmailForRecovery(user.email || "");
+            setIsSessionRecoveryOpen(true);
+          }
           setSession(session);
           setUser(session?.user ?? null);
         }
@@ -103,6 +117,13 @@ const Index = () => {
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
+  };
+
+  const handleSessionRecoverySuccess = () => {
+    toast({
+      title: "Session Restored",
+      description: "You've been successfully signed in again.",
+    });
   };
 
   // If authenticated, show dashboard
@@ -353,6 +374,14 @@ const Index = () => {
         onClose={() => setIsAuthModalOpen(false)}
         defaultTab={authModalTab}
         onAuthSuccess={handleAuthSuccess}
+      />
+
+      {/* Session Recovery Modal */}
+      <SessionRecoveryModal
+        isOpen={isSessionRecoveryOpen}
+        onClose={() => setIsSessionRecoveryOpen(false)}
+        onRecoverySuccess={handleSessionRecoverySuccess}
+        userEmail={userEmailForRecovery}
       />
     </div>
   );
