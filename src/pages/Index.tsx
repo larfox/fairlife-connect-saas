@@ -101,7 +101,7 @@ const Index = () => {
           isAuthenticated={!!user}
           onSignOut={handleSignOut}
         />
-        <Dashboard />
+        <Dashboard user={user} />
       </>
     );
   }

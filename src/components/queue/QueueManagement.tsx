@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Search, UserPlus, Activity, Clock, CheckCircle, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { User as SupabaseUser } from "@supabase/supabase-js";
+import { useUser } from "@/contexts/UserContext";
 import PatientRegistration from "./PatientRegistration";
 import ServiceQueue from "./ServiceQueue";
 import { PatientServiceQueue } from "./PatientServiceQueue";
@@ -21,6 +21,7 @@ interface QueueManagementProps {
 }
 
 const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
+  const { user: currentUser } = useUser();
   const [activeTab, setActiveTab] = useState("registration");
   const [queueStats, setQueueStats] = useState({
     totalPatients: 0,
@@ -29,33 +30,29 @@ const QueueManagement = ({ selectedEvent, onBack }: QueueManagementProps) => {
     completed: 0
   });
   const [services, setServices] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [refreshCounter, setRefreshCounter] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-      
-      if (user?.email) {
+    const fetchUserName = async () => {
+      if (currentUser?.email) {
         // Fetch user's name from staff table
         const { data: staff } = await supabase
           .from('staff')
           .select('first_name, last_name')
-          .eq('email', user.email)
+          .eq('email', currentUser.email)
           .single();
         
         if (staff) {
           setCurrentUserName(`${staff.first_name} ${staff.last_name}`);
         } else {
-          setCurrentUserName(user.email);
+          setCurrentUserName(currentUser.email);
         }
       }
     };
-    getCurrentUser();
-  }, []);
+    fetchUserName();
+  }, [currentUser]);
 
   useEffect(() => {
     if (selectedEvent) {

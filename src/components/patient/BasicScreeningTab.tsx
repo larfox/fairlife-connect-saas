@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Heart, Edit, Save, X, Grid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/UserContext";
 
 interface BasicScreening {
   id: string;
@@ -48,6 +49,7 @@ interface BasicScreeningTabProps {
 }
 
 const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
+  const { user } = useUser();
   const [basicScreening, setBasicScreening] = useState<BasicScreening | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -98,7 +100,6 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
 
   const getCurrentStaff = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       console.log("Current user:", user);
       if (user) {
         // Try staff table first

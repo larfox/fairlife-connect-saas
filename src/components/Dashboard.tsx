@@ -33,6 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { User } from "@supabase/supabase-js";
+import { UserProvider } from "@/contexts/UserContext";
 import FoundationManagement from "@/components/FoundationManagement";
 import PatientManagement from "@/components/PatientManagement";
 import EventsManagement from "@/components/EventsManagement";
@@ -42,15 +43,15 @@ import HelpManual from "@/components/HelpManual";
 
 
 interface DashboardProps {
+  user: User;
   selectedEventId?: string;
 }
 
-const Dashboard = ({ selectedEventId }: DashboardProps) => {
+const Dashboard = ({ user, selectedEventId }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<"dashboard" | "foundation" | "patients" | "events" | "queue" | "reports" | "help">("dashboard");
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [dashboardStats, setDashboardStats] = useState({
     totalPatients: 0,
     inProgress: 0,
@@ -59,15 +60,6 @@ const Dashboard = ({ selectedEventId }: DashboardProps) => {
   });
   const { toast } = useToast();
   const permissions = useStaffPermissions(user);
-
-  // Get current user
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getCurrentUser();
-  }, []);
 
   // Fetch events and stats from database
   useEffect(() => {
