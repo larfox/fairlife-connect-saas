@@ -32,26 +32,25 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener with session recovery
+    let isInitialLoad = true;
+    
+    // Set up auth state listener - MUST be synchronous to prevent deadlocks
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {  // NOT async!
         console.log('Auth state change:', event, session?.user?.email);
         
-        // Handle different auth events
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('Token refreshed successfully');
-          setSession(session);
-          setUser(session?.user ?? null);
-        } else if (event === 'SIGNED_OUT') {
+        // Handle different auth events - only synchronous state updates
+        if (event === 'SIGNED_OUT') {
           console.log('User signed out');
           setSession(null);
           setUser(null);
           setIsSessionRecoveryOpen(false);
-        } else if (event === 'SIGNED_IN') {
-          console.log('User signed in');
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log('User signed in or token refreshed');
           setSession(session);
           setUser(session?.user ?? null);
           setIsSessionRecoveryOpen(false);
+          isInitialLoad = false; // Prevent getSession from running after sign-in
         } else if (event === 'USER_UPDATED') {
           setSession(session);
           setUser(session?.user ?? null);
@@ -68,38 +67,37 @@ const Index = () => {
       }
     );
 
-    // Check for existing session with error handling
-    const initSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Session initialization error:', error);
-          toast({
-            title: "Authentication Error",
-            description: "There was a problem with your session. Please sign in again.",
-            variant: "destructive",
-          });
-          return;
+    // Only check for existing session on INITIAL page load
+    if (isInitialLoad) {
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        // Double-check we didn't sign in during the async call
+        if (isInitialLoad) {
+          if (error) {
+            console.error('Session initialization error:', error);
+            toast({
+              title: "Authentication Error",
+              description: "There was a problem with your session. Please sign in again.",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          console.log('Initial session:', session?.user?.email);
+          setSession(session);
+          setUser(session?.user ?? null);
         }
-        
-        console.log('Initial session:', session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (error) {
+      }).catch((error) => {
         console.error('Failed to initialize session:', error);
         toast({
           title: "Connection Error",
           description: "Unable to connect to authentication service. Please refresh the page.",
           variant: "destructive",
         });
-      }
-    };
-    
-    initSession();
+      });
+    }
 
     return () => subscription.unsubscribe();
-  }, [toast]);
+  }, [toast, user]);
 
   const handleSignIn = () => {
     setAuthModalTab("signin");
