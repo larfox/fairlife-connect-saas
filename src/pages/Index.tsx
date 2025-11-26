@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ const Index = () => {
   const { toast } = useToast();
   
   // Track last sign-in time to ignore spurious sign-outs from backend errors
-  const [lastSignInTime, setLastSignInTime] = useState<number>(0);
+  const lastSignInTimeRef = useRef<number>(0);
 
   useEffect(() => {
     // Set up auth state listener - MUST be synchronous to prevent deadlocks
@@ -52,7 +52,7 @@ const Index = () => {
         if (event === 'SIGNED_OUT') {
           // Ignore spurious sign-outs that happen within 5 seconds of sign-in
           // These are caused by the backend refresh error, not actual user sign-outs
-          const timeSinceSignIn = Date.now() - lastSignInTime;
+          const timeSinceSignIn = Date.now() - lastSignInTimeRef.current;
           if (timeSinceSignIn < 5000) {
             console.log('Ignoring spurious SIGNED_OUT event from backend error (', timeSinceSignIn, 'ms after sign-in)');
             return; // Keep the current session
@@ -64,7 +64,7 @@ const Index = () => {
           setIsSessionRecoveryOpen(false);
         } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
           console.log('User signed in or initial session loaded');
-          setLastSignInTime(Date.now()); // Track sign-in time
+          lastSignInTimeRef.current = Date.now(); // Track sign-in time
           setSession(session);
           setUser(session?.user ?? null);
           setIsSessionRecoveryOpen(false);
