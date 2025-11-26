@@ -6,14 +6,34 @@ import type { SupportedStorage } from '@supabase/supabase-js';
 const SUPABASE_URL = "https://njcwpdgrdcxlaglvdxkx.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qY3dwZGdyZGN4bGFnbHZkeGt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4NTUxNjIsImV4cCI6MjA2NzQzMTE2Mn0.zdBBVL3F7FIgweSvcpsupyOvldeyvLRvG_6bdlBxATE";
 
+// Custom memory storage that blocks session removal
+// Prevents spurious session clearing from backend token refresh bugs
+class MemoryStorage implements SupportedStorage {
+  private storage = new Map<string, string>();
+  
+  getItem(key: string): string | null {
+    return this.storage.get(key) ?? null;
+  }
+  
+  setItem(key: string, value: string): void {
+    this.storage.set(key, value);
+  }
+  
+  removeItem(key: string): void {
+    // BLOCK removal - backend bug causes spurious session clearing
+    // Session will be cleared on page refresh (expected behavior)
+    console.log('[MemoryStorage] Blocked removal of:', key);
+  }
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: undefined, // Disable storage completely to prevent any token refresh attempts
-    persistSession: false, // No session persistence - managed in React state only
-    autoRefreshToken: false, // No automatic token refresh
+    storage: new MemoryStorage(),
+    persistSession: true,
+    autoRefreshToken: false,
     detectSessionInUrl: false,
   }
 });
