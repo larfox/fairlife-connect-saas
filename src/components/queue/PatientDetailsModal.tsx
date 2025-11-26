@@ -28,7 +28,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { User as SupabaseUser } from "@supabase/supabase-js";
+import { useUser } from "@/contexts/UserContext";
 import PapSmearTab from "../patient/PapSmearTab";
 
 interface PatientDetailsModalProps {
@@ -39,7 +39,7 @@ interface PatientDetailsModalProps {
 }
 
 const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetailsModalProps) => {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const { user } = useUser();
   const [visitHistory, setVisitHistory] = useState<any[]>([]);
   const [currentVisit, setCurrentVisit] = useState<any>(null);
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -106,13 +106,6 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
   
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Get current user
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-    });
-  }, []);
 
   useEffect(() => {
     if (isOpen && patient) {
