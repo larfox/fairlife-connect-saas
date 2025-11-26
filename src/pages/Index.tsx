@@ -39,46 +39,30 @@ const Index = () => {
     // DO NOT call getSession() as it triggers token refresh even with autoRefreshToken disabled
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {  // NOT async!
-        console.log('Auth state change:', event, session?.user?.email);
+        console.log('[AUTH EVENT]', event, 'User:', session?.user?.email, 'Time since sign-in:', Date.now() - lastSignInTimeRef.current);
         
-        // CRITICAL: Ignore TOKEN_REFRESHED events to prevent sign-out from failed refresh
-        // The backend refresh endpoint is broken, but we can stay signed in with the access token
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('Ignoring TOKEN_REFRESHED event to prevent sign-out from backend error');
-          return; // Don't update state, keep current session
+        // CRITICAL: Block ALL events except SIGNED_IN/INITIAL_SESSION within 10 seconds of login
+        // The Supabase backend has a bug causing spurious events
+        const timeSinceSignIn = Date.now() - lastSignInTimeRef.current;
+        if (timeSinceSignIn < 10000 && event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') {
+          console.log('[BLOCKED]', event, '- too soon after sign-in (', timeSinceSignIn, 'ms)');
+          return; // Ignore this event completely
         }
         
-        // Handle different auth events - only synchronous state updates
+        // Handle auth events
         if (event === 'SIGNED_OUT') {
-          // Ignore spurious sign-outs that happen within 5 seconds of sign-in
-          // These are caused by the backend refresh error, not actual user sign-outs
-          const timeSinceSignIn = Date.now() - lastSignInTimeRef.current;
-          if (timeSinceSignIn < 5000) {
-            console.log('Ignoring spurious SIGNED_OUT event from backend error (', timeSinceSignIn, 'ms after sign-in)');
-            return; // Keep the current session
-          }
-          
-          console.log('User signed out');
+          console.log('[SIGN OUT] User signed out');
           setSession(null);
           setUser(null);
           setIsSessionRecoveryOpen(false);
         } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          console.log('User signed in or initial session loaded');
-          lastSignInTimeRef.current = Date.now(); // Track sign-in time
+          console.log('[SIGN IN] Setting user and session');
+          lastSignInTimeRef.current = Date.now();
           setSession(session);
           setUser(session?.user ?? null);
           setIsSessionRecoveryOpen(false);
         } else if (event === 'USER_UPDATED') {
-          console.log('User updated');
-          setSession(session);
-          setUser(session?.user ?? null);
-        } else {
-          // For any other events, check if we lost the session unexpectedly
-          if (!session && user) {
-            console.log('Session lost unexpectedly, showing recovery modal');
-            setUserEmailForRecovery(user.email || "");
-            setIsSessionRecoveryOpen(true);
-          }
+          console.log('[USER UPDATE] Updating user');
           setSession(session);
           setUser(session?.user ?? null);
         }
@@ -86,7 +70,7 @@ const Index = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, [user]);
+  }, []);
 
   const handleSignIn = () => {
     setAuthModalTab("signin");
