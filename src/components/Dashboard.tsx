@@ -63,27 +63,16 @@ const Dashboard = ({ user, selectedEventId }: DashboardProps) => {
 
   // Fetch events and stats from database
   useEffect(() => {
-    const checkSessionAndFetch = async () => {
-      console.log('[Dashboard] Checking for active session...');
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('[Dashboard] Error getting session:', error);
-        return;
-      }
-      
-      if (session) {
-        console.log('[Dashboard] Session active, user:', session.user.email, 'token:', session.access_token.substring(0, 20) + '...');
-        console.log('[Dashboard] Fetching data...');
-        await fetchEvents();
-        await fetchDashboardStats();
-      } else {
-        console.warn('[Dashboard] No active session found, skipping data fetch');
-      }
-    };
-    
-    checkSessionAndFetch();
-  }, []);
+    // Don't call getSession() - it triggers the buggy refresh endpoint
+    // If we have a user prop, we're authenticated and the session is in the client
+    if (user) {
+      console.log('[Dashboard] User authenticated, fetching data for:', user.email);
+      fetchEvents();
+      fetchDashboardStats();
+    } else {
+      console.warn('[Dashboard] No user, skipping data fetch');
+    }
+  }, [user]);
 
   const fetchDashboardStats = async () => {
     try {
