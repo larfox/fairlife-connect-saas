@@ -30,6 +30,9 @@ const Index = () => {
   const [isSessionRecoveryOpen, setIsSessionRecoveryOpen] = useState(false);
   const [userEmailForRecovery, setUserEmailForRecovery] = useState("");
   const { toast } = useToast();
+  
+  // Track last sign-in time to ignore spurious sign-outs from backend errors
+  const [lastSignInTime, setLastSignInTime] = useState<number>(0);
 
   useEffect(() => {
     // Set up auth state listener - MUST be synchronous to prevent deadlocks
@@ -47,12 +50,21 @@ const Index = () => {
         
         // Handle different auth events - only synchronous state updates
         if (event === 'SIGNED_OUT') {
+          // Ignore spurious sign-outs that happen within 5 seconds of sign-in
+          // These are caused by the backend refresh error, not actual user sign-outs
+          const timeSinceSignIn = Date.now() - lastSignInTime;
+          if (timeSinceSignIn < 5000) {
+            console.log('Ignoring spurious SIGNED_OUT event from backend error (', timeSinceSignIn, 'ms after sign-in)');
+            return; // Keep the current session
+          }
+          
           console.log('User signed out');
           setSession(null);
           setUser(null);
           setIsSessionRecoveryOpen(false);
         } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
           console.log('User signed in or initial session loaded');
+          setLastSignInTime(Date.now()); // Track sign-in time
           setSession(session);
           setUser(session?.user ?? null);
           setIsSessionRecoveryOpen(false);
