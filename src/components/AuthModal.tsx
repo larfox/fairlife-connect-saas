@@ -14,9 +14,10 @@ interface AuthModalProps {
   onClose: () => void;
   defaultTab?: "signin" | "signup";
   onAuthSuccess?: () => void;
+  onLoginSuccess?: (session: any) => void;
 }
 
-const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: AuthModalProps) => {
+const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess, onLoginSuccess }: AuthModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -41,8 +42,13 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess }: Au
         description: "You have successfully signed in to HealthFair Pro.",
       });
       
-      onAuthSuccess?.();
-      onClose();
+      // Pass session to parent for manual session management
+      if (data.session && onLoginSuccess) {
+        onLoginSuccess(data.session);
+      } else {
+        onAuthSuccess?.();
+        onClose();
+      }
     } catch (error: any) {
       toast({
         title: "Sign in failed",
