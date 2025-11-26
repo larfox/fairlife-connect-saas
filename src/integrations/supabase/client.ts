@@ -12,14 +12,18 @@ class MemoryStorage implements SupportedStorage {
   private storage = new Map<string, string>();
   
   getItem(key: string): string | null {
-    return this.storage.get(key) ?? null;
+    const value = this.storage.get(key) ?? null;
+    console.log('[MemoryStorage] getItem:', key, value ? 'found' : 'not found');
+    return value;
   }
   
   setItem(key: string, value: string): void {
+    console.log('[MemoryStorage] setItem:', key, value.substring(0, 50) + '...');
     this.storage.set(key, value);
   }
   
   removeItem(key: string): void {
+    console.log('[MemoryStorage] removeItem:', key);
     this.storage.delete(key);
   }
 }

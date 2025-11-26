@@ -64,15 +64,24 @@ const Dashboard = ({ user, selectedEventId }: DashboardProps) => {
   // Fetch events and stats from database
   useEffect(() => {
     const checkSessionAndFetch = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[Dashboard] Checking for active session...');
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('[Dashboard] Error getting session:', error);
+        return;
+      }
+      
       if (session) {
-        console.log('[Dashboard] Session active, fetching data');
-        fetchEvents();
-        fetchDashboardStats();
+        console.log('[Dashboard] Session active, user:', session.user.email, 'token:', session.access_token.substring(0, 20) + '...');
+        console.log('[Dashboard] Fetching data...');
+        await fetchEvents();
+        await fetchDashboardStats();
       } else {
-        console.warn('[Dashboard] No active session, skipping data fetch');
+        console.warn('[Dashboard] No active session found, skipping data fetch');
       }
     };
+    
     checkSessionAndFetch();
   }, []);
 
