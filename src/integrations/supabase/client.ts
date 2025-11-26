@@ -6,42 +6,14 @@ import type { SupportedStorage } from '@supabase/supabase-js';
 const SUPABASE_URL = "https://njcwpdgrdcxlaglvdxkx.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qY3dwZGdyZGN4bGFnbHZkeGt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4NTUxNjIsImV4cCI6MjA2NzQzMTE2Mn0.zdBBVL3F7FIgweSvcpsupyOvldeyvLRvG_6bdlBxATE";
 
-// Custom memory storage to maintain session without localStorage
-// This avoids triggering problematic token refresh while keeping the session active
-class MemoryStorage implements SupportedStorage {
-  private storage = new Map<string, string>();
-  
-  getItem(key: string): string | null {
-    const value = this.storage.get(key) ?? null;
-    console.log('[MemoryStorage] getItem:', key, value ? 'found' : 'not found');
-    return value;
-  }
-  
-  setItem(key: string, value: string): void {
-    console.log('[MemoryStorage] setItem:', key, value.substring(0, 50) + '...');
-    this.storage.set(key, value);
-  }
-  
-  removeItem(key: string): void {
-    // CRITICAL: Prevent removal of the auth token
-    // The Supabase backend bug causes failed refresh attempts, which try to clear the session
-    // We keep the session to allow authenticated API calls
-    console.log('[MemoryStorage] removeItem blocked for:', key);
-    // Don't actually remove - keep the session
-    // this.storage.delete(key);
-  }
-}
-
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: new MemoryStorage(), // Use in-memory storage to maintain session
-    persistSession: true, // Enable session persistence in memory
-    autoRefreshToken: false, // Disabled to prevent backend token refresh errors
+    storage: undefined, // Disable storage completely to prevent any token refresh attempts
+    persistSession: false, // No session persistence - managed in React state only
+    autoRefreshToken: false, // No automatic token refresh
     detectSessionInUrl: false,
-    // CRITICAL: Prevent storage operations during token refresh errors
-    storageKey: 'sb-njcwpdgrdcxlaglvdxkx-auth-token',
   }
 });
