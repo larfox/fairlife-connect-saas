@@ -92,15 +92,47 @@ const Index = () => {
 
   const handleLoginSuccess = async (session: Session) => {
     console.log('[LOGIN SUCCESS] Manually setting session for API calls');
-    // Manually set the session to ensure API calls use the user's token
-    await supabase.auth.setSession({
+    
+    // Set the session and WAIT for it to complete
+    const { error } = await supabase.auth.setSession({
       access_token: session.access_token,
       refresh_token: session.refresh_token
     });
+    
+    if (error) {
+      console.error('[LOGIN ERROR] Failed to set session:', error);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to establish session. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Verify the session is now active
+    const { data: { session: verifiedSession } } = await supabase.auth.getSession();
+    console.log('[LOGIN VERIFIED] Session active:', !!verifiedSession);
+    
+    if (!verifiedSession) {
+      console.error('[LOGIN ERROR] Session verification failed');
+      toast({
+        title: "Authentication Error",
+        description: "Session verification failed. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // NOW update React state to show Dashboard
     lastSignInTimeRef.current = Date.now();
-    setSession(session);
-    setUser(session?.user ?? null);
+    setSession(verifiedSession);
+    setUser(verifiedSession.user);
     setIsAuthModalOpen(false);
+    
+    toast({
+      title: "Success",
+      description: "Successfully signed in with full data access",
+    });
   };
 
   const handleSessionRecoverySuccess = () => {
