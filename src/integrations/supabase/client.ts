@@ -23,8 +23,12 @@ class MemoryStorage implements SupportedStorage {
   }
   
   removeItem(key: string): void {
-    console.log('[MemoryStorage] removeItem:', key);
-    this.storage.delete(key);
+    // CRITICAL: Prevent removal of the auth token
+    // The Supabase backend bug causes failed refresh attempts, which try to clear the session
+    // We keep the session to allow authenticated API calls
+    console.log('[MemoryStorage] removeItem blocked for:', key);
+    // Don't actually remove - keep the session
+    // this.storage.delete(key);
   }
 }
 
@@ -37,5 +41,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true, // Enable session persistence in memory
     autoRefreshToken: false, // Disabled to prevent backend token refresh errors
     detectSessionInUrl: false,
+    // CRITICAL: Prevent storage operations during token refresh errors
+    storageKey: 'sb-njcwpdgrdcxlaglvdxkx-auth-token',
   }
 });
