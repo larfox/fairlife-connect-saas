@@ -90,6 +90,19 @@ const Index = () => {
     setIsAuthModalOpen(false);
   };
 
+  const handleLoginSuccess = async (session: Session) => {
+    console.log('[LOGIN SUCCESS] Manually setting session for API calls');
+    // Manually set the session to ensure API calls use the user's token
+    await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token
+    });
+    lastSignInTimeRef.current = Date.now();
+    setSession(session);
+    setUser(session?.user ?? null);
+    setIsAuthModalOpen(false);
+  };
+
   const handleSessionRecoverySuccess = () => {
     toast({
       title: "Session Restored",
@@ -345,6 +358,7 @@ const Index = () => {
         onClose={() => setIsAuthModalOpen(false)}
         defaultTab={authModalTab}
         onAuthSuccess={handleAuthSuccess}
+        onLoginSuccess={handleLoginSuccess}
       />
 
       {/* Session Recovery Modal */}
