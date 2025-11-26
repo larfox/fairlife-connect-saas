@@ -13,5 +13,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: false, // Disabled to prevent backend token refresh errors
     autoRefreshToken: false,
     detectSessionInUrl: false,
+    storage: undefined, // Completely disable storage to prevent any refresh attempts
   }
 });
