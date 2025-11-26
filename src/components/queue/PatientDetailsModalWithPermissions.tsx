@@ -20,7 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { User as SupabaseUser } from "@supabase/supabase-js";
+import { useUser } from "@/contexts/UserContext";
 import PapSmearTab from "../patient/PapSmearTab";
 import BasicScreeningTab from "../patient/BasicScreeningTab";
 import ServiceRecordsTab from "../patient/ServiceRecordsTab";
@@ -39,7 +39,7 @@ interface PatientDetailsModalProps {
 }
 
 const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose }: PatientDetailsModalProps) => {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const { user } = useUser();
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [currentVisit, setCurrentVisit] = useState<any>(null);
   const [patientServices, setPatientServices] = useState<any[]>([]);
@@ -64,10 +64,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
   };
 
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
+    const fetchUserName = async () => {
       if (user?.email) {
         // Fetch user's name from staff table
         const { data: staff } = await supabase
@@ -83,8 +80,8 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         }
       }
     };
-    getCurrentUser();
-  }, []);
+    fetchUserName();
+  }, [user]);
 
   useEffect(() => {
     if (isOpen && patient) {

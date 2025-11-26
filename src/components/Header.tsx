@@ -1,8 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, X, RefreshCw } from "lucide-react";
+import { Heart, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   isAuthenticated?: boolean;
@@ -13,36 +11,6 @@ interface HeaderProps {
 
 const Header = ({ isAuthenticated = false, onSignIn, onSignUp, onSignOut }: HeaderProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const { toast } = useToast();
-
-  const handleRefreshSession = async () => {
-    setIsRefreshing(true);
-    try {
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        toast({
-          title: "Session Refresh Failed",
-          description: "Please sign in again to continue.",
-          variant: "destructive",
-        });
-      } else if (data.session) {
-        toast({
-          title: "Session Refreshed",
-          description: "Your session has been updated successfully.",
-        });
-      }
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Unable to refresh session. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   return (
     <header className="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-50">
@@ -75,23 +43,9 @@ const Header = ({ isAuthenticated = false, onSignIn, onSignUp, onSignOut }: Head
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm">
-                  Dashboard
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleRefreshSession}
-                  disabled={isRefreshing}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  Refresh Session
-                </Button>
-                <Button variant="outline" size="sm" onClick={onSignOut}>
-                  Sign Out
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={onSignOut}>
+                Sign Out
+              </Button>
             ) : (
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" size="sm" onClick={onSignIn}>
@@ -131,24 +85,9 @@ const Header = ({ isAuthenticated = false, onSignIn, onSignUp, onSignOut }: Head
               
               <div className="flex flex-col space-y-2 pt-4 border-t border-border">
                 {isAuthenticated ? (
-                  <>
-                    <Button variant="ghost" size="sm" className="justify-start">
-                      Dashboard
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleRefreshSession}
-                      disabled={isRefreshing}
-                      className="justify-start"
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                      Refresh Session
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={onSignOut} className="justify-start">
-                      Sign Out
-                    </Button>
-                  </>
+                  <Button variant="outline" size="sm" onClick={onSignOut} className="justify-start">
+                    Sign Out
+                  </Button>
                 ) : (
                   <>
                     <Button variant="ghost" size="sm" onClick={onSignIn} className="justify-start">

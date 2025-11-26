@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GraduationCap, Edit, Save, X, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/UserContext";
 
 interface BackToSchoolAssessment {
   id: string;
@@ -44,6 +45,7 @@ interface BackToSchoolTabProps {
 }
 
 const BackToSchoolTab = ({ patientVisitId }: BackToSchoolTabProps) => {
+  const { user } = useUser();
   const [assessment, setAssessment] = useState<BackToSchoolAssessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -83,7 +85,6 @@ const BackToSchoolTab = ({ patientVisitId }: BackToSchoolTabProps) => {
 
   const getCurrentStaff = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         let { data: staffData } = await supabase
           .from("staff")
