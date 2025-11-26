@@ -13,6 +13,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: false, // Disabled to prevent backend token refresh errors
-    detectSessionInUrl: true,
+    detectSessionInUrl: false, // Disabled to prevent token validation that triggers refresh
   }
 });
