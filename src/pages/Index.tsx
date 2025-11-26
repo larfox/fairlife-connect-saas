@@ -32,9 +32,8 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    let isInitialLoad = true;
-    
     // Set up auth state listener - MUST be synchronous to prevent deadlocks
+    // DO NOT call getSession() as it triggers token refresh even with autoRefreshToken disabled
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {  // NOT async!
         console.log('Auth state change:', event, session?.user?.email);
@@ -45,12 +44,11 @@ const Index = () => {
           setSession(null);
           setUser(null);
           setIsSessionRecoveryOpen(false);
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          console.log('User signed in or token refreshed');
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          console.log('User signed in, token refreshed, or initial session loaded');
           setSession(session);
           setUser(session?.user ?? null);
           setIsSessionRecoveryOpen(false);
-          isInitialLoad = false; // Prevent getSession from running after sign-in
         } else if (event === 'USER_UPDATED') {
           setSession(session);
           setUser(session?.user ?? null);
@@ -67,37 +65,8 @@ const Index = () => {
       }
     );
 
-    // Only check for existing session on INITIAL page load
-    if (isInitialLoad) {
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        // Double-check we didn't sign in during the async call
-        if (isInitialLoad) {
-          if (error) {
-            console.error('Session initialization error:', error);
-            toast({
-              title: "Authentication Error",
-              description: "There was a problem with your session. Please sign in again.",
-              variant: "destructive",
-            });
-            return;
-          }
-          
-          console.log('Initial session:', session?.user?.email);
-          setSession(session);
-          setUser(session?.user ?? null);
-        }
-      }).catch((error) => {
-        console.error('Failed to initialize session:', error);
-        toast({
-          title: "Connection Error",
-          description: "Unable to connect to authentication service. Please refresh the page.",
-          variant: "destructive",
-        });
-      });
-    }
-
     return () => subscription.unsubscribe();
-  }, [toast, user]);
+  }, [user]);
 
   const handleSignIn = () => {
     setAuthModalTab("signin");
