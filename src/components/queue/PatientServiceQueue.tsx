@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useServiceQueue } from '@/hooks/useServiceQueue';
 import { ServiceQueueCard } from './ServiceQueueCard';
 import PatientDetailsModal from './PatientDetailsModalWithPermissions';
-import { supabase } from '@/integrations/supabase/client';
-import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useStaffPermissions, clearPermissionsCache } from '@/hooks/useStaffPermissions';
+import { useUser } from '@/contexts/UserContext';
 
 interface PatientServiceQueueProps {
   selectedEvent: any;
@@ -13,19 +12,14 @@ interface PatientServiceQueueProps {
 
 export function PatientServiceQueue({ selectedEvent, onStatsUpdate }: PatientServiceQueueProps) {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+  const { user: currentUser } = useUser();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) {
-        // Ensure fresh permissions on load to reflect latest admin status
-        clearPermissionsCache(user.email);
-      }
-      setCurrentUser(user);
-    };
-    fetchUser();
-  }, []);
+    if (currentUser?.email) {
+      // Ensure fresh permissions on load to reflect latest admin status
+      clearPermissionsCache(currentUser.email);
+    }
+  }, [currentUser?.email]);
 
   const { isAdmin } = useStaffPermissions(currentUser);
   console.debug('PatientServiceQueue permissions', { email: currentUser?.email, isAdmin });
