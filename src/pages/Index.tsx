@@ -38,18 +38,26 @@ const Index = () => {
       (event, session) => {  // NOT async!
         console.log('Auth state change:', event, session?.user?.email);
         
+        // CRITICAL: Ignore TOKEN_REFRESHED events to prevent sign-out from failed refresh
+        // The backend refresh endpoint is broken, but we can stay signed in with the access token
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('Ignoring TOKEN_REFRESHED event to prevent sign-out from backend error');
+          return; // Don't update state, keep current session
+        }
+        
         // Handle different auth events - only synchronous state updates
         if (event === 'SIGNED_OUT') {
           console.log('User signed out');
           setSession(null);
           setUser(null);
           setIsSessionRecoveryOpen(false);
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-          console.log('User signed in, token refreshed, or initial session loaded');
+        } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          console.log('User signed in or initial session loaded');
           setSession(session);
           setUser(session?.user ?? null);
           setIsSessionRecoveryOpen(false);
         } else if (event === 'USER_UPDATED') {
+          console.log('User updated');
           setSession(session);
           setUser(session?.user ?? null);
         } else {
