@@ -91,22 +91,10 @@ const Index = () => {
   };
 
   const handleLoginSuccess = async (session: Session) => {
-    console.log('[LOGIN SUCCESS] Manually configuring session');
+    console.log('[LOGIN SUCCESS] Session received from login');
     
-    // Manually set the session in the Supabase client
-    // This configures the client to use the access token for API calls
-    const { error } = await supabase.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token
-    });
-    
-    if (error) {
-      console.error('[LOGIN ERROR] Failed to set session:', error);
-      // Even if setSession fails due to the backend bug, continue anyway
-      // The login already succeeded and we have the session
-    }
-    
-    console.log('[LOGIN SUCCESS] Session configured, updating React state');
+    // DO NOT call setSession() - it triggers the buggy refresh endpoint
+    // The signInWithPassword already configured the session in the client
     
     // Update React state to show Dashboard
     lastSignInTimeRef.current = Date.now();
