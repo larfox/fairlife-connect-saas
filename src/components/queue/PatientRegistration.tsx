@@ -37,7 +37,8 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
     handleRegisterPatient,
     handleUpdateExistingPatient,
     handleContinueRegistration,
-    setShowDuplicateDialog
+    setShowDuplicateDialog,
+    populateFromExistingPatient
   } = usePatientRegistration(selectedEvent, onRegistrationComplete);
 
   useEffect(() => {
@@ -85,7 +86,10 @@ const PatientRegistration = ({ selectedEvent, onRegistrationComplete }: PatientR
 
   return (
     <div className="space-y-6">
-      <AutocompletePatientSearch selectedEvent={selectedEvent} />
+      <AutocompletePatientSearch 
+        selectedEvent={selectedEvent} 
+        onPatientSelect={populateFromExistingPatient}
+      />
       
       <Card>
         <CardHeader>
