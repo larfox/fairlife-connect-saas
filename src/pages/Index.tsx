@@ -21,6 +21,7 @@ import SessionRecoveryModal from "@/components/SessionRecoveryModal";
 import heroImage from "@/assets/health-fair-collage.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
+import { UserProvider } from "@/contexts/UserContext";
 
 const Index = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -118,13 +119,13 @@ const Index = () => {
   // If authenticated, show dashboard
   if (user) {
     return (
-      <>
+      <UserProvider user={user}>
         <Header 
           isAuthenticated={!!user}
           onSignOut={handleSignOut}
         />
         <Dashboard user={user} />
-      </>
+      </UserProvider>
     );
   }
 
