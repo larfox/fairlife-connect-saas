@@ -590,6 +590,30 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     }
   };
 
+  const populateFromExistingPatient = (patient: any) => {
+    console.log("Populating form with existing patient:", patient);
+    setPatientData({
+      first_name: patient.first_name || "",
+      last_name: patient.last_name || "",
+      date_of_birth: patient.date_of_birth || "",
+      gender: patient.gender || "",
+      phone: patient.phone || "",
+      email: patient.email || "",
+      parish_id: patient.parish_id || "",
+      town_id: patient.town_id || "",
+      town_name: patient.town_name || "",
+      emergency_contact_name: patient.emergency_contact_name || "",
+      emergency_contact_phone: patient.emergency_contact_phone || "",
+      medical_conditions: patient.medical_conditions || "",
+      allergies: patient.allergies || "",
+      medications: patient.medications || "",
+      insurance_provider: patient.insurance_provider || "",
+      insurance_number: patient.insurance_number || ""
+    });
+    setExistingPatientId(patient.id);
+    setIsUpdateMode(true);
+  };
+
   return {
     patientData,
     selectedServices,
@@ -603,6 +627,7 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     handleRegisterPatient,
     handleUpdateExistingPatient,
     handleContinueRegistration,
-    setShowDuplicateDialog
+    setShowDuplicateDialog,
+    populateFromExistingPatient
   };
 };

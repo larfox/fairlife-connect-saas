@@ -11,6 +11,7 @@ import { PatientEditModal } from "./PatientEditModal";
 
 interface AutocompletePatientSearchProps {
   selectedEvent: any;
+  onPatientSelect?: (patient: PatientRecord) => void;
 }
 
 interface PatientRecord {
@@ -34,7 +35,7 @@ interface PatientRecord {
   }[];
 }
 
-const AutocompletePatientSearch = ({ selectedEvent }: AutocompletePatientSearchProps) => {
+const AutocompletePatientSearch = ({ selectedEvent, onPatientSelect }: AutocompletePatientSearchProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<PatientRecord[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -156,7 +157,8 @@ const AutocompletePatientSearch = ({ selectedEvent }: AutocompletePatientSearchP
     setSearchTerm(`${patient.first_name} ${patient.last_name} (${patient.patient_number})`);
     setShowDropdown(false);
     setHighlightedIndex(-1);
-    // You can add logic here to handle the selected patient
+    // Notify parent component to populate form
+    onPatientSelect?.(patient);
   };
 
   const addToCurrentEvent = async (patientId: string) => {
@@ -256,7 +258,7 @@ const AutocompletePatientSearch = ({ selectedEvent }: AutocompletePatientSearchP
 
             {/* Dropdown Results */}
             {showDropdown && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg z-[100] max-h-96 overflow-y-auto">
                 {searchResults.map((patient, index) => {
                   const currentEventVisit = patient.patient_visits.find(
                     visit => visit.event?.name === selectedEvent.name
