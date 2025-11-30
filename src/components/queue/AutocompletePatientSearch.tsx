@@ -32,6 +32,10 @@ interface PatientRecord {
     event: {
       name: string;
     };
+    service_queue?: {
+      service_id: string;
+      status: string;
+    }[];
   }[];
 }
 
@@ -92,6 +96,10 @@ const AutocompletePatientSearch = ({ selectedEvent, onPatientSelect }: Autocompl
             status,
             events (
               name
+            ),
+            service_queue (
+              service_id,
+              status
             )
           )
         `)

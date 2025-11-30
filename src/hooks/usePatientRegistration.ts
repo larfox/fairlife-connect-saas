@@ -612,6 +612,20 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
     });
     setExistingPatientId(patient.id);
     setIsUpdateMode(true);
+
+    // Restore services from most recent visit
+    if (patient.patient_visits && patient.patient_visits.length > 0) {
+      const sortedVisits = [...patient.patient_visits].sort(
+        (a: any, b: any) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime()
+      );
+      const mostRecentVisit = sortedVisits[0];
+      
+      if (mostRecentVisit.service_queue && mostRecentVisit.service_queue.length > 0) {
+        const previousServices = mostRecentVisit.service_queue.map((sq: any) => sq.service_id);
+        const uniqueServices = [...new Set([knowYourNumbersServiceId, ...previousServices].filter(Boolean))];
+        setSelectedServices(uniqueServices);
+      }
+    }
   };
 
   return {
