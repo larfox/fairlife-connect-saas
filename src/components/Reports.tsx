@@ -1161,9 +1161,14 @@ const Reports = ({ onBack }: ReportsProps) => {
                         <CardContent>
                           <div className="space-y-2">
                             {service.patients.slice(0, 5).map((patient) => (
-                              <div key={patient.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                                <span className="font-medium">{patient.first_name} {patient.last_name}</span>
-                                <span className="text-sm text-muted-foreground">{patient.parish?.name}</span>
+                              <div key={patient.id} className="flex items-center justify-between p-3 bg-muted/30 rounded">
+                                <div>
+                                  <span className="font-medium">{patient.first_name} {patient.last_name}</span>
+                                  <p className="text-sm text-muted-foreground">
+                                    {patient.patient_number} • {patient.parish?.name}
+                                  </p>
+                                </div>
+                                <Badge variant="outline">{patient.phone || "No phone"}</Badge>
                               </div>
                             ))}
                             {service.patients.length > 5 && (
@@ -1183,9 +1188,14 @@ const Reports = ({ onBack }: ReportsProps) => {
                               </button>
                             )}
                             {service.showAll && service.patients.slice(5).map((patient) => (
-                              <div key={patient.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                                <span className="font-medium">{patient.first_name} {patient.last_name}</span>
-                                <span className="text-sm text-muted-foreground">{patient.parish?.name}</span>
+                              <div key={patient.id} className="flex items-center justify-between p-3 bg-muted/30 rounded">
+                                <div>
+                                  <span className="font-medium">{patient.first_name} {patient.last_name}</span>
+                                  <p className="text-sm text-muted-foreground">
+                                    {patient.patient_number} • {patient.parish?.name}
+                                  </p>
+                                </div>
+                                <Badge variant="outline">{patient.phone || "No phone"}</Badge>
                               </div>
                             ))}
                           </div>
