@@ -1166,7 +1166,7 @@ const Reports = ({ onBack }: ReportsProps) => {
       </div>
 
       <Tabs defaultValue="location" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="location" className="gap-2">
             <MapPin className="h-4 w-4" />
             Location Reports
@@ -1178,6 +1178,10 @@ const Reports = ({ onBack }: ReportsProps) => {
           <TabsTrigger value="parish" className="gap-2">
             <Users className="h-4 w-4" />
             Parish Reports
+          </TabsTrigger>
+          <TabsTrigger value="demographics" className="gap-2">
+            <PieChart className="h-4 w-4" />
+            Demographics
           </TabsTrigger>
           <TabsTrigger value="registration" className="gap-2">
             <UserCheck className="h-4 w-4" />
