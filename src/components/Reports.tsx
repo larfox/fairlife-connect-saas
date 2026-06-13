@@ -10,11 +10,12 @@ import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChar
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, differenceInYears } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { PrintableReport } from "@/components/PrintableReport";
+import { PrintableDemographicReport, DemographicRow, DemographicSummary } from "@/components/PrintableDemographicReport";
 import { createRoot } from "react-dom/client";
 
 interface ReportsProps {
