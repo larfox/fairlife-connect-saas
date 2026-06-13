@@ -1717,6 +1717,160 @@ const Reports = ({ onBack }: ReportsProps) => {
           </Card>
         </TabsContent>
 
+        {/* Demographics Reports */}
+        <TabsContent value="demographics">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Age & Sex Demographics
+              </CardTitle>
+              <CardDescription>
+                Patient breakdown by 10-year age bands and sex, filtered by event or location
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Scope</Label>
+                  <Select value={demographicScope} onValueChange={(v) => setDemographicScope(v as "event" | "location")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="event">By Event</SelectItem>
+                      <SelectItem value="location">By Location</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {demographicScope === "event" ? (
+                  <div className="space-y-2">
+                    <Label>Select Event</Label>
+                    <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose an event" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {events.map((event) => (
+                          <SelectItem key={event.id} value={event.id}>
+                            {event.name} - {event.locations?.name} ({format(new Date(event.event_date), "MMM dd, yyyy")})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Select Location</Label>
+                    <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-4">
+                <Button onClick={generateDemographicReport} disabled={loading} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Generate Report
+                </Button>
+              </div>
+
+              {demographicReport && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">{demographicReport.scopeName}</h3>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={exportDemographicCSV} className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Export CSV
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={printDemographicReport} className="gap-2">
+                        <Printer className="h-4 w-4" />
+                        Print
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Total Patients</p>
+                        <p className="text-2xl font-bold">{demographicReport.summary.totalPatients}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Male</p>
+                        <p className="text-2xl font-bold">{demographicReport.summary.totalMale}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Female</p>
+                        <p className="text-2xl font-bold">{demographicReport.summary.totalFemale}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Avg. Age</p>
+                        <p className="text-2xl font-bold">
+                          {demographicReport.summary.averageAge !== null
+                            ? demographicReport.summary.averageAge.toFixed(1)
+                            : "N/A"}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Age Band</th>
+                          <th className="text-center p-3 font-medium">Male</th>
+                          <th className="text-center p-3 font-medium">Female</th>
+                          <th className="text-center p-3 font-medium">Other/Unspecified</th>
+                          <th className="text-center p-3 font-medium">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {demographicReport.rows.map((row) => (
+                          <tr key={row.band} className="border-t">
+                            <td className="p-3 font-medium">{row.band}</td>
+                            <td className="text-center p-3">{row.male}</td>
+                            <td className="text-center p-3">{row.female}</td>
+                            <td className="text-center p-3">{row.other}</td>
+                            <td className="text-center p-3">{row.total}</td>
+                          </tr>
+                        ))}
+                        <tr className="border-t bg-muted/30 font-semibold">
+                          <td className="p-3">Total</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalMale}</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalFemale}</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalOther}</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalPatients}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+
         {/* Import/Export Tab */}
         <TabsContent value="import-export">
           <div className="grid gap-6">
