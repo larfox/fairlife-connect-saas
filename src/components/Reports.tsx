@@ -91,6 +91,7 @@ const AGE_BANDS = [
 
 const Reports = ({ onBack }: ReportsProps) => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [locations, setLocations] = useState<Tables<"locations">[]>([]);
   const [services, setServices] = useState<Tables<"services">[]>([]);
   const [parishes, setParishes] = useState<Tables<"parishes">[]>([]);
   const [loading, setLoading] = useState(false);
@@ -99,7 +100,12 @@ const Reports = ({ onBack }: ReportsProps) => {
   const [selectedService, setSelectedService] = useState<string>("");
   const [selectedParish, setSelectedParish] = useState<string>("");
   const [selectedServiceFilter, setSelectedServiceFilter] = useState<string>("all");
-  
+
+  // Demographic report state
+  const [demographicScope, setDemographicScope] = useState<"event" | "location">("event");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [demographicReport, setDemographicReport] = useState<DemographicReportData | null>(null);
+
   // Report data
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
   const [serviceReport, setServiceReport] = useState<ServiceReport[]>([]);
