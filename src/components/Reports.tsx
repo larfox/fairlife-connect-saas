@@ -10,11 +10,12 @@ import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChar
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, differenceInYears } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { PrintableReport } from "@/components/PrintableReport";
+import { PrintableDemographicReport, DemographicRow, DemographicSummary } from "@/components/PrintableDemographicReport";
 import { createRoot } from "react-dom/client";
 
 interface ReportsProps {
@@ -70,8 +71,27 @@ type RegistrationReportData = {
   availableServices: string[];
 };
 
+type DemographicReportData = {
+  rows: DemographicRow[];
+  summary: DemographicSummary;
+  scopeName: string;
+};
+
+const AGE_BANDS = [
+  { label: "0-9", min: 0, max: 9 },
+  { label: "10-19", min: 10, max: 19 },
+  { label: "20-29", min: 20, max: 29 },
+  { label: "30-39", min: 30, max: 39 },
+  { label: "40-49", min: 40, max: 49 },
+  { label: "50-59", min: 50, max: 59 },
+  { label: "60-69", min: 60, max: 69 },
+  { label: "70-79", min: 70, max: 79 },
+  { label: "80+", min: 80, max: 200 },
+];
+
 const Reports = ({ onBack }: ReportsProps) => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [locations, setLocations] = useState<Tables<"locations">[]>([]);
   const [services, setServices] = useState<Tables<"services">[]>([]);
   const [parishes, setParishes] = useState<Tables<"parishes">[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,7 +100,12 @@ const Reports = ({ onBack }: ReportsProps) => {
   const [selectedService, setSelectedService] = useState<string>("");
   const [selectedParish, setSelectedParish] = useState<string>("");
   const [selectedServiceFilter, setSelectedServiceFilter] = useState<string>("all");
-  
+
+  // Demographic report state
+  const [demographicScope, setDemographicScope] = useState<"event" | "location">("event");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [demographicReport, setDemographicReport] = useState<DemographicReportData | null>(null);
+
   // Report data
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
   const [serviceReport, setServiceReport] = useState<ServiceReport[]>([]);
@@ -100,19 +125,203 @@ const Reports = ({ onBack }: ReportsProps) => {
 
   const fetchInitialData = async () => {
     try {
-      const [eventsResponse, servicesResponse, parishesResponse] = await Promise.all([
+      const [eventsResponse, servicesResponse, parishesResponse, locationsResponse] = await Promise.all([
         supabase.from("events").select("*, locations(name, address)").eq("is_active", true),
         supabase.from("services").select("*").eq("is_active", true),
-        supabase.from("parishes").select("*")
+        supabase.from("parishes").select("*"),
+        supabase.from("locations").select("*").eq("is_active", true).order("name")
       ]);
 
       if (eventsResponse.data) setEvents(eventsResponse.data);
       if (servicesResponse.data) setServices(servicesResponse.data);
       if (parishesResponse.data) setParishes(parishesResponse.data);
+      if (locationsResponse.data) setLocations(locationsResponse.data);
     } catch (error) {
       console.error("Error fetching initial data:", error);
     }
   };
+
+  const generateDemographicReport = async () => {
+    if (demographicScope === "event" && !selectedEvent) {
+      toast({ title: "Please select an event", variant: "destructive" });
+      return;
+    }
+    if (demographicScope === "location" && !selectedLocation) {
+      toast({ title: "Please select a location", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let eventIds: string[] = [];
+      let scopeName = "";
+
+      if (demographicScope === "event") {
+        eventIds = [selectedEvent];
+        const ev = events.find(e => e.id === selectedEvent);
+        scopeName = ev ? `Event: ${ev.name} - ${ev.locations?.name ?? ""}` : "Selected Event";
+      } else {
+        const locEvents = events.filter(e => e.location_id === selectedLocation);
+        eventIds = locEvents.map(e => e.id);
+        const loc = locations.find(l => l.id === selectedLocation);
+        scopeName = loc ? `Location: ${loc.name}` : "Selected Location";
+        if (eventIds.length === 0) {
+          setDemographicReport({
+            rows: AGE_BANDS.map(b => ({ band: b.label, male: 0, female: 0, other: 0, total: 0 })),
+            summary: { totalPatients: 0, totalMale: 0, totalFemale: 0, totalOther: 0, averageAge: null },
+            scopeName,
+          });
+          toast({ title: "No events found for this location" });
+          return;
+        }
+      }
+
+      const { data: visits, error } = await supabase
+        .from("patient_visits")
+        .select(`patient:patients(id, date_of_birth, gender)`)
+        .in("event_id", eventIds);
+
+      if (error) throw error;
+
+      // De-duplicate patients by id
+      const patientMap = new Map<string, { date_of_birth: string | null; gender: string | null }>();
+      visits?.forEach((v: any) => {
+        const p = v.patient;
+        if (p && !patientMap.has(p.id)) {
+          patientMap.set(p.id, { date_of_birth: p.date_of_birth, gender: p.gender });
+        }
+      });
+
+      // Build matrix
+      const bandIndex = (age: number) =>
+        AGE_BANDS.findIndex(b => age >= b.min && age <= b.max);
+
+      const counts = AGE_BANDS.map(() => ({ male: 0, female: 0, other: 0 }));
+      const unknown = { male: 0, female: 0, other: 0 };
+      let totalMale = 0, totalFemale = 0, totalOther = 0;
+      let ageSum = 0, ageCount = 0;
+
+      const sexBucket = (gender: string | null): "male" | "female" | "other" => {
+        const g = (gender || "").toLowerCase();
+        if (g === "male" || g === "m") return "male";
+        if (g === "female" || g === "f") return "female";
+        return "other";
+      };
+
+      patientMap.forEach(({ date_of_birth, gender }) => {
+        const bucket = sexBucket(gender);
+        if (bucket === "male") totalMale++;
+        else if (bucket === "female") totalFemale++;
+        else totalOther++;
+
+        if (date_of_birth) {
+          const age = differenceInYears(new Date(), new Date(date_of_birth));
+          ageSum += age;
+          ageCount++;
+          const idx = bandIndex(age);
+          if (idx >= 0) counts[idx][bucket]++;
+          else unknown[bucket]++;
+        } else {
+          unknown[bucket]++;
+        }
+      });
+
+      const rows: DemographicRow[] = AGE_BANDS.map((b, i) => ({
+        band: b.label,
+        male: counts[i].male,
+        female: counts[i].female,
+        other: counts[i].other,
+        total: counts[i].male + counts[i].female + counts[i].other,
+      }));
+
+      const unknownTotal = unknown.male + unknown.female + unknown.other;
+      if (unknownTotal > 0) {
+        rows.push({
+          band: "Unknown",
+          male: unknown.male,
+          female: unknown.female,
+          other: unknown.other,
+          total: unknownTotal,
+        });
+      }
+
+      const totalPatients = patientMap.size;
+      const summary: DemographicSummary = {
+        totalPatients,
+        totalMale,
+        totalFemale,
+        totalOther,
+        averageAge: ageCount > 0 ? ageSum / ageCount : null,
+      };
+
+      setDemographicReport({ rows, summary, scopeName });
+
+      toast({
+        title: "Demographic report generated",
+        description: `Analyzed ${totalPatients} patients.`,
+      });
+    } catch (error) {
+      console.error("Error generating demographic report:", error);
+      toast({ title: "Error generating report", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportDemographicCSV = () => {
+    if (!demographicReport) return;
+    const data = [
+      ...demographicReport.rows.map(r => ({
+        age_band: r.band,
+        male: r.male,
+        female: r.female,
+        other_unspecified: r.other,
+        total: r.total,
+      })),
+      {
+        age_band: "Total",
+        male: demographicReport.summary.totalMale,
+        female: demographicReport.summary.totalFemale,
+        other_unspecified: demographicReport.summary.totalOther,
+        total: demographicReport.summary.totalPatients,
+      },
+    ];
+    exportToCSV(data, "demographic_report");
+  };
+
+  const printDemographicReport = () => {
+    if (!demographicReport) {
+      toast({ title: "No data to print", description: "Please generate a report first.", variant: "destructive" });
+      return;
+    }
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) {
+      toast({ title: "Print failed", description: "Please allow popups and try again.", variant: "destructive" });
+      return;
+    }
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Age & Sex Demographic Report</title><meta charset="utf-8"></head><body><div id="print-root"></div></body></html>`);
+    printWindow.document.close();
+    const printContainer = printWindow.document.getElementById("print-root");
+    if (!printContainer) return;
+    const root = createRoot(printContainer);
+    root.render(
+      <PrintableDemographicReport
+        title="Age & Sex Demographic Report"
+        subtitle="Patient Demographic Breakdown"
+        scopeName={demographicReport.scopeName}
+        rows={demographicReport.rows}
+        summary={demographicReport.summary}
+      />
+    );
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      setTimeout(() => printWindow.close(), 100);
+    }, 1000);
+  };
+
+
+
 
   const generateLocationReport = async () => {
     if (!selectedEvent) {
@@ -957,7 +1166,7 @@ const Reports = ({ onBack }: ReportsProps) => {
       </div>
 
       <Tabs defaultValue="location" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="location" className="gap-2">
             <MapPin className="h-4 w-4" />
             Location Reports
@@ -969,6 +1178,10 @@ const Reports = ({ onBack }: ReportsProps) => {
           <TabsTrigger value="parish" className="gap-2">
             <Users className="h-4 w-4" />
             Parish Reports
+          </TabsTrigger>
+          <TabsTrigger value="demographics" className="gap-2">
+            <PieChart className="h-4 w-4" />
+            Demographics
           </TabsTrigger>
           <TabsTrigger value="registration" className="gap-2">
             <UserCheck className="h-4 w-4" />
@@ -1503,6 +1716,160 @@ const Reports = ({ onBack }: ReportsProps) => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Demographics Reports */}
+        <TabsContent value="demographics">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Age & Sex Demographics
+              </CardTitle>
+              <CardDescription>
+                Patient breakdown by 10-year age bands and sex, filtered by event or location
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Scope</Label>
+                  <Select value={demographicScope} onValueChange={(v) => setDemographicScope(v as "event" | "location")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="event">By Event</SelectItem>
+                      <SelectItem value="location">By Location</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {demographicScope === "event" ? (
+                  <div className="space-y-2">
+                    <Label>Select Event</Label>
+                    <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose an event" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {events.map((event) => (
+                          <SelectItem key={event.id} value={event.id}>
+                            {event.name} - {event.locations?.name} ({format(new Date(event.event_date), "MMM dd, yyyy")})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Select Location</Label>
+                    <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-4">
+                <Button onClick={generateDemographicReport} disabled={loading} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Generate Report
+                </Button>
+              </div>
+
+              {demographicReport && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">{demographicReport.scopeName}</h3>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={exportDemographicCSV} className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Export CSV
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={printDemographicReport} className="gap-2">
+                        <Printer className="h-4 w-4" />
+                        Print
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Total Patients</p>
+                        <p className="text-2xl font-bold">{demographicReport.summary.totalPatients}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Male</p>
+                        <p className="text-2xl font-bold">{demographicReport.summary.totalMale}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Female</p>
+                        <p className="text-2xl font-bold">{demographicReport.summary.totalFemale}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Avg. Age</p>
+                        <p className="text-2xl font-bold">
+                          {demographicReport.summary.averageAge !== null
+                            ? demographicReport.summary.averageAge.toFixed(1)
+                            : "N/A"}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Age Band</th>
+                          <th className="text-center p-3 font-medium">Male</th>
+                          <th className="text-center p-3 font-medium">Female</th>
+                          <th className="text-center p-3 font-medium">Other/Unspecified</th>
+                          <th className="text-center p-3 font-medium">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {demographicReport.rows.map((row) => (
+                          <tr key={row.band} className="border-t">
+                            <td className="p-3 font-medium">{row.band}</td>
+                            <td className="text-center p-3">{row.male}</td>
+                            <td className="text-center p-3">{row.female}</td>
+                            <td className="text-center p-3">{row.other}</td>
+                            <td className="text-center p-3">{row.total}</td>
+                          </tr>
+                        ))}
+                        <tr className="border-t bg-muted/30 font-semibold">
+                          <td className="p-3">Total</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalMale}</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalFemale}</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalOther}</td>
+                          <td className="text-center p-3">{demographicReport.summary.totalPatients}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
 
         {/* Import/Export Tab */}
         <TabsContent value="import-export">
