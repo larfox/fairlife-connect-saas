@@ -125,19 +125,22 @@ const Reports = ({ onBack }: ReportsProps) => {
 
   const fetchInitialData = async () => {
     try {
-      const [eventsResponse, servicesResponse, parishesResponse] = await Promise.all([
+      const [eventsResponse, servicesResponse, parishesResponse, locationsResponse] = await Promise.all([
         supabase.from("events").select("*, locations(name, address)").eq("is_active", true),
         supabase.from("services").select("*").eq("is_active", true),
-        supabase.from("parishes").select("*")
+        supabase.from("parishes").select("*"),
+        supabase.from("locations").select("*").eq("is_active", true).order("name")
       ]);
 
       if (eventsResponse.data) setEvents(eventsResponse.data);
       if (servicesResponse.data) setServices(servicesResponse.data);
       if (parishesResponse.data) setParishes(parishesResponse.data);
+      if (locationsResponse.data) setLocations(locationsResponse.data);
     } catch (error) {
       console.error("Error fetching initial data:", error);
     }
   };
+
 
   const generateLocationReport = async () => {
     if (!selectedEvent) {
