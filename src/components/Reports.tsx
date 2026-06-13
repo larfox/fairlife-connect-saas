@@ -71,6 +71,24 @@ type RegistrationReportData = {
   availableServices: string[];
 };
 
+type DemographicReportData = {
+  rows: DemographicRow[];
+  summary: DemographicSummary;
+  scopeName: string;
+};
+
+const AGE_BANDS = [
+  { label: "0-9", min: 0, max: 9 },
+  { label: "10-19", min: 10, max: 19 },
+  { label: "20-29", min: 20, max: 29 },
+  { label: "30-39", min: 30, max: 39 },
+  { label: "40-49", min: 40, max: 49 },
+  { label: "50-59", min: 50, max: 59 },
+  { label: "60-69", min: 60, max: 69 },
+  { label: "70-79", min: 70, max: 79 },
+  { label: "80+", min: 80, max: 200 },
+];
+
 const Reports = ({ onBack }: ReportsProps) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [services, setServices] = useState<Tables<"services">[]>([]);
