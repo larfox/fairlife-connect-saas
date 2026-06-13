@@ -141,6 +141,187 @@ const Reports = ({ onBack }: ReportsProps) => {
     }
   };
 
+  const generateDemographicReport = async () => {
+    if (demographicScope === "event" && !selectedEvent) {
+      toast({ title: "Please select an event", variant: "destructive" });
+      return;
+    }
+    if (demographicScope === "location" && !selectedLocation) {
+      toast({ title: "Please select a location", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let eventIds: string[] = [];
+      let scopeName = "";
+
+      if (demographicScope === "event") {
+        eventIds = [selectedEvent];
+        const ev = events.find(e => e.id === selectedEvent);
+        scopeName = ev ? `Event: ${ev.name} - ${ev.locations?.name ?? ""}` : "Selected Event";
+      } else {
+        const locEvents = events.filter(e => e.location_id === selectedLocation);
+        eventIds = locEvents.map(e => e.id);
+        const loc = locations.find(l => l.id === selectedLocation);
+        scopeName = loc ? `Location: ${loc.name}` : "Selected Location";
+        if (eventIds.length === 0) {
+          setDemographicReport({
+            rows: AGE_BANDS.map(b => ({ band: b.label, male: 0, female: 0, other: 0, total: 0 })),
+            summary: { totalPatients: 0, totalMale: 0, totalFemale: 0, totalOther: 0, averageAge: null },
+            scopeName,
+          });
+          toast({ title: "No events found for this location" });
+          return;
+        }
+      }
+
+      const { data: visits, error } = await supabase
+        .from("patient_visits")
+        .select(`patient:patients(id, date_of_birth, gender)`)
+        .in("event_id", eventIds);
+
+      if (error) throw error;
+
+      // De-duplicate patients by id
+      const patientMap = new Map<string, { date_of_birth: string | null; gender: string | null }>();
+      visits?.forEach((v: any) => {
+        const p = v.patient;
+        if (p && !patientMap.has(p.id)) {
+          patientMap.set(p.id, { date_of_birth: p.date_of_birth, gender: p.gender });
+        }
+      });
+
+      // Build matrix
+      const bandIndex = (age: number) =>
+        AGE_BANDS.findIndex(b => age >= b.min && age <= b.max);
+
+      const counts = AGE_BANDS.map(() => ({ male: 0, female: 0, other: 0 }));
+      const unknown = { male: 0, female: 0, other: 0 };
+      let totalMale = 0, totalFemale = 0, totalOther = 0;
+      let ageSum = 0, ageCount = 0;
+
+      const sexBucket = (gender: string | null): "male" | "female" | "other" => {
+        const g = (gender || "").toLowerCase();
+        if (g === "male" || g === "m") return "male";
+        if (g === "female" || g === "f") return "female";
+        return "other";
+      };
+
+      patientMap.forEach(({ date_of_birth, gender }) => {
+        const bucket = sexBucket(gender);
+        if (bucket === "male") totalMale++;
+        else if (bucket === "female") totalFemale++;
+        else totalOther++;
+
+        if (date_of_birth) {
+          const age = differenceInYears(new Date(), new Date(date_of_birth));
+          ageSum += age;
+          ageCount++;
+          const idx = bandIndex(age);
+          if (idx >= 0) counts[idx][bucket]++;
+          else unknown[bucket]++;
+        } else {
+          unknown[bucket]++;
+        }
+      });
+
+      const rows: DemographicRow[] = AGE_BANDS.map((b, i) => ({
+        band: b.label,
+        male: counts[i].male,
+        female: counts[i].female,
+        other: counts[i].other,
+        total: counts[i].male + counts[i].female + counts[i].other,
+      }));
+
+      const unknownTotal = unknown.male + unknown.female + unknown.other;
+      if (unknownTotal > 0) {
+        rows.push({
+          band: "Unknown",
+          male: unknown.male,
+          female: unknown.female,
+          other: unknown.other,
+          total: unknownTotal,
+        });
+      }
+
+      const totalPatients = patientMap.size;
+      const summary: DemographicSummary = {
+        totalPatients,
+        totalMale,
+        totalFemale,
+        totalOther,
+        averageAge: ageCount > 0 ? ageSum / ageCount : null,
+      };
+
+      setDemographicReport({ rows, summary, scopeName });
+
+      toast({
+        title: "Demographic report generated",
+        description: `Analyzed ${totalPatients} patients.`,
+      });
+    } catch (error) {
+      console.error("Error generating demographic report:", error);
+      toast({ title: "Error generating report", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportDemographicCSV = () => {
+    if (!demographicReport) return;
+    const data = [
+      ...demographicReport.rows.map(r => ({
+        age_band: r.band,
+        male: r.male,
+        female: r.female,
+        other_unspecified: r.other,
+        total: r.total,
+      })),
+      {
+        age_band: "Total",
+        male: demographicReport.summary.totalMale,
+        female: demographicReport.summary.totalFemale,
+        other_unspecified: demographicReport.summary.totalOther,
+        total: demographicReport.summary.totalPatients,
+      },
+    ];
+    exportToCSV(data, "demographic_report");
+  };
+
+  const printDemographicReport = () => {
+    if (!demographicReport) {
+      toast({ title: "No data to print", description: "Please generate a report first.", variant: "destructive" });
+      return;
+    }
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) {
+      toast({ title: "Print failed", description: "Please allow popups and try again.", variant: "destructive" });
+      return;
+    }
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Age & Sex Demographic Report</title><meta charset="utf-8"></head><body><div id="print-root"></div></body></html>`);
+    printWindow.document.close();
+    const printContainer = printWindow.document.getElementById("print-root");
+    if (!printContainer) return;
+    const root = createRoot(printContainer);
+    root.render(
+      <PrintableDemographicReport
+        title="Age & Sex Demographic Report"
+        subtitle="Patient Demographic Breakdown"
+        scopeName={demographicReport.scopeName}
+        rows={demographicReport.rows}
+        summary={demographicReport.summary}
+      />
+    );
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      setTimeout(() => printWindow.close(), 100);
+    }, 1000);
+  };
+
+
+
 
   const generateLocationReport = async () => {
     if (!selectedEvent) {
