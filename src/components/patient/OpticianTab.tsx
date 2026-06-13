@@ -177,7 +177,7 @@ const OpticianTab = ({ patientVisitId }: OpticianTabProps) => {
       
       const { error } = await supabase
         .from("patients")
-        .update({ [field]: value })
+        .update({ [field]: value } as any)
         .eq("id", patient.id);
 
       if (error) throw error;
