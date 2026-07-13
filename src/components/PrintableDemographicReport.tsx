@@ -16,20 +16,29 @@ export interface DemographicSummary {
   averageAge: number | null;
 }
 
+export interface ServiceSummaryRow {
+  service_name: string;
+  patient_count: number;
+}
+
 interface PrintableDemographicReportProps {
   title: string;
   subtitle?: string;
   scopeName?: string;
+  eventsLabel?: string;
   rows: DemographicRow[];
   summary: DemographicSummary;
+  serviceRows?: ServiceSummaryRow[];
 }
 
 export const PrintableDemographicReport = ({
   title,
   subtitle,
   scopeName,
+  eventsLabel,
   rows,
   summary,
+  serviceRows,
 }: PrintableDemographicReportProps) => {
   const pct = (n: number) =>
     summary.totalPatients > 0
@@ -91,6 +100,7 @@ export const PrintableDemographicReport = ({
         {subtitle && <p className="print-subtitle">{subtitle}</p>}
         <div className="print-meta">
           {scopeName && <p>{scopeName}</p>}
+          {eventsLabel && <p>{eventsLabel}</p>}
           <p>Generated: {format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}</p>
         </div>
       </div>
@@ -139,6 +149,34 @@ export const PrintableDemographicReport = ({
           {summary.averageAge !== null ? `${summary.averageAge.toFixed(1)} years` : "N/A"}
         </p>
       </div>
+
+      {serviceRows && serviceRows.length > 0 && (
+        <>
+          <h2 style={{ fontSize: "15px", fontWeight: "bold", margin: "24px 0 8px 0" }}>
+            Health Fair Services Summary
+          </h2>
+          <table className="print-table">
+            <thead>
+              <tr>
+                <th>Service</th>
+                <th>Patients</th>
+              </tr>
+            </thead>
+            <tbody>
+              {serviceRows.map((row) => (
+                <tr key={row.service_name}>
+                  <td>{row.service_name}</td>
+                  <td>{row.patient_count}</td>
+                </tr>
+              ))}
+              <tr className="totals-row">
+                <td>Total (unique across services)</td>
+                <td>{summary.totalPatients}</td>
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
     </div>
   );
 };
