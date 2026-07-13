@@ -16,20 +16,29 @@ export interface DemographicSummary {
   averageAge: number | null;
 }
 
+export interface ServiceSummaryRow {
+  service_name: string;
+  patient_count: number;
+}
+
 interface PrintableDemographicReportProps {
   title: string;
   subtitle?: string;
   scopeName?: string;
+  eventsLabel?: string;
   rows: DemographicRow[];
   summary: DemographicSummary;
+  serviceRows?: ServiceSummaryRow[];
 }
 
 export const PrintableDemographicReport = ({
   title,
   subtitle,
   scopeName,
+  eventsLabel,
   rows,
   summary,
+  serviceRows,
 }: PrintableDemographicReportProps) => {
   const pct = (n: number) =>
     summary.totalPatients > 0
