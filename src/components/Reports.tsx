@@ -78,11 +78,14 @@ type DemographicReportData = {
   scopeName: string;
 };
 
-type LocationSummaryReportData = {
+type EventSummary = {
+  eventId: string;
+  eventName: string;
+  locationName: string;
+  eventDate: string;
   rows: DemographicRow[];
   summary: DemographicSummary;
   serviceRows: ServiceSummaryRow[];
-  eventsLabel: string;
 };
 
 const AGE_BANDS = [
@@ -116,7 +119,7 @@ const Reports = ({ onBack }: ReportsProps) => {
 
   // Location summary report state (multi-event)
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
-  const [locationSummaryReport, setLocationSummaryReport] = useState<LocationSummaryReportData | null>(null);
+  const [locationSummaryReport, setLocationSummaryReport] = useState<EventSummary[] | null>(null);
 
   // Report data
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
@@ -346,21 +349,21 @@ const Reports = ({ onBack }: ReportsProps) => {
 
     setLoading(true);
     try {
-      // Demographics: fetch patient visits for selected events
+      // Demographics: fetch patient visits (with event) for selected events
       const { data: visits, error: visitsError } = await supabase
         .from("patient_visits")
-        .select(`patient:patients(id, date_of_birth, gender)`)
+        .select(`event_id, patient:patients(id, date_of_birth, gender)`)
         .in("event_id", selectedEventIds);
 
       if (visitsError) throw visitsError;
 
-      const patientMap = new Map<string, { date_of_birth: string | null; gender: string | null }>();
-      visits?.forEach((v: any) => {
-        const p = v.patient;
-        if (p && !patientMap.has(p.id)) {
-          patientMap.set(p.id, { date_of_birth: p.date_of_birth, gender: p.gender });
-        }
-      });
+      // Services: unique patients per service, per event
+      const { data: queueData, error: queueError } = await supabase
+        .from("service_queue")
+        .select(`service:services(name), patient_visit:patient_visits!inner(event_id, patient_id)`)
+        .in("patient_visit.event_id", selectedEventIds);
+
+      if (queueError) throw queueError;
 
       const bandIndex = (age: number) => AGE_BANDS.findIndex((b) => age >= b.min && age <= b.max);
       const sexBucket = (gender: string | null): "male" | "female" | "other" => {
@@ -370,81 +373,100 @@ const Reports = ({ onBack }: ReportsProps) => {
         return "other";
       };
 
-      const counts = AGE_BANDS.map(() => ({ male: 0, female: 0, other: 0 }));
-      const unknown = { male: 0, female: 0, other: 0 };
-      let totalMale = 0, totalFemale = 0, totalOther = 0;
-      let ageSum = 0, ageCount = 0;
-
-      patientMap.forEach(({ date_of_birth, gender }) => {
-        const bucket = sexBucket(gender);
-        if (bucket === "male") totalMale++;
-        else if (bucket === "female") totalFemale++;
-        else totalOther++;
-
-        if (date_of_birth) {
-          const age = differenceInYears(new Date(), new Date(date_of_birth));
-          ageSum += age;
-          ageCount++;
-          const idx = bandIndex(age);
-          if (idx >= 0) counts[idx][bucket]++;
-          else unknown[bucket]++;
-        } else {
-          unknown[bucket]++;
-        }
+      // Group patients per event (de-duplicated within each event)
+      const patientsByEvent = new Map<string, Map<string, { date_of_birth: string | null; gender: string | null }>>();
+      visits?.forEach((v: any) => {
+        const eventId = v.event_id;
+        const p = v.patient;
+        if (!eventId || !p) return;
+        if (!patientsByEvent.has(eventId)) patientsByEvent.set(eventId, new Map());
+        const map = patientsByEvent.get(eventId)!;
+        if (!map.has(p.id)) map.set(p.id, { date_of_birth: p.date_of_birth, gender: p.gender });
       });
 
-      const rows: DemographicRow[] = AGE_BANDS.map((b, i) => ({
-        band: b.label,
-        male: counts[i].male,
-        female: counts[i].female,
-        other: counts[i].other,
-        total: counts[i].male + counts[i].female + counts[i].other,
-      }));
-
-      const unknownTotal = unknown.male + unknown.female + unknown.other;
-      if (unknownTotal > 0) {
-        rows.push({ band: "Unknown", male: unknown.male, female: unknown.female, other: unknown.other, total: unknownTotal });
-      }
-
-      const summary: DemographicSummary = {
-        totalPatients: patientMap.size,
-        totalMale,
-        totalFemale,
-        totalOther,
-        averageAge: ageCount > 0 ? ageSum / ageCount : null,
-      };
-
-      // Services summary: unique patients per service
-      const { data: queueData, error: queueError } = await supabase
-        .from("service_queue")
-        .select(`service:services(name), patient_visit:patient_visits!inner(event_id, patient_id)`)
-        .in("patient_visit.event_id", selectedEventIds);
-
-      if (queueError) throw queueError;
-
-      const servicePatients = new Map<string, Set<string>>();
+      // Group services per event (unique patients per service)
+      const servicesByEvent = new Map<string, Map<string, Set<string>>>();
       queueData?.forEach((item: any) => {
-        const serviceName = item.service?.name || "Unknown Service";
+        const eventId = item.patient_visit?.event_id;
         const patientId = item.patient_visit?.patient_id;
-        if (!patientId) return;
-        if (!servicePatients.has(serviceName)) servicePatients.set(serviceName, new Set());
-        servicePatients.get(serviceName)!.add(patientId);
+        const serviceName = item.service?.name || "Unknown Service";
+        if (!eventId || !patientId) return;
+        if (!servicesByEvent.has(eventId)) servicesByEvent.set(eventId, new Map());
+        const svcMap = servicesByEvent.get(eventId)!;
+        if (!svcMap.has(serviceName)) svcMap.set(serviceName, new Set());
+        svcMap.get(serviceName)!.add(patientId);
       });
 
-      const serviceRows: ServiceSummaryRow[] = Array.from(servicePatients.entries())
-        .map(([service_name, ids]) => ({ service_name, patient_count: ids.size }))
-        .sort((a, b) => b.patient_count - a.patient_count);
+      const summaries: EventSummary[] = selectedEventIds.map((eventId) => {
+        const event = events.find((e) => e.id === eventId);
+        const patientMap = patientsByEvent.get(eventId) ?? new Map();
 
-      const eventsLabel =
-        selectedEventIds.length === 1
-          ? `Event: ${events.find((e) => e.id === selectedEventIds[0])?.name ?? ""}`
-          : `${selectedEventIds.length} events included`;
+        const counts = AGE_BANDS.map(() => ({ male: 0, female: 0, other: 0 }));
+        const unknown = { male: 0, female: 0, other: 0 };
+        let totalMale = 0, totalFemale = 0, totalOther = 0;
+        let ageSum = 0, ageCount = 0;
 
-      setLocationSummaryReport({ rows, summary, serviceRows, eventsLabel });
+        patientMap.forEach(({ date_of_birth, gender }) => {
+          const bucket = sexBucket(gender);
+          if (bucket === "male") totalMale++;
+          else if (bucket === "female") totalFemale++;
+          else totalOther++;
 
+          if (date_of_birth) {
+            const age = differenceInYears(new Date(), new Date(date_of_birth));
+            ageSum += age;
+            ageCount++;
+            const idx = bandIndex(age);
+            if (idx >= 0) counts[idx][bucket]++;
+            else unknown[bucket]++;
+          } else {
+            unknown[bucket]++;
+          }
+        });
+
+        const rows: DemographicRow[] = AGE_BANDS.map((b, i) => ({
+          band: b.label,
+          male: counts[i].male,
+          female: counts[i].female,
+          other: counts[i].other,
+          total: counts[i].male + counts[i].female + counts[i].other,
+        }));
+
+        const unknownTotal = unknown.male + unknown.female + unknown.other;
+        if (unknownTotal > 0) {
+          rows.push({ band: "Unknown", male: unknown.male, female: unknown.female, other: unknown.other, total: unknownTotal });
+        }
+
+        const summary: DemographicSummary = {
+          totalPatients: patientMap.size,
+          totalMale,
+          totalFemale,
+          totalOther,
+          averageAge: ageCount > 0 ? ageSum / ageCount : null,
+        };
+
+        const svcMap = servicesByEvent.get(eventId) ?? new Map<string, Set<string>>();
+        const serviceRows: ServiceSummaryRow[] = Array.from(svcMap.entries())
+          .map(([service_name, ids]) => ({ service_name, patient_count: ids.size }))
+          .sort((a, b) => b.patient_count - a.patient_count);
+
+        return {
+          eventId,
+          eventName: event?.name ?? "Unknown Event",
+          locationName: event?.locations?.name ?? "",
+          eventDate: event?.event_date ?? "",
+          rows,
+          summary,
+          serviceRows,
+        };
+      });
+
+      setLocationSummaryReport(summaries);
+
+      const totalPatients = summaries.reduce((sum, s) => sum + s.summary.totalPatients, 0);
       toast({
         title: "Location summary generated",
-        description: `Analyzed ${patientMap.size} patients across ${selectedEventIds.length} event(s).`,
+        description: `Summarized ${totalPatients} patient records across ${summaries.length} event(s).`,
       });
     } catch (error) {
       console.error("Error generating location summary report:", error);
@@ -455,40 +477,33 @@ const Reports = ({ onBack }: ReportsProps) => {
   };
 
   const exportLocationSummaryCSV = () => {
-    if (!locationSummaryReport) return;
-    const data = [
-      { section: "Demographics", label: "Age Band", male: "Male", female: "Female", other: "Other/Unspecified", total: "Total" },
-      ...locationSummaryReport.rows.map((r) => ({
-        section: "Demographics",
-        label: r.band,
-        male: r.male,
-        female: r.female,
-        other: r.other,
-        total: r.total,
-      })),
-      {
+    if (!locationSummaryReport || locationSummaryReport.length === 0) return;
+    const data: Record<string, string | number>[] = [];
+    locationSummaryReport.forEach((ev) => {
+      const eventLabel = `${ev.eventName}${ev.eventDate ? ` (${format(new Date(ev.eventDate), "MMM dd, yyyy")})` : ""}`;
+      data.push({ event: eventLabel, section: "Demographics", label: "Age Band", male: "Male", female: "Female", other: "Other/Unspecified", total: "Total" });
+      ev.rows.forEach((r) => {
+        data.push({ event: eventLabel, section: "Demographics", label: r.band, male: r.male, female: r.female, other: r.other, total: r.total });
+      });
+      data.push({
+        event: eventLabel,
         section: "Demographics",
         label: "Total",
-        male: locationSummaryReport.summary.totalMale,
-        female: locationSummaryReport.summary.totalFemale,
-        other: locationSummaryReport.summary.totalOther,
-        total: locationSummaryReport.summary.totalPatients,
-      },
-      { section: "Services", label: "Service", male: "", female: "", other: "", total: "Patients" },
-      ...locationSummaryReport.serviceRows.map((s) => ({
-        section: "Services",
-        label: s.service_name,
-        male: "",
-        female: "",
-        other: "",
-        total: s.patient_count,
-      })),
-    ];
+        male: ev.summary.totalMale,
+        female: ev.summary.totalFemale,
+        other: ev.summary.totalOther,
+        total: ev.summary.totalPatients,
+      });
+      data.push({ event: eventLabel, section: "Services", label: "Service", male: "", female: "", other: "", total: "Patients" });
+      ev.serviceRows.forEach((s) => {
+        data.push({ event: eventLabel, section: "Services", label: s.service_name, male: "", female: "", other: "", total: s.patient_count });
+      });
+    });
     exportToCSV(data, "location_summary_report");
   };
 
   const printLocationSummaryReport = () => {
-    if (!locationSummaryReport) {
+    if (!locationSummaryReport || locationSummaryReport.length === 0) {
       toast({ title: "No data to print", description: "Please generate a report first.", variant: "destructive" });
       return;
     }
@@ -497,20 +512,27 @@ const Reports = ({ onBack }: ReportsProps) => {
       toast({ title: "Print failed", description: "Please allow popups and try again.", variant: "destructive" });
       return;
     }
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Location Summary Report</title><meta charset="utf-8"></head><body><div id="print-root"></div></body></html>`);
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Location Summary Report</title><meta charset="utf-8"><style>.print-event-section{page-break-after:always;}.print-event-section:last-child{page-break-after:auto;}</style></head><body><div id="print-root"></div></body></html>`);
     printWindow.document.close();
     const printContainer = printWindow.document.getElementById("print-root");
     if (!printContainer) return;
     const root = createRoot(printContainer);
     root.render(
-      <PrintableDemographicReport
-        title="Location Summary Report"
-        subtitle="Age Demographics & Health Fair Services"
-        eventsLabel={locationSummaryReport.eventsLabel}
-        rows={locationSummaryReport.rows}
-        summary={locationSummaryReport.summary}
-        serviceRows={locationSummaryReport.serviceRows}
-      />
+      <>
+        {locationSummaryReport.map((ev) => (
+          <div key={ev.eventId} className="print-event-section">
+            <PrintableDemographicReport
+              title="Event Summary Report"
+              subtitle="Age Demographics & Health Fair Services"
+              scopeName={ev.eventName}
+              eventsLabel={`${ev.locationName}${ev.eventDate ? ` — ${format(new Date(ev.eventDate), "MMMM dd, yyyy")}` : ""}`}
+              rows={ev.rows}
+              summary={ev.summary}
+              serviceRows={ev.serviceRows}
+            />
+          </div>
+        ))}
+      </>
     );
     setTimeout(() => {
       printWindow.focus();
@@ -2137,10 +2159,12 @@ const Reports = ({ onBack }: ReportsProps) => {
                 </Button>
               </div>
 
-              {locationSummaryReport && (
-                <div className="space-y-6">
+              {locationSummaryReport && locationSummaryReport.length > 0 && (
+                <div className="space-y-8">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{locationSummaryReport.eventsLabel}</h3>
+                    <h3 className="text-lg font-semibold">
+                      {locationSummaryReport.length} event summary(ies)
+                    </h3>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={exportLocationSummaryCSV} className="gap-2">
                         <Download className="h-4 w-4" />
@@ -2153,100 +2177,110 @@ const Reports = ({ onBack }: ReportsProps) => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Total Patients</p>
-                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalPatients}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Male</p>
-                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalMale}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Female</p>
-                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalFemale}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Avg. Age</p>
-                        <p className="text-2xl font-bold">
-                          {locationSummaryReport.summary.averageAge !== null
-                            ? locationSummaryReport.summary.averageAge.toFixed(1)
-                            : "N/A"}
+                  {locationSummaryReport.map((ev) => (
+                    <div key={ev.eventId} className="space-y-4 rounded-lg border p-4">
+                      <div>
+                        <h4 className="text-md font-semibold">{ev.eventName}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {ev.locationName}
+                          {ev.eventDate ? ` • ${format(new Date(ev.eventDate), "MMM dd, yyyy")}` : ""}
                         </p>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </div>
 
-                  <div>
-                    <h4 className="text-md font-semibold mb-2">Age & Sex Demographics</h4>
-                    <div className="overflow-x-auto rounded-lg border">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="text-left p-3 font-medium">Age Band</th>
-                            <th className="text-center p-3 font-medium">Male</th>
-                            <th className="text-center p-3 font-medium">Female</th>
-                            <th className="text-center p-3 font-medium">Other/Unspecified</th>
-                            <th className="text-center p-3 font-medium">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {locationSummaryReport.rows.map((row) => (
-                            <tr key={row.band} className="border-t">
-                              <td className="p-3 font-medium">{row.band}</td>
-                              <td className="text-center p-3">{row.male}</td>
-                              <td className="text-center p-3">{row.female}</td>
-                              <td className="text-center p-3">{row.other}</td>
-                              <td className="text-center p-3">{row.total}</td>
-                            </tr>
-                          ))}
-                          <tr className="border-t bg-muted/30 font-semibold">
-                            <td className="p-3">Total</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalMale}</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalFemale}</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalOther}</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalPatients}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Total Patients</p>
+                            <p className="text-2xl font-bold">{ev.summary.totalPatients}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Male</p>
+                            <p className="text-2xl font-bold">{ev.summary.totalMale}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Female</p>
+                            <p className="text-2xl font-bold">{ev.summary.totalFemale}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Avg. Age</p>
+                            <p className="text-2xl font-bold">
+                              {ev.summary.averageAge !== null ? ev.summary.averageAge.toFixed(1) : "N/A"}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </div>
 
-                  <div>
-                    <h4 className="text-md font-semibold mb-2">Health Fair Services Summary</h4>
-                    <div className="overflow-x-auto rounded-lg border">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="text-left p-3 font-medium">Service</th>
-                            <th className="text-center p-3 font-medium">Patients</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {locationSummaryReport.serviceRows.length === 0 && (
-                            <tr className="border-t">
-                              <td className="p-3 text-muted-foreground" colSpan={2}>
-                                No service data for the selected events.
-                              </td>
-                            </tr>
-                          )}
-                          {locationSummaryReport.serviceRows.map((row) => (
-                            <tr key={row.service_name} className="border-t">
-                              <td className="p-3 font-medium">{row.service_name}</td>
-                              <td className="text-center p-3">{row.patient_count}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <div>
+                        <h5 className="text-sm font-semibold mb-2">Age & Sex Demographics</h5>
+                        <div className="overflow-x-auto rounded-lg border">
+                          <table className="w-full text-sm">
+                            <thead className="bg-muted/50">
+                              <tr>
+                                <th className="text-left p-3 font-medium">Age Band</th>
+                                <th className="text-center p-3 font-medium">Male</th>
+                                <th className="text-center p-3 font-medium">Female</th>
+                                <th className="text-center p-3 font-medium">Other/Unspecified</th>
+                                <th className="text-center p-3 font-medium">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ev.rows.map((row) => (
+                                <tr key={row.band} className="border-t">
+                                  <td className="p-3 font-medium">{row.band}</td>
+                                  <td className="text-center p-3">{row.male}</td>
+                                  <td className="text-center p-3">{row.female}</td>
+                                  <td className="text-center p-3">{row.other}</td>
+                                  <td className="text-center p-3">{row.total}</td>
+                                </tr>
+                              ))}
+                              <tr className="border-t bg-muted/30 font-semibold">
+                                <td className="p-3">Total</td>
+                                <td className="text-center p-3">{ev.summary.totalMale}</td>
+                                <td className="text-center p-3">{ev.summary.totalFemale}</td>
+                                <td className="text-center p-3">{ev.summary.totalOther}</td>
+                                <td className="text-center p-3">{ev.summary.totalPatients}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h5 className="text-sm font-semibold mb-2">Health Fair Services Summary</h5>
+                        <div className="overflow-x-auto rounded-lg border">
+                          <table className="w-full text-sm">
+                            <thead className="bg-muted/50">
+                              <tr>
+                                <th className="text-left p-3 font-medium">Service</th>
+                                <th className="text-center p-3 font-medium">Patients</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ev.serviceRows.length === 0 && (
+                                <tr className="border-t">
+                                  <td className="p-3 text-muted-foreground" colSpan={2}>
+                                    No service data for this event.
+                                  </td>
+                                </tr>
+                              )}
+                              {ev.serviceRows.map((row) => (
+                                <tr key={row.service_name} className="border-t">
+                                  <td className="p-3 font-medium">{row.service_name}</td>
+                                  <td className="text-center p-3">{row.patient_count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
             </CardContent>
