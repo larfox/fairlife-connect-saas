@@ -2159,10 +2159,12 @@ const Reports = ({ onBack }: ReportsProps) => {
                 </Button>
               </div>
 
-              {locationSummaryReport && (
-                <div className="space-y-6">
+              {locationSummaryReport && locationSummaryReport.length > 0 && (
+                <div className="space-y-8">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{locationSummaryReport.eventsLabel}</h3>
+                    <h3 className="text-lg font-semibold">
+                      {locationSummaryReport.length} event summary(ies)
+                    </h3>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={exportLocationSummaryCSV} className="gap-2">
                         <Download className="h-4 w-4" />
@@ -2175,100 +2177,110 @@ const Reports = ({ onBack }: ReportsProps) => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Total Patients</p>
-                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalPatients}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Male</p>
-                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalMale}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Female</p>
-                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalFemale}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Avg. Age</p>
-                        <p className="text-2xl font-bold">
-                          {locationSummaryReport.summary.averageAge !== null
-                            ? locationSummaryReport.summary.averageAge.toFixed(1)
-                            : "N/A"}
+                  {locationSummaryReport.map((ev) => (
+                    <div key={ev.eventId} className="space-y-4 rounded-lg border p-4">
+                      <div>
+                        <h4 className="text-md font-semibold">{ev.eventName}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {ev.locationName}
+                          {ev.eventDate ? ` • ${format(new Date(ev.eventDate), "MMM dd, yyyy")}` : ""}
                         </p>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </div>
 
-                  <div>
-                    <h4 className="text-md font-semibold mb-2">Age & Sex Demographics</h4>
-                    <div className="overflow-x-auto rounded-lg border">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="text-left p-3 font-medium">Age Band</th>
-                            <th className="text-center p-3 font-medium">Male</th>
-                            <th className="text-center p-3 font-medium">Female</th>
-                            <th className="text-center p-3 font-medium">Other/Unspecified</th>
-                            <th className="text-center p-3 font-medium">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {locationSummaryReport.rows.map((row) => (
-                            <tr key={row.band} className="border-t">
-                              <td className="p-3 font-medium">{row.band}</td>
-                              <td className="text-center p-3">{row.male}</td>
-                              <td className="text-center p-3">{row.female}</td>
-                              <td className="text-center p-3">{row.other}</td>
-                              <td className="text-center p-3">{row.total}</td>
-                            </tr>
-                          ))}
-                          <tr className="border-t bg-muted/30 font-semibold">
-                            <td className="p-3">Total</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalMale}</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalFemale}</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalOther}</td>
-                            <td className="text-center p-3">{locationSummaryReport.summary.totalPatients}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Total Patients</p>
+                            <p className="text-2xl font-bold">{ev.summary.totalPatients}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Male</p>
+                            <p className="text-2xl font-bold">{ev.summary.totalMale}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Female</p>
+                            <p className="text-2xl font-bold">{ev.summary.totalFemale}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground">Avg. Age</p>
+                            <p className="text-2xl font-bold">
+                              {ev.summary.averageAge !== null ? ev.summary.averageAge.toFixed(1) : "N/A"}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </div>
 
-                  <div>
-                    <h4 className="text-md font-semibold mb-2">Health Fair Services Summary</h4>
-                    <div className="overflow-x-auto rounded-lg border">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="text-left p-3 font-medium">Service</th>
-                            <th className="text-center p-3 font-medium">Patients</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {locationSummaryReport.serviceRows.length === 0 && (
-                            <tr className="border-t">
-                              <td className="p-3 text-muted-foreground" colSpan={2}>
-                                No service data for the selected events.
-                              </td>
-                            </tr>
-                          )}
-                          {locationSummaryReport.serviceRows.map((row) => (
-                            <tr key={row.service_name} className="border-t">
-                              <td className="p-3 font-medium">{row.service_name}</td>
-                              <td className="text-center p-3">{row.patient_count}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <div>
+                        <h5 className="text-sm font-semibold mb-2">Age & Sex Demographics</h5>
+                        <div className="overflow-x-auto rounded-lg border">
+                          <table className="w-full text-sm">
+                            <thead className="bg-muted/50">
+                              <tr>
+                                <th className="text-left p-3 font-medium">Age Band</th>
+                                <th className="text-center p-3 font-medium">Male</th>
+                                <th className="text-center p-3 font-medium">Female</th>
+                                <th className="text-center p-3 font-medium">Other/Unspecified</th>
+                                <th className="text-center p-3 font-medium">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ev.rows.map((row) => (
+                                <tr key={row.band} className="border-t">
+                                  <td className="p-3 font-medium">{row.band}</td>
+                                  <td className="text-center p-3">{row.male}</td>
+                                  <td className="text-center p-3">{row.female}</td>
+                                  <td className="text-center p-3">{row.other}</td>
+                                  <td className="text-center p-3">{row.total}</td>
+                                </tr>
+                              ))}
+                              <tr className="border-t bg-muted/30 font-semibold">
+                                <td className="p-3">Total</td>
+                                <td className="text-center p-3">{ev.summary.totalMale}</td>
+                                <td className="text-center p-3">{ev.summary.totalFemale}</td>
+                                <td className="text-center p-3">{ev.summary.totalOther}</td>
+                                <td className="text-center p-3">{ev.summary.totalPatients}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h5 className="text-sm font-semibold mb-2">Health Fair Services Summary</h5>
+                        <div className="overflow-x-auto rounded-lg border">
+                          <table className="w-full text-sm">
+                            <thead className="bg-muted/50">
+                              <tr>
+                                <th className="text-left p-3 font-medium">Service</th>
+                                <th className="text-center p-3 font-medium">Patients</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ev.serviceRows.length === 0 && (
+                                <tr className="border-t">
+                                  <td className="p-3 text-muted-foreground" colSpan={2}>
+                                    No service data for this event.
+                                  </td>
+                                </tr>
+                              )}
+                              {ev.serviceRows.map((row) => (
+                                <tr key={row.service_name} className="border-t">
+                                  <td className="p-3 font-medium">{row.service_name}</td>
+                                  <td className="text-center p-3">{row.patient_count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
             </CardContent>
