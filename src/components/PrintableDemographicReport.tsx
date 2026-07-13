@@ -108,7 +108,6 @@ export const PrintableDemographicReport = ({
       <table className="print-table">
         <thead>
           <tr>
-            <th>Age Band</th>
             <th>Male</th>
             <th>Female</th>
             <th>Other/Unspecified</th>
@@ -116,17 +115,7 @@ export const PrintableDemographicReport = ({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.band}>
-              <td>{row.band}</td>
-              <td>{row.male}</td>
-              <td>{row.female}</td>
-              <td>{row.other}</td>
-              <td>{row.total}</td>
-            </tr>
-          ))}
           <tr className="totals-row">
-            <td>Total</td>
             <td>{summary.totalMale}</td>
             <td>{summary.totalFemale}</td>
             <td>{summary.totalOther}</td>
@@ -158,20 +147,16 @@ export const PrintableDemographicReport = ({
           <table className="print-table">
             <thead>
               <tr>
-                <th>Service</th>
-                <th>Patients</th>
+                {serviceRows.map((row) => (
+                  <th key={row.service_name}>{row.service_name}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {serviceRows.map((row) => (
-                <tr key={row.service_name}>
-                  <td>{row.service_name}</td>
-                  <td>{row.patient_count}</td>
-                </tr>
-              ))}
-              <tr className="totals-row">
-                <td>Total (unique across services)</td>
-                <td>{summary.totalPatients}</td>
+              <tr>
+                {serviceRows.map((row) => (
+                  <td key={row.service_name}>{row.patient_count}</td>
+                ))}
               </tr>
             </tbody>
           </table>
@@ -180,3 +165,4 @@ export const PrintableDemographicReport = ({
     </div>
   );
 };
+

@@ -481,10 +481,7 @@ const Reports = ({ onBack }: ReportsProps) => {
     const data: Record<string, string | number>[] = [];
     locationSummaryReport.forEach((ev) => {
       const eventLabel = `${ev.eventName}${ev.eventDate ? ` (${format(new Date(ev.eventDate), "MMM dd, yyyy")})` : ""}`;
-      data.push({ event: eventLabel, section: "Demographics", label: "Age Band", male: "Male", female: "Female", other: "Other/Unspecified", total: "Total" });
-      ev.rows.forEach((r) => {
-        data.push({ event: eventLabel, section: "Demographics", label: r.band, male: r.male, female: r.female, other: r.other, total: r.total });
-      });
+      data.push({ event: eventLabel, section: "Demographics", label: "Total", male: "Male", female: "Female", other: "Other/Unspecified", total: "Total" });
       data.push({
         event: eventLabel,
         section: "Demographics",
@@ -494,10 +491,18 @@ const Reports = ({ onBack }: ReportsProps) => {
         other: ev.summary.totalOther,
         total: ev.summary.totalPatients,
       });
-      data.push({ event: eventLabel, section: "Services", label: "Service", male: "", female: "", other: "", total: "Patients" });
-      ev.serviceRows.forEach((s) => {
-        data.push({ event: eventLabel, section: "Services", label: s.service_name, male: "", female: "", other: "", total: s.patient_count });
-      });
+      // Services rotated: one header row of service names, one row of counts
+      if (ev.serviceRows.length > 0) {
+        const serviceHeader: Record<string, string | number> = { event: eventLabel, section: "Services", label: "Service" };
+        const serviceCounts: Record<string, string | number> = { event: eventLabel, section: "Services", label: "Patients" };
+        ev.serviceRows.forEach((s) => {
+          serviceHeader[s.service_name] = s.service_name;
+          serviceCounts[s.service_name] = s.patient_count;
+        });
+        data.push(serviceHeader);
+        data.push(serviceCounts);
+      }
+
     });
     exportToCSV(data, "location_summary_report");
   };
@@ -2217,12 +2222,11 @@ const Reports = ({ onBack }: ReportsProps) => {
                       </div>
 
                       <div>
-                        <h5 className="text-sm font-semibold mb-2">Age & Sex Demographics</h5>
+                        <h5 className="text-sm font-semibold mb-2">Demographics Totals</h5>
                         <div className="overflow-x-auto rounded-lg border">
                           <table className="w-full text-sm">
                             <thead className="bg-muted/50">
                               <tr>
-                                <th className="text-left p-3 font-medium">Age Band</th>
                                 <th className="text-center p-3 font-medium">Male</th>
                                 <th className="text-center p-3 font-medium">Female</th>
                                 <th className="text-center p-3 font-medium">Other/Unspecified</th>
@@ -2230,17 +2234,7 @@ const Reports = ({ onBack }: ReportsProps) => {
                               </tr>
                             </thead>
                             <tbody>
-                              {ev.rows.map((row) => (
-                                <tr key={row.band} className="border-t">
-                                  <td className="p-3 font-medium">{row.band}</td>
-                                  <td className="text-center p-3">{row.male}</td>
-                                  <td className="text-center p-3">{row.female}</td>
-                                  <td className="text-center p-3">{row.other}</td>
-                                  <td className="text-center p-3">{row.total}</td>
-                                </tr>
-                              ))}
                               <tr className="border-t bg-muted/30 font-semibold">
-                                <td className="p-3">Total</td>
                                 <td className="text-center p-3">{ev.summary.totalMale}</td>
                                 <td className="text-center p-3">{ev.summary.totalFemale}</td>
                                 <td className="text-center p-3">{ev.summary.totalOther}</td>
@@ -2254,31 +2248,33 @@ const Reports = ({ onBack }: ReportsProps) => {
                       <div>
                         <h5 className="text-sm font-semibold mb-2">Health Fair Services Summary</h5>
                         <div className="overflow-x-auto rounded-lg border">
-                          <table className="w-full text-sm">
-                            <thead className="bg-muted/50">
-                              <tr>
-                                <th className="text-left p-3 font-medium">Service</th>
-                                <th className="text-center p-3 font-medium">Patients</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {ev.serviceRows.length === 0 && (
+                          {ev.serviceRows.length === 0 ? (
+                            <p className="p-3 text-sm text-muted-foreground">No service data for this event.</p>
+                          ) : (
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted/50">
+                                <tr>
+                                  {ev.serviceRows.map((row) => (
+                                    <th key={row.service_name} className="text-center p-3 font-medium whitespace-nowrap">
+                                      {row.service_name}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
                                 <tr className="border-t">
-                                  <td className="p-3 text-muted-foreground" colSpan={2}>
-                                    No service data for this event.
-                                  </td>
+                                  {ev.serviceRows.map((row) => (
+                                    <td key={row.service_name} className="text-center p-3">
+                                      {row.patient_count}
+                                    </td>
+                                  ))}
                                 </tr>
-                              )}
-                              {ev.serviceRows.map((row) => (
-                                <tr key={row.service_name} className="border-t">
-                                  <td className="p-3 font-medium">{row.service_name}</td>
-                                  <td className="text-center p-3">{row.patient_count}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </tbody>
+                            </table>
+                          )}
                         </div>
                       </div>
+
                     </div>
                   ))}
                 </div>
