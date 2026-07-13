@@ -1,44 +1,50 @@
-# Add Age & Sex Demographic Report
+# Add "Location Summary" Report
 
-Add a new "Demographics" tab to the Reports menu that breaks patients down by **10-year age bands** and **sex**, with the ability to filter by **event or location**, **print**, and **export to CSV**.
+Add a new tab to the Reports menu that combines an **age & sex demographic summary** with a **health-fair services summary** (patients per service). Users pick **multiple events** from a checkbox list, then **generate**, **print**, and **export to CSV**.
 
 ## What the user will see
 
-- A new tab **Demographics** (with a `PieChart` icon) in the Reports tab bar.
-- A scope selector: **By Event** or **By Location** (radio/toggle), then a dropdown of events or locations accordingly.
+- A new **Location Summary** tab (with a `MapPin`/`BarChart3` icon) in the Reports tab bar.
+- A scrollable **checkbox list of all events** (name, location, date), with "Select all / Clear" helpers.
 - A **Generate Report** button.
-- Results: a table/grid of age bands (0-9, 10-19, 20-29, 30-39, 40-49, 50-59, 60-69, 70-79, 80+) as rows, with columns **Male**, **Female**, **Other/Unspecified**, and **Total** — plus a totals row and overall counts (total patients, % male/female, average age).
-- **Print** and **Export CSV** buttons matching the styling of the other report tabs.
+- Results, once generated:
+  - Header showing which events are included and total unique patients.
+  - **Age demographics** section: summary cards (Total, Male, Female, Avg. Age) plus the age-band x sex matrix table (reusing the existing demographic layout).
+  - **Services summary** section: a table listing each service with its count of unique patients.
+  - **Print** and **Export CSV** buttons.
 
 ## How it works
 
-### Data fetching
-- Reuse the existing `patient_visits` query pattern. For **By Event**, filter `patient_visits.event_id = selectedEvent`. For **By Location**, fetch events for that location first (or filter visits via `event.location_id`), then gather their patients.
-- Select `patients(date_of_birth, gender)` plus name/number for the patient list. De-duplicate patients (a patient may have multiple visits) by patient id, same approach as the parish report.
+### Event selection
+- Reuse the already-fetched `events` list. Track selection in new state `selectedEventIds: string[]`.
+- Checkbox list rendered with the existing `Checkbox` UI component; "Select all" / "Clear" toggles.
+
+### Data fetching (combined query for the selected events)
+- Query `patient_visits` filtered with `.in("event_id", selectedEventIds)`, selecting `patient:patients(id, date_of_birth, gender)` for demographics.
+- Query `service_queue` joined to `patient_visits!inner` filtered by `.in("patient_visit.event_id", selectedEventIds)`, selecting `service:services(name)` and `patient_visit.patient_id` for the services summary.
 
 ### Calculation
-- Compute age from `date_of_birth` relative to today using `date-fns` (`differenceInYears`). Patients with no DOB go into an "Unknown" age row.
-- Normalize `gender` into Male / Female / Other-Unspecified buckets.
-- Build a matrix `band x sex -> count`, plus totals and average age.
+- **Demographics**: reuse the existing `AGE_BANDS`, `sexBucket`, and matrix-building logic from `generateDemographicReport` (de-duplicate patients by id across all selected events).
+- **Services**: group by service name, counting **unique patients** per service (Set of patient ids). Produce rows `{ service_name, patient_count }` sorted by count desc.
 
 ### Print
-- Extend the print flow. The existing `PrintableReport` is patient-list oriented, so the demographic print will use a dedicated lightweight printable layout (a summary matrix table) rendered into the print window — same `window.open` + `createRoot` mechanism already used in `printReport`. Title reflects the selected event or location.
+- Reuse the `window.open` + `createRoot` mechanism. Extend `PrintableDemographicReport` to optionally render a services-summary table below the demographic matrix (new optional props `serviceRows` and `eventsLabel`), or add a small dedicated printable section. Title reflects the selected events.
 
 ### Export CSV
-- Reuse the existing `exportToCSV` helper, passing the demographic matrix rows (one row per age band with Male/Female/Other/Total columns) so the CSV mirrors the on-screen table.
+- Reuse the existing `exportToCSV` helper. Export the demographic matrix rows and a services section (two logical blocks written to one CSV, or a combined row set with a section label column).
 
 ## Technical details
 
 Files to change:
 - `src/components/Reports.tsx`
-  - Add state: `demographicScope` ('event' | 'location'), `selectedLocation`, `demographicReport` (matrix + summary).
-  - Add `locations` state and fetch them in `fetchInitialData` (from `locations` table, active only).
-  - Add `generateDemographicReport()` building the age/sex matrix with de-duped patients.
-  - Add a `Demographics` `TabsTrigger` + `TabsContent`; change `TabsList` grid from `grid-cols-6` to `grid-cols-7`.
-  - Add print + CSV handlers for the demographic data.
-- `src/components/PrintableReport.tsx` (or a new small `PrintableDemographicReport.tsx`)
-  - Add a printable summary-matrix layout for the demographic report (age bands x sex), since the current component is structured around patient rows. A new dedicated component keeps the existing report printing untouched.
+  - Add state: `selectedEventIds` (string[]), `locationSummaryReport` (demographic rows/summary + service rows + events label).
+  - Add `generateLocationSummaryReport()` running the two queries above and building both sections.
+  - Add `exportLocationSummaryCSV()` and `printLocationSummaryReport()` handlers.
+  - Add a `location-summary` `TabsTrigger` + `TabsContent`; change `TabsList` grid from `grid-cols-7` to `grid-cols-8` (or wrap/scroll the tab bar on small screens).
+  - Import `Checkbox` from `@/components/ui/checkbox`.
+- `src/components/PrintableDemographicReport.tsx`
+  - Add optional props `serviceRows?: { service_name: string; patient_count: number }[]` and `eventsLabel?: string`; render an extra "Services Summary" table when `serviceRows` is provided.
 
-Age bands: `0-9, 10-19, 20-29, 30-39, 40-49, 50-59, 60-69, 70-79, 80+`, plus `Unknown` when DOB is missing. Sex columns: `Male, Female, Other/Unspecified`.
+No database schema changes required — `date_of_birth`, `gender`, `patient_visits`, `service_queue`, and `services` already exist.
 
-No database schema changes are required — `date_of_birth` and `gender` already exist on `patients`.
+Age bands and sex buckets match the existing Demographics tab (`0-9 … 80+`, plus `Unknown`; Male / Female / Other-Unspecified).
