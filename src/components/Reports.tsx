@@ -2074,6 +2074,187 @@ const Reports = ({ onBack }: ReportsProps) => {
           </Card>
         </TabsContent>
 
+        {/* Location Summary Tab */}
+        <TabsContent value="location-summary">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Location Summary
+              </CardTitle>
+              <CardDescription>
+                Age demographics and health fair services summary across one or more selected events
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Select Events</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedEventIds(events.map((e) => e.id))}
+                    >
+                      Select all
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedEventIds([])}>
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+                <div className="max-h-64 overflow-y-auto rounded-lg border divide-y">
+                  {events.length === 0 && (
+                    <p className="p-3 text-sm text-muted-foreground">No events available.</p>
+                  )}
+                  {events.map((event) => (
+                    <label
+                      key={event.id}
+                      className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={selectedEventIds.includes(event.id)}
+                        onCheckedChange={() => toggleEventSelection(event.id)}
+                      />
+                      <span className="text-sm">
+                        {event.name} - {event.locations?.name}{" "}
+                        <span className="text-muted-foreground">
+                          ({format(new Date(event.event_date), "MMM dd, yyyy")})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedEventIds.length} event(s) selected
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <Button onClick={generateLocationSummaryReport} disabled={loading} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Generate Report
+                </Button>
+              </div>
+
+              {locationSummaryReport && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">{locationSummaryReport.eventsLabel}</h3>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={exportLocationSummaryCSV} className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Export CSV
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={printLocationSummaryReport} className="gap-2">
+                        <Printer className="h-4 w-4" />
+                        Print
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Total Patients</p>
+                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalPatients}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Male</p>
+                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalMale}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Female</p>
+                        <p className="text-2xl font-bold">{locationSummaryReport.summary.totalFemale}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">Avg. Age</p>
+                        <p className="text-2xl font-bold">
+                          {locationSummaryReport.summary.averageAge !== null
+                            ? locationSummaryReport.summary.averageAge.toFixed(1)
+                            : "N/A"}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md font-semibold mb-2">Age & Sex Demographics</h4>
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left p-3 font-medium">Age Band</th>
+                            <th className="text-center p-3 font-medium">Male</th>
+                            <th className="text-center p-3 font-medium">Female</th>
+                            <th className="text-center p-3 font-medium">Other/Unspecified</th>
+                            <th className="text-center p-3 font-medium">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {locationSummaryReport.rows.map((row) => (
+                            <tr key={row.band} className="border-t">
+                              <td className="p-3 font-medium">{row.band}</td>
+                              <td className="text-center p-3">{row.male}</td>
+                              <td className="text-center p-3">{row.female}</td>
+                              <td className="text-center p-3">{row.other}</td>
+                              <td className="text-center p-3">{row.total}</td>
+                            </tr>
+                          ))}
+                          <tr className="border-t bg-muted/30 font-semibold">
+                            <td className="p-3">Total</td>
+                            <td className="text-center p-3">{locationSummaryReport.summary.totalMale}</td>
+                            <td className="text-center p-3">{locationSummaryReport.summary.totalFemale}</td>
+                            <td className="text-center p-3">{locationSummaryReport.summary.totalOther}</td>
+                            <td className="text-center p-3">{locationSummaryReport.summary.totalPatients}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md font-semibold mb-2">Health Fair Services Summary</h4>
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left p-3 font-medium">Service</th>
+                            <th className="text-center p-3 font-medium">Patients</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {locationSummaryReport.serviceRows.length === 0 && (
+                            <tr className="border-t">
+                              <td className="p-3 text-muted-foreground" colSpan={2}>
+                                No service data for the selected events.
+                              </td>
+                            </tr>
+                          )}
+                          {locationSummaryReport.serviceRows.map((row) => (
+                            <tr key={row.service_name} className="border-t">
+                              <td className="p-3 font-medium">{row.service_name}</td>
+                              <td className="text-center p-3">{row.patient_count}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+
 
 
         {/* Import/Export Tab */}
