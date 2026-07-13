@@ -15,7 +15,8 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { PrintableReport } from "@/components/PrintableReport";
-import { PrintableDemographicReport, DemographicRow, DemographicSummary } from "@/components/PrintableDemographicReport";
+import { PrintableDemographicReport, DemographicRow, DemographicSummary, ServiceSummaryRow } from "@/components/PrintableDemographicReport";
+import { Checkbox } from "@/components/ui/checkbox";
 import { createRoot } from "react-dom/client";
 
 interface ReportsProps {
