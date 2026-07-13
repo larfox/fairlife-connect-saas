@@ -481,10 +481,7 @@ const Reports = ({ onBack }: ReportsProps) => {
     const data: Record<string, string | number>[] = [];
     locationSummaryReport.forEach((ev) => {
       const eventLabel = `${ev.eventName}${ev.eventDate ? ` (${format(new Date(ev.eventDate), "MMM dd, yyyy")})` : ""}`;
-      data.push({ event: eventLabel, section: "Demographics", label: "Age Band", male: "Male", female: "Female", other: "Other/Unspecified", total: "Total" });
-      ev.rows.forEach((r) => {
-        data.push({ event: eventLabel, section: "Demographics", label: r.band, male: r.male, female: r.female, other: r.other, total: r.total });
-      });
+      data.push({ event: eventLabel, section: "Demographics", label: "Total", male: "Male", female: "Female", other: "Other/Unspecified", total: "Total" });
       data.push({
         event: eventLabel,
         section: "Demographics",
@@ -494,10 +491,18 @@ const Reports = ({ onBack }: ReportsProps) => {
         other: ev.summary.totalOther,
         total: ev.summary.totalPatients,
       });
-      data.push({ event: eventLabel, section: "Services", label: "Service", male: "", female: "", other: "", total: "Patients" });
-      ev.serviceRows.forEach((s) => {
-        data.push({ event: eventLabel, section: "Services", label: s.service_name, male: "", female: "", other: "", total: s.patient_count });
-      });
+      // Services rotated: one header row of service names, one row of counts
+      if (ev.serviceRows.length > 0) {
+        const serviceHeader: Record<string, string | number> = { event: eventLabel, section: "Services", label: "Service" };
+        const serviceCounts: Record<string, string | number> = { event: eventLabel, section: "Services", label: "Patients" };
+        ev.serviceRows.forEach((s) => {
+          serviceHeader[s.service_name] = s.service_name;
+          serviceCounts[s.service_name] = s.patient_count;
+        });
+        data.push(serviceHeader);
+        data.push(serviceCounts);
+      }
+
     });
     exportToCSV(data, "location_summary_report");
   };
