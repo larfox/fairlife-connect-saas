@@ -78,11 +78,14 @@ type DemographicReportData = {
   scopeName: string;
 };
 
-type LocationSummaryReportData = {
+type EventSummary = {
+  eventId: string;
+  eventName: string;
+  locationName: string;
+  eventDate: string;
   rows: DemographicRow[];
   summary: DemographicSummary;
   serviceRows: ServiceSummaryRow[];
-  eventsLabel: string;
 };
 
 const AGE_BANDS = [
