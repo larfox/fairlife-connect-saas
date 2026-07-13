@@ -162,44 +162,7 @@ export const PrintableDemographicReport = ({
           </table>
         </>
       )}
-
-          Male: {summary.totalMale} ({pct(summary.totalMale)}) • Female:{" "}
-          {summary.totalFemale} ({pct(summary.totalFemale)}) • Other/Unspecified:{" "}
-          {summary.totalOther} ({pct(summary.totalOther)})
-        </p>
-        <p style={{ margin: "4px 0" }}>
-          Average Age:{" "}
-          {summary.averageAge !== null ? `${summary.averageAge.toFixed(1)} years` : "N/A"}
-        </p>
-      </div>
-
-      {serviceRows && serviceRows.length > 0 && (
-        <>
-          <h2 style={{ fontSize: "15px", fontWeight: "bold", margin: "24px 0 8px 0" }}>
-            Health Fair Services Summary
-          </h2>
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th>Patients</th>
-              </tr>
-            </thead>
-            <tbody>
-              {serviceRows.map((row) => (
-                <tr key={row.service_name}>
-                  <td>{row.service_name}</td>
-                  <td>{row.patient_count}</td>
-                </tr>
-              ))}
-              <tr className="totals-row">
-                <td>Total (unique across services)</td>
-                <td>{summary.totalPatients}</td>
-              </tr>
-            </tbody>
-          </table>
-        </>
-      )}
     </div>
   );
 };
+
