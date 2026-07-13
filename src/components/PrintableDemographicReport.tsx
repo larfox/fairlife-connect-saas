@@ -108,7 +108,6 @@ export const PrintableDemographicReport = ({
       <table className="print-table">
         <thead>
           <tr>
-            <th>Age Band</th>
             <th>Male</th>
             <th>Female</th>
             <th>Other/Unspecified</th>
@@ -116,17 +115,7 @@ export const PrintableDemographicReport = ({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.band}>
-              <td>{row.band}</td>
-              <td>{row.male}</td>
-              <td>{row.female}</td>
-              <td>{row.other}</td>
-              <td>{row.total}</td>
-            </tr>
-          ))}
           <tr className="totals-row">
-            <td>Total</td>
             <td>{summary.totalMale}</td>
             <td>{summary.totalFemale}</td>
             <td>{summary.totalOther}</td>
@@ -140,6 +129,40 @@ export const PrintableDemographicReport = ({
           Total Patients: {summary.totalPatients}
         </p>
         <p style={{ margin: "4px 0" }}>
+          Male: {summary.totalMale} ({pct(summary.totalMale)}) • Female:{" "}
+          {summary.totalFemale} ({pct(summary.totalFemale)}) • Other/Unspecified:{" "}
+          {summary.totalOther} ({pct(summary.totalOther)})
+        </p>
+        <p style={{ margin: "4px 0" }}>
+          Average Age:{" "}
+          {summary.averageAge !== null ? `${summary.averageAge.toFixed(1)} years` : "N/A"}
+        </p>
+      </div>
+
+      {serviceRows && serviceRows.length > 0 && (
+        <>
+          <h2 style={{ fontSize: "15px", fontWeight: "bold", margin: "24px 0 8px 0" }}>
+            Health Fair Services Summary
+          </h2>
+          <table className="print-table">
+            <thead>
+              <tr>
+                {serviceRows.map((row) => (
+                  <th key={row.service_name}>{row.service_name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {serviceRows.map((row) => (
+                  <td key={row.service_name}>{row.patient_count}</td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
+
           Male: {summary.totalMale} ({pct(summary.totalMale)}) • Female:{" "}
           {summary.totalFemale} ({pct(summary.totalFemale)}) • Other/Unspecified:{" "}
           {summary.totalOther} ({pct(summary.totalOther)})
