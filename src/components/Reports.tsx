@@ -332,6 +332,195 @@ const Reports = ({ onBack }: ReportsProps) => {
     }, 1000);
   };
 
+  const toggleEventSelection = (eventId: string) => {
+    setSelectedEventIds((prev) =>
+      prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId]
+    );
+  };
+
+  const generateLocationSummaryReport = async () => {
+    if (selectedEventIds.length === 0) {
+      toast({ title: "Please select at least one event", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Demographics: fetch patient visits for selected events
+      const { data: visits, error: visitsError } = await supabase
+        .from("patient_visits")
+        .select(`patient:patients(id, date_of_birth, gender)`)
+        .in("event_id", selectedEventIds);
+
+      if (visitsError) throw visitsError;
+
+      const patientMap = new Map<string, { date_of_birth: string | null; gender: string | null }>();
+      visits?.forEach((v: any) => {
+        const p = v.patient;
+        if (p && !patientMap.has(p.id)) {
+          patientMap.set(p.id, { date_of_birth: p.date_of_birth, gender: p.gender });
+        }
+      });
+
+      const bandIndex = (age: number) => AGE_BANDS.findIndex((b) => age >= b.min && age <= b.max);
+      const sexBucket = (gender: string | null): "male" | "female" | "other" => {
+        const g = (gender || "").toLowerCase();
+        if (g === "male" || g === "m") return "male";
+        if (g === "female" || g === "f") return "female";
+        return "other";
+      };
+
+      const counts = AGE_BANDS.map(() => ({ male: 0, female: 0, other: 0 }));
+      const unknown = { male: 0, female: 0, other: 0 };
+      let totalMale = 0, totalFemale = 0, totalOther = 0;
+      let ageSum = 0, ageCount = 0;
+
+      patientMap.forEach(({ date_of_birth, gender }) => {
+        const bucket = sexBucket(gender);
+        if (bucket === "male") totalMale++;
+        else if (bucket === "female") totalFemale++;
+        else totalOther++;
+
+        if (date_of_birth) {
+          const age = differenceInYears(new Date(), new Date(date_of_birth));
+          ageSum += age;
+          ageCount++;
+          const idx = bandIndex(age);
+          if (idx >= 0) counts[idx][bucket]++;
+          else unknown[bucket]++;
+        } else {
+          unknown[bucket]++;
+        }
+      });
+
+      const rows: DemographicRow[] = AGE_BANDS.map((b, i) => ({
+        band: b.label,
+        male: counts[i].male,
+        female: counts[i].female,
+        other: counts[i].other,
+        total: counts[i].male + counts[i].female + counts[i].other,
+      }));
+
+      const unknownTotal = unknown.male + unknown.female + unknown.other;
+      if (unknownTotal > 0) {
+        rows.push({ band: "Unknown", male: unknown.male, female: unknown.female, other: unknown.other, total: unknownTotal });
+      }
+
+      const summary: DemographicSummary = {
+        totalPatients: patientMap.size,
+        totalMale,
+        totalFemale,
+        totalOther,
+        averageAge: ageCount > 0 ? ageSum / ageCount : null,
+      };
+
+      // Services summary: unique patients per service
+      const { data: queueData, error: queueError } = await supabase
+        .from("service_queue")
+        .select(`service:services(name), patient_visit:patient_visits!inner(event_id, patient_id)`)
+        .in("patient_visit.event_id", selectedEventIds);
+
+      if (queueError) throw queueError;
+
+      const servicePatients = new Map<string, Set<string>>();
+      queueData?.forEach((item: any) => {
+        const serviceName = item.service?.name || "Unknown Service";
+        const patientId = item.patient_visit?.patient_id;
+        if (!patientId) return;
+        if (!servicePatients.has(serviceName)) servicePatients.set(serviceName, new Set());
+        servicePatients.get(serviceName)!.add(patientId);
+      });
+
+      const serviceRows: ServiceSummaryRow[] = Array.from(servicePatients.entries())
+        .map(([service_name, ids]) => ({ service_name, patient_count: ids.size }))
+        .sort((a, b) => b.patient_count - a.patient_count);
+
+      const eventsLabel =
+        selectedEventIds.length === 1
+          ? `Event: ${events.find((e) => e.id === selectedEventIds[0])?.name ?? ""}`
+          : `${selectedEventIds.length} events included`;
+
+      setLocationSummaryReport({ rows, summary, serviceRows, eventsLabel });
+
+      toast({
+        title: "Location summary generated",
+        description: `Analyzed ${patientMap.size} patients across ${selectedEventIds.length} event(s).`,
+      });
+    } catch (error) {
+      console.error("Error generating location summary report:", error);
+      toast({ title: "Error generating report", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportLocationSummaryCSV = () => {
+    if (!locationSummaryReport) return;
+    const data = [
+      { section: "Demographics", label: "Age Band", male: "Male", female: "Female", other: "Other/Unspecified", total: "Total" },
+      ...locationSummaryReport.rows.map((r) => ({
+        section: "Demographics",
+        label: r.band,
+        male: r.male,
+        female: r.female,
+        other: r.other,
+        total: r.total,
+      })),
+      {
+        section: "Demographics",
+        label: "Total",
+        male: locationSummaryReport.summary.totalMale,
+        female: locationSummaryReport.summary.totalFemale,
+        other: locationSummaryReport.summary.totalOther,
+        total: locationSummaryReport.summary.totalPatients,
+      },
+      { section: "Services", label: "Service", male: "", female: "", other: "", total: "Patients" },
+      ...locationSummaryReport.serviceRows.map((s) => ({
+        section: "Services",
+        label: s.service_name,
+        male: "",
+        female: "",
+        other: "",
+        total: s.patient_count,
+      })),
+    ];
+    exportToCSV(data, "location_summary_report");
+  };
+
+  const printLocationSummaryReport = () => {
+    if (!locationSummaryReport) {
+      toast({ title: "No data to print", description: "Please generate a report first.", variant: "destructive" });
+      return;
+    }
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) {
+      toast({ title: "Print failed", description: "Please allow popups and try again.", variant: "destructive" });
+      return;
+    }
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Location Summary Report</title><meta charset="utf-8"></head><body><div id="print-root"></div></body></html>`);
+    printWindow.document.close();
+    const printContainer = printWindow.document.getElementById("print-root");
+    if (!printContainer) return;
+    const root = createRoot(printContainer);
+    root.render(
+      <PrintableDemographicReport
+        title="Location Summary Report"
+        subtitle="Age Demographics & Health Fair Services"
+        eventsLabel={locationSummaryReport.eventsLabel}
+        rows={locationSummaryReport.rows}
+        summary={locationSummaryReport.summary}
+        serviceRows={locationSummaryReport.serviceRows}
+      />
+    );
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      setTimeout(() => printWindow.close(), 100);
+    }, 1000);
+  };
+
+
+
 
 
 
