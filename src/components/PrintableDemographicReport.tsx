@@ -100,6 +100,7 @@ export const PrintableDemographicReport = ({
         {subtitle && <p className="print-subtitle">{subtitle}</p>}
         <div className="print-meta">
           {scopeName && <p>{scopeName}</p>}
+          {eventsLabel && <p>{eventsLabel}</p>}
           <p>Generated: {format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}</p>
         </div>
       </div>
