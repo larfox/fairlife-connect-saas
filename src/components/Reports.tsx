@@ -349,21 +349,33 @@ const Reports = ({ onBack }: ReportsProps) => {
 
     setLoading(true);
     try {
-      // Demographics: fetch patient visits (with event) for selected events
-      const { data: visits, error: visitsError } = await supabase
-        .from("patient_visits")
-        .select(`event_id, patient:patients(id, date_of_birth, gender)`)
-        .in("event_id", selectedEventIds);
+      const PAGE = 1000;
 
-      if (visitsError) throw visitsError;
+      // Demographics: fetch ALL patient visits (with event) for selected events (paginated)
+      const visits: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("patient_visits")
+          .select(`event_id, patient:patients(id, date_of_birth, gender)`)
+          .in("event_id", selectedEventIds)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (data) visits.push(...data);
+        if (!data || data.length < PAGE) break;
+      }
 
-      // Services: unique patients per service, per event
-      const { data: queueData, error: queueError } = await supabase
-        .from("service_queue")
-        .select(`service:services(name), patient_visit:patient_visits!inner(event_id, patient_id)`)
-        .in("patient_visit.event_id", selectedEventIds);
-
-      if (queueError) throw queueError;
+      // Services: unique patients per service, per event (paginated)
+      const queueData: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("service_queue")
+          .select(`service:services(name), patient_visit:patient_visits!inner(event_id, patient_id)`)
+          .in("patient_visit.event_id", selectedEventIds)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (data) queueData.push(...data);
+        if (!data || data.length < PAGE) break;
+      }
 
       const bandIndex = (age: number) => AGE_BANDS.findIndex((b) => age >= b.min && age <= b.max);
       const sexBucket = (gender: string | null): "male" | "female" | "other" => {
