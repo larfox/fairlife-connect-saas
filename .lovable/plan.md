@@ -1,32 +1,27 @@
 ## Goal
 
-Change the **Location Summary** report so that instead of pooling all selected events into one combined total, it produces a **separate summary per event** — each showing that event's own age demographics and services usage. Multi-event selection, print, and CSV export are kept.
+Refine the per-event **Location Summary** report so it:
+1. Shows only the **totals** of the demographics (not the full age-band breakdown).
+2. Displays the **services section rotated** — service names become column headers with a single row of patient counts, instead of a tall two-column list.
+
+Applies consistently to the on-screen view, the print output, and the CSV export.
 
 ## What changes
 
-### On-screen (Reports.tsx, `location-summary` tab)
-- Keep the checkbox list of events + Generate button.
-- After generating, render **one section per selected event**, each containing:
-  - Event header (name, location, date, total unique patients for that event).
-  - Age & sex demographic matrix table (same layout as today) scoped to that event.
-  - Services summary table (unique patients per service) scoped to that event.
-- Remove the single combined/pooled totals view.
+### Demographics — totals only
+- **On-screen (`Reports.tsx`, `location-summary` tab):** Remove the per-age-band table rows. Keep the summary cards (Total Patients, Male, Female, Avg. Age) and show a single compact totals table/row with Male, Female, Other/Unspecified, and Total. The age-band matrix is dropped from display.
+- **Print (`PrintableDemographicReport.tsx`):** Render only the totals row (Male / Female / Other / Total) instead of iterating every age band. The summary box stays.
+- **CSV (`exportLocationSummaryCSV`):** Emit only the totals line per event for demographics instead of one line per age band.
 
-### Data (`generateLocationSummaryReport`)
-- Query patient visits and service_queue as today, but **group by `event_id`** instead of merging into one map.
-- For each selected event, run the existing demographic + services calculation logic against only that event's patients, producing a per-event result object:
-  - `{ eventId, eventName, locationName, eventDate, rows, summary, serviceRows }`.
-- Store results as an array: `locationSummaryReport: EventSummary[]`.
-- To get `event_id` for demographics, change the visits query select to include `event_id` (it already includes `patient` details).
+### Services — rotated (transposed) layout
+- **On-screen:** Replace the tall "Service | Patients" table with a horizontal table: one header row of service names and one data row of their patient counts (horizontally scrollable). Keep the "No service data" fallback.
+- **Print (`PrintableDemographicReport.tsx`):** Render the services table transposed — service names as `<th>` columns, counts in a single row beneath.
+- **CSV:** Write services as one header row of service names followed by one row of counts per event.
 
-### Print (`printLocationSummaryReport` + PrintableDemographicReport)
-- Render one `PrintableDemographicReport` block per event (each with its own `scopeName`/`eventsLabel` = the event name, its `rows`, `summary`, and `serviceRows`), stacked in the print window with page breaks between events.
-
-### CSV (`exportLocationSummaryCSV`)
-- Emit rows grouped per event, adding an `event` column (event name) so each event's demographics and services rows are clearly attributed. One CSV, sections repeated per event.
+Note: the underlying `rows` (age bands) data will still be computed but simply not rendered, so no data logic changes are required. Optionally the age-band computation can stay untouched to minimize risk.
 
 ## Files
-- `src/components/Reports.tsx` — restructure state type, `generateLocationSummaryReport`, `exportLocationSummaryCSV`, `printLocationSummaryReport`, and the `location-summary` `TabsContent` to iterate per event.
-- `src/components/PrintableDemographicReport.tsx` — no structural change needed (reused once per event); optionally add a page-break style for stacking.
+- `src/components/Reports.tsx` — update the `location-summary` `TabsContent` (demographics table → totals only; services table → rotated) and adjust `exportLocationSummaryCSV`.
+- `src/components/PrintableDemographicReport.tsx` — render totals-only demographics and a transposed services table.
 
-No database schema changes.
+No database or data-fetching changes.
