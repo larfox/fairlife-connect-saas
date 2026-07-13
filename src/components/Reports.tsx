@@ -114,6 +114,10 @@ const Reports = ({ onBack }: ReportsProps) => {
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [demographicReport, setDemographicReport] = useState<DemographicReportData | null>(null);
 
+  // Location summary report state (multi-event)
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+  const [locationSummaryReport, setLocationSummaryReport] = useState<LocationSummaryReportData | null>(null);
+
   // Report data
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
   const [serviceReport, setServiceReport] = useState<ServiceReport[]>([]);
