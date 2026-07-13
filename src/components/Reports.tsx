@@ -119,7 +119,7 @@ const Reports = ({ onBack }: ReportsProps) => {
 
   // Location summary report state (multi-event)
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
-  const [locationSummaryReport, setLocationSummaryReport] = useState<LocationSummaryReportData | null>(null);
+  const [locationSummaryReport, setLocationSummaryReport] = useState<EventSummary[] | null>(null);
 
   // Report data
   const [locationReport, setLocationReport] = useState<LocationReport[]>([]);
