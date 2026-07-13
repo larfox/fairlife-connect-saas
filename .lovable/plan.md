@@ -1,27 +1,30 @@
-## Goal
+# Fix incorrect Location Summary service counts
 
-Refine the per-event **Location Summary** report so it:
-1. Shows only the **totals** of the demographics (not the full age-band breakdown).
-2. Displays the **services section rotated** — service names become column headers with a single row of patient counts, instead of a tall two-column list.
+## Problem
+In the per-event Location Summary, the rotated services counts are wrong. For Shrewsbury Baptist the report shows `know your numbers 3`, `General Consultation 3`, `HIV 2`, `Paps 1`, but the actual data is `know your numbers 46`, `General Consultation 46`, `HIV 2`, `Paps 1`.
 
-Applies consistently to the on-screen view, the print output, and the CSV export.
+The transposition/display logic is correct. The real cause is data truncation: `generateLocationSummaryReport` in `src/components/Reports.tsx` runs
 
-## What changes
+```text
+supabase.from("service_queue").select(...).in("patient_visit.event_id", selectedEventIds)
+```
 
-### Demographics — totals only
-- **On-screen (`Reports.tsx`, `location-summary` tab):** Remove the per-age-band table rows. Keep the summary cards (Total Patients, Male, Female, Avg. Age) and show a single compact totals table/row with Male, Female, Other/Unspecified, and Total. The age-band matrix is dropped from display.
-- **Print (`PrintableDemographicReport.tsx`):** Render only the totals row (Male / Female / Other / Total) instead of iterating every age band. The summary box stays.
-- **CSV (`exportLocationSummaryCSV`):** Emit only the totals line per event for demographics instead of one line per age band.
+Supabase (PostgREST) returns at most 1000 rows per request by default. The project has 1835 `service_queue` rows, so the result is capped at 1000 and rows are dropped arbitrarily. Large services (know your numbers, General Consultation) lose most of their rows, while tiny services (HIV=2, Paps=1) happen to remain — matching exactly the symptom reported.
 
-### Services — rotated (transposed) layout
-- **On-screen:** Replace the tall "Service | Patients" table with a horizontal table: one header row of service names and one data row of their patient counts (horizontally scrollable). Keep the "No service data" fallback.
-- **Print (`PrintableDemographicReport.tsx`):** Render the services table transposed — service names as `<th>` columns, counts in a single row beneath.
-- **CSV:** Write services as one header row of service names followed by one row of counts per event.
+The demographics query on `patient_visits` has the same latent risk once visit counts exceed 1000.
 
-Note: the underlying `rows` (age bands) data will still be computed but simply not rendered, so no data logic changes are required. Optionally the age-band computation can stay untouched to minimize risk.
+## Fix
+Fetch all matching rows instead of the first 1000, then run the existing grouping/counting logic unchanged.
+
+- In `src/components/Reports.tsx`, `generateLocationSummaryReport`:
+  - Replace the single `service_queue` select with a paginated fetch that loops using `.range(from, from + PAGE - 1)` (page size 1000) until fewer than a full page is returned, concatenating results into one `queueData` array.
+  - Apply the same paginated fetch to the `patient_visits` demographics query so it is also complete.
+- Keep all downstream grouping, unique-patient `Set` counting, sorting, on-screen rendering, print (`PrintableDemographicReport`), and CSV export exactly as-is — they operate on the assembled arrays and already produce correct results once the data is complete.
+
+## Technical detail
+Add a small async pagination helper inside the function (or a local loop per query), e.g. repeatedly call the query builder with `.range()` and break when the returned batch length is less than the page size. This guarantees complete data regardless of how many events are selected or how many total rows exist.
 
 ## Files
-- `src/components/Reports.tsx` — update the `location-summary` `TabsContent` (demographics table → totals only; services table → rotated) and adjust `exportLocationSummaryCSV`.
-- `src/components/PrintableDemographicReport.tsx` — render totals-only demographics and a transposed services table.
+- `src/components/Reports.tsx` — paginate the `service_queue` and `patient_visits` queries in `generateLocationSummaryReport`.
 
-No database or data-fetching changes.
+No database, schema, or data-fetching-shape changes; no changes to display/print/CSV logic.
