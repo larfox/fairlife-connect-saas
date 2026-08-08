@@ -1,30 +1,24 @@
-# Fix incorrect Location Summary service counts
+# Cholesterol on the screening record: investigation and fix
 
-## Problem
-In the per-event Location Summary, the rotated services counts are wrong. For Shrewsbury Baptist the report shows `know your numbers 3`, `General Consultation 3`, `HIV 2`, `Paps 1`, but the actual data is `know your numbers 46`, `General Consultation 46`, `HIV 2`, `Paps 1`.
+## What the code currently shows
 
-The transposition/display logic is correct. The real cause is data truncation: `generateLocationSummaryReport` in `src/components/Reports.tsx` runs
+Confirmed by reading the files:
 
-```text
-supabase.from("service_queue").select(...).in("patient_visit.event_id", selectedEventIds)
-```
+- The Basic Screening tab (`src/components/patient/BasicScreeningTab.tsx`) already has a Cholesterol (mmol/L) input, a Normal / Borderline High / High status rule, a row in the results table and a results card. This is the tab opened from the queue, patient search and service queue.
+- The older `PatientDetailsModal.tsx` and the Patient History modal also render cholesterol.
+- Cholesterol is **missing** from the emailed screening summary (`supabase/functions/send-screening-summary/index.ts`) — that email lists blood sugar but never cholesterol, oxygen saturation or urine.
+- The Patient History list view (`PatientHistory.tsx`) shows only a screening Completed/Pending badge, no values at all.
 
-Supabase (PostgREST) returns at most 1000 rows per request by default. The project has 1835 `service_queue` rows, so the result is capped at 1000 and rows are dropped arbitrarily. Large services (know your numbers, General Consultation) lose most of their rows, while tiny services (HIV=2, Paps=1) happen to remain — matching exactly the symptom reported.
+So the field exists in the entry form, but not in the summary that gets sent out. I have not yet confirmed what you are looking at on screen, so the first step is to see the live screen.
 
-The demographics query on `patient_visits` has the same latent risk once visit counts exceed 1000.
+## Steps
 
-## Fix
-Fetch all matching rows instead of the first 1000, then run the existing grouping/counting logic unchanged.
+1. Open the running app in a browser session, navigate to a patient record's Basic Screening tab at your current mobile-width viewport, and screenshot it. This confirms whether the field renders, is hidden by permissions, or is pushed off-screen on narrow widths.
+2. If the field is not rendering, fix the cause found in step 1 (permission gate, layout, or a stale/duplicated screening component being used on that route).
+3. Add Cholesterol to the emailed screening summary, alongside blood sugar, with the same mmol/L unit and status wording used in the app.
+4. Report back with the screenshot evidence.
 
-- In `src/components/Reports.tsx`, `generateLocationSummaryReport`:
-  - Replace the single `service_queue` select with a paginated fetch that loops using `.range(from, from + PAGE - 1)` (page size 1000) until fewer than a full page is returned, concatenating results into one `queueData` array.
-  - Apply the same paginated fetch to the `patient_visits` demographics query so it is also complete.
-- Keep all downstream grouping, unique-patient `Set` counting, sorting, on-screen rendering, print (`PrintableDemographicReport`), and CSV export exactly as-is — they operate on the assembled arrays and already produce correct results once the data is complete.
+## Technical notes
 
-## Technical detail
-Add a small async pagination helper inside the function (or a local loop per query), e.g. repeatedly call the query builder with `.range()` and break when the returned batch length is less than the page size. This guarantees complete data regardless of how many events are selected or how many total rows exist.
-
-## Files
-- `src/components/Reports.tsx` — paginate the `service_queue` and `patient_visits` queries in `generateLocationSummaryReport`.
-
-No database, schema, or data-fetching-shape changes; no changes to display/print/CSV logic.
+- Cholesterol is saved with `parseInt`, so a value like 5.4 is stored as 5. If you enter decimals, that is likely why a value looks wrong or blank-ish. Worth changing to `parseFloat` with `step="0.1"` on the input — say the word and I will include it.
+- The `basic_screening.cholesterol` column already exists in the database; no migration is needed.
