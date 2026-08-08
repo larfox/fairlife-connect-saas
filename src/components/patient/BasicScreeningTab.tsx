@@ -794,215 +794,203 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {basicScreening.height && (
-                    <TableRow>
-                      <TableCell className="font-medium">Height</TableCell>
-                      <TableCell>{basicScreening.height} cm</TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.weight && (
-                    <TableRow>
-                      <TableCell className="font-medium">Weight</TableCell>
-                      <TableCell>{basicScreening.weight} kg</TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.bmi && (
-                    <TableRow className={getBMIStatus(basicScreening.bmi).bgColor}>
-                      <TableCell className="font-medium">BMI</TableCell>
-                      <TableCell>{basicScreening.bmi}</TableCell>
-                      <TableCell className={getBMIStatus(basicScreening.bmi).color}>
-                        {getBMIStatus(basicScreening.bmi).status}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {(basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic) && (
-                    <TableRow className={getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).bgColor}>
-                      <TableCell className="font-medium">Blood Pressure</TableCell>
-                      <TableCell>{basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg</TableCell>
-                      <TableCell className={getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).color}>
-                        {getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).status}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.heart_rate && (
-                    <TableRow>
-                      <TableCell className="font-medium">Heart Rate</TableCell>
-                      <TableCell>{basicScreening.heart_rate} bpm</TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.temperature && (
-                    <TableRow>
-                      <TableCell className="font-medium">Temperature</TableCell>
-                      <TableCell>{basicScreening.temperature}°C</TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.blood_sugar && (
-                    <TableRow className={getBloodSugarStatus(basicScreening.blood_sugar).bgColor}>
-                      <TableCell className="font-medium">Blood Sugar</TableCell>
-                      <TableCell>{basicScreening.blood_sugar} mmol/L</TableCell>
-                      <TableCell className={getBloodSugarStatus(basicScreening.blood_sugar).color}>
-                        {getBloodSugarStatus(basicScreening.blood_sugar).status}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.cholesterol && (
-                    <TableRow className={getCholesterolStatus(basicScreening.cholesterol).bgColor}>
-                      <TableCell className="font-medium">Cholesterol</TableCell>
-                      <TableCell>{basicScreening.cholesterol} mmol/L</TableCell>
-                      <TableCell className={getCholesterolStatus(basicScreening.cholesterol).color}>
-                        {getCholesterolStatus(basicScreening.cholesterol).status}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.oxygen_saturation && (
-                    <TableRow className={getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor}>
-                      <TableCell className="font-medium">Oxygen Saturation</TableCell>
-                      <TableCell>{basicScreening.oxygen_saturation}%</TableCell>
-                      <TableCell className={getOxygenSaturationStatus(basicScreening.oxygen_saturation).color}>
-                        {getOxygenSaturationStatus(basicScreening.oxygen_saturation).status}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.urine && (
-                    <TableRow>
-                      <TableCell className="font-medium">Urine</TableCell>
-                      <TableCell className="max-w-xs">
+                  <TableRow>
+                    <TableCell className="font-medium">Height</TableCell>
+                    <TableCell>{basicScreening.height != null ? `${basicScreening.height} cm` : notRecorded}</TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Weight</TableCell>
+                    <TableCell>{basicScreening.weight != null ? `${basicScreening.weight} kg` : notRecorded}</TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
+                  <TableRow className={basicScreening.bmi != null ? getBMIStatus(basicScreening.bmi).bgColor : ""}>
+                    <TableCell className="font-medium">BMI</TableCell>
+                    <TableCell>{basicScreening.bmi != null ? basicScreening.bmi : notRecorded}</TableCell>
+                    <TableCell className={basicScreening.bmi != null ? getBMIStatus(basicScreening.bmi).color : ""}>
+                      {basicScreening.bmi != null ? getBMIStatus(basicScreening.bmi).status : "-"}
+                    </TableCell>
+                  </TableRow>
+                  {(() => {
+                    const hasBP = basicScreening.blood_pressure_systolic != null && basicScreening.blood_pressure_diastolic != null;
+                    const bp = hasBP ? getBloodPressureStatus(basicScreening.blood_pressure_systolic!, basicScreening.blood_pressure_diastolic!) : null;
+                    return (
+                      <TableRow className={bp?.bgColor || ""}>
+                        <TableCell className="font-medium">Blood Pressure</TableCell>
+                        <TableCell>{hasBP ? `${basicScreening.blood_pressure_systolic}/${basicScreening.blood_pressure_diastolic} mmHg` : notRecorded}</TableCell>
+                        <TableCell className={bp?.color || ""}>{bp?.status || "-"}</TableCell>
+                      </TableRow>
+                    );
+                  })()}
+                  <TableRow>
+                    <TableCell className="font-medium">Heart Rate</TableCell>
+                    <TableCell>{basicScreening.heart_rate != null ? `${basicScreening.heart_rate} bpm` : notRecorded}</TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Temperature</TableCell>
+                    <TableCell>{basicScreening.temperature != null ? `${basicScreening.temperature}°C` : notRecorded}</TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
+                  <TableRow className={basicScreening.blood_sugar != null ? getBloodSugarStatus(basicScreening.blood_sugar).bgColor : ""}>
+                    <TableCell className="font-medium">Blood Sugar</TableCell>
+                    <TableCell>{basicScreening.blood_sugar != null ? `${basicScreening.blood_sugar} mmol/L` : notRecorded}</TableCell>
+                    <TableCell className={basicScreening.blood_sugar != null ? getBloodSugarStatus(basicScreening.blood_sugar).color : ""}>
+                      {basicScreening.blood_sugar != null ? getBloodSugarStatus(basicScreening.blood_sugar).status : "-"}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className={basicScreening.cholesterol != null ? getCholesterolStatus(basicScreening.cholesterol).bgColor : ""}>
+                    <TableCell className="font-medium">Cholesterol</TableCell>
+                    <TableCell>{basicScreening.cholesterol != null ? `${basicScreening.cholesterol} mmol/L` : notRecorded}</TableCell>
+                    <TableCell className={basicScreening.cholesterol != null ? getCholesterolStatus(basicScreening.cholesterol).color : ""}>
+                      {basicScreening.cholesterol != null ? getCholesterolStatus(basicScreening.cholesterol).status : "-"}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className={basicScreening.oxygen_saturation != null ? getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor : ""}>
+                    <TableCell className="font-medium">Oxygen Saturation</TableCell>
+                    <TableCell>{basicScreening.oxygen_saturation != null ? `${basicScreening.oxygen_saturation}%` : notRecorded}</TableCell>
+                    <TableCell className={basicScreening.oxygen_saturation != null ? getOxygenSaturationStatus(basicScreening.oxygen_saturation).color : ""}>
+                      {basicScreening.oxygen_saturation != null ? getOxygenSaturationStatus(basicScreening.oxygen_saturation).status : "-"}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Urine</TableCell>
+                    <TableCell className="max-w-xs">
+                      {basicScreening.urine ? (
                         <div className="bg-muted p-2 rounded text-sm whitespace-pre-line">
                           {basicScreening.urine}
                         </div>
-                      </TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.notes && (
-                    <TableRow>
-                      <TableCell className="font-medium">Notes</TableCell>
-                      <TableCell className="max-w-xs">
+                      ) : notRecorded}
+                    </TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Notes</TableCell>
+                    <TableCell className="max-w-xs">
+                      {basicScreening.notes ? (
                         <div className="bg-muted p-2 rounded text-sm whitespace-pre-line">
                           {basicScreening.notes}
                         </div>
-                      </TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  )}
-                  {basicScreening.screened_by && (
-                    <TableRow>
-                      <TableCell className="font-medium">Screened by</TableCell>
-                      <TableCell>
-                        {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
-                        {basicScreening.screened_by.professional_capacity && (
-                          <span className="text-muted-foreground ml-2">
-                            ({basicScreening.screened_by.professional_capacity})
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  )}
+                      ) : notRecorded}
+                    </TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Screened by</TableCell>
+                    <TableCell>
+                      {basicScreening.screened_by ? (
+                        <>
+                          {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
+                          {basicScreening.screened_by.professional_capacity && (
+                            <span className="text-muted-foreground ml-2">
+                              ({basicScreening.screened_by.professional_capacity})
+                            </span>
+                          )}
+                        </>
+                      ) : notRecorded}
+                    </TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
           ) : (
             // Card View
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {basicScreening.height && (
-                <div className="space-y-1">
-                  <Badge variant="outline" className="mb-2">Height</Badge>
-                  <p className="text-sm font-medium">{basicScreening.height} cm</p>
-                </div>
-              )}
-              {basicScreening.weight && (
-                <div className="space-y-1">
-                  <Badge variant="outline" className="mb-2">Weight</Badge>
-                  <p className="text-sm font-medium">{basicScreening.weight} kg</p>
-                </div>
-              )}
-              {basicScreening.bmi && (
-                <div className={`space-y-1 p-3 rounded-lg border ${getBMIStatus(basicScreening.bmi).bgColor}`}>
-                  <Badge variant="outline" className="mb-2">BMI</Badge>
-                  <p className="text-sm font-medium">{basicScreening.bmi}</p>
+              <div className="space-y-1">
+                <Badge variant="outline" className="mb-2">Height</Badge>
+                <p className="text-sm font-medium">{basicScreening.height != null ? `${basicScreening.height} cm` : notRecorded}</p>
+              </div>
+              <div className="space-y-1">
+                <Badge variant="outline" className="mb-2">Weight</Badge>
+                <p className="text-sm font-medium">{basicScreening.weight != null ? `${basicScreening.weight} kg` : notRecorded}</p>
+              </div>
+              <div className={`space-y-1 p-3 rounded-lg border ${basicScreening.bmi != null ? getBMIStatus(basicScreening.bmi).bgColor : ""}`}>
+                <Badge variant="outline" className="mb-2">BMI</Badge>
+                <p className="text-sm font-medium">{basicScreening.bmi != null ? basicScreening.bmi : notRecorded}</p>
+                {basicScreening.bmi != null && (
                   <p className={`text-xs font-medium ${getBMIStatus(basicScreening.bmi).color}`}>
                     {getBMIStatus(basicScreening.bmi).status}
                   </p>
-                </div>
-              )}
-              {(basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic) && (
-                <div className={`space-y-1 p-3 rounded-lg border ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).bgColor}`}>
-                  <Badge variant="outline" className="mb-2">Blood Pressure</Badge>
-                  <p className="text-sm font-medium">{basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg</p>
-                  <p className={`text-xs font-medium ${getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).color}`}>
-                    {getBloodPressureStatus(basicScreening.blood_pressure_systolic, basicScreening.blood_pressure_diastolic).status}
-                  </p>
-                </div>
-              )}
-              {basicScreening.heart_rate && (
-                <div className="space-y-1">
-                  <Badge variant="outline" className="mb-2">Heart Rate</Badge>
-                  <p className="text-sm font-medium">{basicScreening.heart_rate} bpm</p>
-                </div>
-              )}
-              {basicScreening.temperature && (
-                <div className="space-y-1">
-                  <Badge variant="outline" className="mb-2">Temperature</Badge>
-                  <p className="text-sm font-medium">{basicScreening.temperature}°C</p>
-                </div>
-              )}
-              {basicScreening.blood_sugar && (
-                <div className={`space-y-1 p-3 rounded-lg border ${getBloodSugarStatus(basicScreening.blood_sugar).bgColor}`}>
-                  <Badge variant="outline" className="mb-2">Blood Sugar</Badge>
-                  <p className="text-sm font-medium">{basicScreening.blood_sugar} mmol/L</p>
+                )}
+              </div>
+              {(() => {
+                const hasBP = basicScreening.blood_pressure_systolic != null && basicScreening.blood_pressure_diastolic != null;
+                const bp = hasBP ? getBloodPressureStatus(basicScreening.blood_pressure_systolic!, basicScreening.blood_pressure_diastolic!) : null;
+                return (
+                  <div className={`space-y-1 p-3 rounded-lg border ${bp?.bgColor || ""}`}>
+                    <Badge variant="outline" className="mb-2">Blood Pressure</Badge>
+                    <p className="text-sm font-medium">{hasBP ? `${basicScreening.blood_pressure_systolic}/${basicScreening.blood_pressure_diastolic} mmHg` : notRecorded}</p>
+                    {bp && <p className={`text-xs font-medium ${bp.color}`}>{bp.status}</p>}
+                  </div>
+                );
+              })()}
+              <div className="space-y-1">
+                <Badge variant="outline" className="mb-2">Heart Rate</Badge>
+                <p className="text-sm font-medium">{basicScreening.heart_rate != null ? `${basicScreening.heart_rate} bpm` : notRecorded}</p>
+              </div>
+              <div className="space-y-1">
+                <Badge variant="outline" className="mb-2">Temperature</Badge>
+                <p className="text-sm font-medium">{basicScreening.temperature != null ? `${basicScreening.temperature}°C` : notRecorded}</p>
+              </div>
+              <div className={`space-y-1 p-3 rounded-lg border ${basicScreening.blood_sugar != null ? getBloodSugarStatus(basicScreening.blood_sugar).bgColor : ""}`}>
+                <Badge variant="outline" className="mb-2">Blood Sugar</Badge>
+                <p className="text-sm font-medium">{basicScreening.blood_sugar != null ? `${basicScreening.blood_sugar} mmol/L` : notRecorded}</p>
+                {basicScreening.blood_sugar != null && (
                   <p className={`text-xs font-medium ${getBloodSugarStatus(basicScreening.blood_sugar).color}`}>
                     {getBloodSugarStatus(basicScreening.blood_sugar).status}
                   </p>
-                </div>
-              )}
-              {basicScreening.cholesterol && (
-                <div className={`space-y-1 p-3 rounded-lg border ${getCholesterolStatus(basicScreening.cholesterol).bgColor}`}>
-                  <Badge variant="outline" className="mb-2">Cholesterol</Badge>
-                  <p className="text-sm font-medium">{basicScreening.cholesterol} mmol/L</p>
+                )}
+              </div>
+              <div className={`space-y-1 p-3 rounded-lg border ${basicScreening.cholesterol != null ? getCholesterolStatus(basicScreening.cholesterol).bgColor : ""}`}>
+                <Badge variant="outline" className="mb-2">Cholesterol</Badge>
+                <p className="text-sm font-medium">{basicScreening.cholesterol != null ? `${basicScreening.cholesterol} mmol/L` : notRecorded}</p>
+                {basicScreening.cholesterol != null && (
                   <p className={`text-xs font-medium ${getCholesterolStatus(basicScreening.cholesterol).color}`}>
                     {getCholesterolStatus(basicScreening.cholesterol).status}
                   </p>
-                </div>
-              )}
-              {basicScreening.oxygen_saturation && (
-                <div className={`space-y-1 p-3 rounded-lg border ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor}`}>
-                  <Badge variant="outline" className="mb-2">Oxygen Saturation</Badge>
-                  <p className="text-sm font-medium">{basicScreening.oxygen_saturation}%</p>
+                )}
+              </div>
+              <div className={`space-y-1 p-3 rounded-lg border ${basicScreening.oxygen_saturation != null ? getOxygenSaturationStatus(basicScreening.oxygen_saturation).bgColor : ""}`}>
+                <Badge variant="outline" className="mb-2">Oxygen Saturation</Badge>
+                <p className="text-sm font-medium">{basicScreening.oxygen_saturation != null ? `${basicScreening.oxygen_saturation}%` : notRecorded}</p>
+                {basicScreening.oxygen_saturation != null && (
                   <p className={`text-xs font-medium ${getOxygenSaturationStatus(basicScreening.oxygen_saturation).color}`}>
                     {getOxygenSaturationStatus(basicScreening.oxygen_saturation).status}
                   </p>
-                </div>
-              )}
-              {basicScreening.urine && (
-                <div className="space-y-1 md:col-span-2">
-                  <Badge variant="outline" className="mb-2">Urine</Badge>
+                )}
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <Badge variant="outline" className="mb-2">Urine</Badge>
+                {basicScreening.urine ? (
                   <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.urine}</p>
-                </div>
-              )}
-              {basicScreening.notes && (
-                <div className="space-y-1 md:col-span-2">
-                  <Badge variant="outline" className="mb-2">Notes</Badge>
+                ) : (
+                  <p className="text-sm font-medium">{notRecorded}</p>
+                )}
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <Badge variant="outline" className="mb-2">Notes</Badge>
+                {basicScreening.notes ? (
                   <p className="text-sm bg-muted p-3 rounded whitespace-pre-line">{basicScreening.notes}</p>
-                </div>
-              )}
-              {basicScreening.screened_by && (
-                <div className="space-y-1 md:col-span-2">
-                  <Badge variant="outline" className="mb-2">Screened by</Badge>
-                  <p className="text-sm font-medium">
-                    {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
-                    {basicScreening.screened_by.professional_capacity && (
-                      <span className="text-muted-foreground ml-2">
-                        ({basicScreening.screened_by.professional_capacity})
-                      </span>
-                    )}
-                  </p>
-                </div>
-              )}
+                ) : (
+                  <p className="text-sm font-medium">{notRecorded}</p>
+                )}
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <Badge variant="outline" className="mb-2">Screened by</Badge>
+                <p className="text-sm font-medium">
+                  {basicScreening.screened_by ? (
+                    <>
+                      {basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}
+                      {basicScreening.screened_by.professional_capacity && (
+                        <span className="text-muted-foreground ml-2">
+                          ({basicScreening.screened_by.professional_capacity})
+                        </span>
+                      )}
+                    </>
+                  ) : notRecorded}
+                </p>
+              </div>
             </div>
           )
         ) : (
