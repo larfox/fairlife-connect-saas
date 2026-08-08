@@ -1110,58 +1110,40 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
                       {basicScreening && (
                         <div className="mt-6 p-4 bg-muted rounded-lg">
                           <h4 className="font-medium mb-3">Current Screening Results</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                            {basicScreening.weight && (
-                              <div>
-                                <span className="font-medium">Weight:</span> {basicScreening.weight} lbs
-                              </div>
-                            )}
-                            {basicScreening.height && (
-                              <div>
-                                <span className="font-medium">Height:</span> {basicScreening.height} ft
-                              </div>
-                            )}
-                            {basicScreening.blood_sugar && (
-                              <div>
-                                <span className="font-medium">GMR:</span> {basicScreening.blood_sugar}
-                              </div>
-                            )}
-                            {basicScreening.heart_rate && (
-                              <div>
-                                <span className="font-medium">Pulse:</span> {basicScreening.heart_rate} bpm
-                              </div>
-                            )}
-                            {(basicScreening as any).oxygen_saturation && (
-                              <div>
-                                <span className="font-medium">Oxygen:</span> {(basicScreening as any).oxygen_saturation}%
-                              </div>
-                            )}
-                            {basicScreening.blood_pressure_systolic && (
-                              <div>
-                                <span className="font-medium">BP:</span> {basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic}
-                              </div>
-                             )}
-                             {basicScreening.bmi && (
-                               <div>
-                                 <span className="font-medium">BMI:</span> {basicScreening.bmi}
-                               </div>
-                             )}
-                             {(basicScreening as any).cholesterol && (
-                               <div>
-                                 <span className="font-medium">Cholesterol:</span> {(basicScreening as any).cholesterol} mmol/L
-                               </div>
-                             )}
-                           </div>
-                          {basicScreening.notes && (
-                            <div className="mt-3">
-                              <span className="font-medium">Notes:</span> {basicScreening.notes}
-                            </div>
-                          )}
-                          {basicScreening.nurses && (
-                            <div className="mt-2 text-xs text-muted-foreground">
-                              Screened by: {basicScreening.nurses.first_name} {basicScreening.nurses.last_name}
-                            </div>
-                          )}
+                          {(() => {
+                            const bs = basicScreening as any;
+                            const na = <span className="text-muted-foreground italic">Not recorded</span>;
+                            const show = (v: any, suffix = "") => (v !== null && v !== undefined && v !== "" ? `${v}${suffix}` : na);
+                            return (
+                              <>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                                  <div><span className="font-medium">Weight:</span> {show(bs.weight, " lbs")}</div>
+                                  <div><span className="font-medium">Height:</span> {show(bs.height, " ft")}</div>
+                                  <div><span className="font-medium">GMR:</span> {show(bs.blood_sugar)}</div>
+                                  <div><span className="font-medium">Pulse:</span> {show(bs.heart_rate, " bpm")}</div>
+                                  <div><span className="font-medium">Oxygen:</span> {show(bs.oxygen_saturation, "%")}</div>
+                                  <div>
+                                    <span className="font-medium">BP:</span>{" "}
+                                    {bs.blood_pressure_systolic != null && bs.blood_pressure_diastolic != null
+                                      ? `${bs.blood_pressure_systolic}/${bs.blood_pressure_diastolic}`
+                                      : na}
+                                  </div>
+                                  <div><span className="font-medium">BMI:</span> {show(bs.bmi)}</div>
+                                  <div><span className="font-medium">Cholesterol:</span> {show(bs.cholesterol, " mmol/L")}</div>
+                                  <div><span className="font-medium">Temperature:</span> {show(bs.temperature, "°C")}</div>
+                                  <div><span className="font-medium">Urine:</span> {show(bs.urine)}</div>
+                                </div>
+                                <div className="mt-3 text-sm">
+                                  <span className="font-medium">Notes:</span> {show(bs.notes)}
+                                </div>
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  Screened by:{" "}
+                                  {bs.nurses ? `${bs.nurses.first_name} ${bs.nurses.last_name}` : "Not recorded"}
+                                </div>
+                              </>
+                            );
+                          })()}
+
                         </div>
                       )}
                       
