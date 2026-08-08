@@ -346,74 +346,66 @@ const PatientHistoryModal = ({ isOpen, onClose, patientVisit }: PatientHistoryMo
                   {loading ? (
                     <div className="text-center py-4 text-muted-foreground">Loading screening data...</div>
                   ) : basicScreening ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {basicScreening.height && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Height:</span>
-                          <p>{basicScreening.height} cm</p>
+                    (() => {
+                      const na = <span className="text-muted-foreground italic">Not recorded</span>;
+                      const show = (v: any, suffix = "") => (v !== null && v !== undefined && v !== "" ? `${v}${suffix}` : na);
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <span className="font-medium">Height:</span>
+                            <p>{show(basicScreening.height, " cm")}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">Weight:</span>
+                            <p>{show(basicScreening.weight, " kg")}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">BMI:</span>
+                            <p>{show(basicScreening.bmi)}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">Blood Pressure:</span>
+                            <p>
+                              {basicScreening.blood_pressure_systolic != null && basicScreening.blood_pressure_diastolic != null
+                                ? `${basicScreening.blood_pressure_systolic}/${basicScreening.blood_pressure_diastolic} mmHg`
+                                : na}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">Heart Rate:</span>
+                            <p>{show(basicScreening.heart_rate, " bpm")}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">Temperature:</span>
+                            <p>{show(basicScreening.temperature, "°C")}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">Blood Sugar:</span>
+                            <p>{show(basicScreening.blood_sugar, " mmol/L")}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">Cholesterol:</span>
+                            <p>{show(basicScreening.cholesterol, " mmol/L")}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-medium">Oxygen Saturation:</span>
+                            <p>{show(basicScreening.oxygen_saturation, "%")}</p>
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <span className="font-medium">Notes:</span>
+                            <p className="text-sm">{show(basicScreening.notes)}</p>
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <span className="font-medium">Screened by:</span>
+                            <p>
+                              {basicScreening.screened_by
+                                ? `${basicScreening.screened_by.first_name} ${basicScreening.screened_by.last_name}`
+                                : na}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                      {basicScreening.weight && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Weight:</span>
-                          <p>{basicScreening.weight} kg</p>
-                        </div>
-                      )}
-                      {basicScreening.bmi && (
-                        <div className="space-y-1">
-                          <span className="font-medium">BMI:</span>
-                          <p>{basicScreening.bmi}</p>
-                        </div>
-                      )}
-                      {(basicScreening.blood_pressure_systolic && basicScreening.blood_pressure_diastolic) && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Blood Pressure:</span>
-                          <p>{basicScreening.blood_pressure_systolic}/{basicScreening.blood_pressure_diastolic} mmHg</p>
-                        </div>
-                      )}
-                      {basicScreening.heart_rate && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Heart Rate:</span>
-                          <p>{basicScreening.heart_rate} bpm</p>
-                        </div>
-                      )}
-                      {basicScreening.temperature && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Temperature:</span>
-                          <p>{basicScreening.temperature}°C</p>
-                        </div>
-                      )}
-                      {basicScreening.blood_sugar && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Blood Sugar:</span>
-                          <p>{basicScreening.blood_sugar} mmol/L</p>
-                        </div>
-                      )}
-                      {basicScreening.cholesterol && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Cholesterol:</span>
-                          <p>{basicScreening.cholesterol} mmol/L</p>
-                        </div>
-                      )}
-                      {basicScreening.oxygen_saturation && (
-                        <div className="space-y-1">
-                          <span className="font-medium">Oxygen Saturation:</span>
-                          <p>{basicScreening.oxygen_saturation}%</p>
-                        </div>
-                      )}
-                      {basicScreening.notes && (
-                        <div className="space-y-1 md:col-span-2">
-                          <span className="font-medium">Notes:</span>
-                          <p className="text-sm">{basicScreening.notes}</p>
-                        </div>
-                      )}
-                      {basicScreening.screened_by && (
-                        <div className="space-y-1 md:col-span-2">
-                          <span className="font-medium">Screened by:</span>
-                          <p>{basicScreening.screened_by.first_name} {basicScreening.screened_by.last_name}</p>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()
                   ) : (
                     <div className="text-center py-4 text-muted-foreground">
                       No basic screening data recorded for this visit
