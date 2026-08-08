@@ -294,6 +294,9 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
     return { status: "Very High", color: "text-red-600", bgColor: "bg-red-50 border-red-200" };
   };
 
+  const notRecorded = <span className="text-muted-foreground italic">Not recorded</span>;
+
+
   const getCholesterolStatus = (cholesterol: number) => {
     if (cholesterol < 5.2) return { status: "Normal", color: "text-green-600", bgColor: "bg-green-50 border-green-200" };
     if (cholesterol >= 5.2 && cholesterol < 6.2) return { status: "Borderline High", color: "text-yellow-600", bgColor: "bg-yellow-50 border-yellow-200" };
