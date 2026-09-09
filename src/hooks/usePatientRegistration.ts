@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { logAudit } from "@/lib/audit";
 
 interface PatientData {
   first_name: string;
@@ -261,6 +262,14 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
         .single();
 
       if (patientError) throw patientError;
+
+      logAudit({
+        action: "patient_created",
+        entityType: "patient",
+        entityId: patientId,
+        description: `Registered ${patientData.first_name} ${patientData.last_name} (queue #${nextQueueNumber})`,
+        metadata: { event_id: selectedEvent?.id, event_name: selectedEvent?.name },
+      });
 
       toast({
         title: "Patient registered successfully",

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { QueueItem, ServiceGroup } from '@/types/serviceQueue';
+import { logAudit } from '@/lib/audit';
 
 export const fetchServiceQueuesData = async (eventId: string): Promise<ServiceGroup[]> => {
   console.log('=== FETCHING SERVICE QUEUE DATA ===');
@@ -196,6 +197,18 @@ export const updateServiceStatusInDB = async (queueItemId: string, newStatus: st
   }
 
   console.log('Main item updated successfully');
+
+  logAudit({
+    action: 'service_status_changed',
+    entityType: 'service_queue',
+    entityId: queueItemId,
+    description: `Service status set to ${newStatus}`,
+    metadata: {
+      patient_visit_id: currentItem.patient_visit_id,
+      service_id: currentItem.service_id,
+      status: newStatus,
+    },
+  });
 
   // Handle cross-service status updates
   if (newStatus === 'in_progress') {

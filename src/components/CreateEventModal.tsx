@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Clock, MapPin, Users, Stethoscope, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocations, useDoctors, useNurses, useServices } from "@/hooks/useDataCache";
+import { logAudit } from "@/lib/audit";
 
 interface Location {
   id: string;
@@ -116,6 +117,14 @@ export function CreateEventModal() {
           .insert(eventServices);
         if (servicesError) throw servicesError;
       }
+
+      logAudit({
+        action: "event_created",
+        entityType: "event",
+        entityId: event.id,
+        description: `Created event "${formData.name}"`,
+        metadata: { event_date: formData.event_date },
+      });
 
       toast({
         title: "Success",

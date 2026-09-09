@@ -7,11 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { UserCog, Save, X } from "lucide-react";
+import { UserCog, Save, X, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
 import { ServiceSelectionForm } from "./forms/ServiceSelectionForm";
+import { logAudit } from "@/lib/audit";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Parish = Tables<"parishes">;
 type Town = Tables<"towns">;
@@ -69,7 +80,32 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const checkAdmin = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData?.user?.email;
+      if (!email) return;
+      const { data } = await supabase
+        .from("staff")
+        .select("is_admin")
+        .eq("email", email)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (!cancelled) setIsAdmin(!!data?.is_admin);
+    };
+    checkAdmin();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
 
   useEffect(() => {
     if (isOpen && patient) {
@@ -432,10 +468,19 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         }
       }
 
+      logAudit({
+        action: "patient_updated",
+        entityType: "patient",
+        entityId: patient.id,
+        description: `Updated ${formData.first_name} ${formData.last_name}`,
+        metadata: { event_id: selectedEvent?.id, event_name: selectedEvent?.name },
+      });
+
       toast({
         title: "Patient updated",
         description: "Patient information has been successfully updated.",
       });
+
 
       onPatientUpdated();
       onClose();
@@ -448,6 +493,91 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteEventRecord = async () => {
+    if (!patient?.id || !selectedEvent?.id) return;
+
+    setDeleting(true);
+    try {
+      const { data: visit, error: visitError } = await supabase
+        .from("patient_visits")
+        .select("id, queue_number")
+        .eq("patient_id", patient.id)
+        .eq("event_id", selectedEvent.id)
+        .maybeSingle();
+
+      if (visitError) throw visitError;
+
+      if (!visit) {
+        toast({
+          title: "Nothing to delete",
+          description: "This patient has no records for the selected event.",
+        });
+        setConfirmDeleteOpen(false);
+        return;
+      }
+
+      const childTables = [
+        "service_queue",
+        "basic_screening",
+        "dental_assessments",
+        "optician_assessments",
+        "ecg_results",
+        "immunizations",
+        "pap_smear_assessments",
+        "prescriptions",
+        "patient_prognosis",
+        "patient_complaints",
+      ] as const;
+
+      for (const table of childTables) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .eq("patient_visit_id", visit.id);
+        if (error) throw error;
+      }
+
+      const { error: deleteVisitError } = await supabase
+        .from("patient_visits")
+        .delete()
+        .eq("id", visit.id);
+
+      if (deleteVisitError) throw deleteVisitError;
+
+      await logAudit({
+        action: "patient_visit_deleted",
+        entityType: "patient_visit",
+        entityId: visit.id,
+        description: `Deleted ${patient.first_name} ${patient.last_name}'s records for "${selectedEvent.name}"`,
+        metadata: {
+          patient_id: patient.id,
+          patient_number: patient.patient_number ?? null,
+          event_id: selectedEvent.id,
+          event_name: selectedEvent.name,
+          queue_number: visit.queue_number,
+        },
+      });
+
+      toast({
+        title: "Record deleted",
+        description: `${patient.first_name} ${patient.last_name} was removed from this event.`,
+      });
+
+      setConfirmDeleteOpen(false);
+      onPatientUpdated();
+      onClose();
+    } catch (error) {
+      console.error("Error deleting patient event record:", error);
+      toast({
+        title: "Delete failed",
+        description: "Could not delete this record. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -721,16 +851,57 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
           </Card>
         </div>
 
-        <div className="flex gap-2 justify-end pt-4 border-t">
-          <Button variant="outline" onClick={handleClose}>
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between pt-4 border-t">
+          <div>
+            {isAdmin && selectedEvent?.id && (
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmDeleteOpen(true)}
+                disabled={deleting || loading}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete This Event Record
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={handleClose}>
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={loading}>
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </div>
+
+        <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this event record?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently removes {patient?.first_name} {patient?.last_name}'s queue entry,
+                screening results, service records and assessments for "{selectedEvent?.name}".
+                The person stays on file and their records at other events are not affected.
+                This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteEventRecord();
+                }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Deleting..." : "Yes, delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
