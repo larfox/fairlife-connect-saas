@@ -11,6 +11,7 @@ import { Heart, Edit, Save, X, Grid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
+import { logAudit } from "@/lib/audit";
 
 interface BasicScreening {
   id: string;
@@ -442,6 +443,14 @@ const BasicScreeningTab = ({ patientVisitId }: BasicScreeningTabProps) => {
           throw error;
         }
       }
+
+      logAudit({
+        action: "screening_saved",
+        entityType: "basic_screening",
+        entityId: basicScreening?.id ?? null,
+        description: basicScreening ? "Updated screening results" : "Recorded screening results",
+        metadata: { patient_visit_id: patientVisitId },
+      });
 
       toast({
         title: "Success",
