@@ -117,6 +117,14 @@ export function CreateEventModal() {
         if (servicesError) throw servicesError;
       }
 
+      logAudit({
+        action: "event_created",
+        entityType: "event",
+        entityId: event.id,
+        description: `Created event "${formData.name}"`,
+        metadata: { event_date: formData.event_date },
+      });
+
       toast({
         title: "Success",
         description: "Event created successfully"

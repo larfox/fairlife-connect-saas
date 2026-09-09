@@ -18,6 +18,7 @@ import Header from "@/components/Header";
 import AuthModal from "@/components/AuthModal";
 import Dashboard from "@/components/Dashboard";
 import SessionRecoveryModal from "@/components/SessionRecoveryModal";
+import { logAudit } from "@/lib/audit";
 import heroImage from "@/assets/health-fair-collage.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";

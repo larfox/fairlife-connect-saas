@@ -262,6 +262,14 @@ export const usePatientRegistration = (selectedEvent: any, onRegistrationComplet
 
       if (patientError) throw patientError;
 
+      logAudit({
+        action: "patient_created",
+        entityType: "patient",
+        entityId: patientId,
+        description: `Registered ${patientData.first_name} ${patientData.last_name} (queue #${nextQueueNumber})`,
+        metadata: { event_id: selectedEvent?.id, event_name: selectedEvent?.name },
+      });
+
       toast({
         title: "Patient registered successfully",
         description: `${patientData.first_name} ${patientData.last_name} has been assigned queue number ${nextQueueNumber}.`,
