@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { QueueItem, ServiceGroup } from '@/types/serviceQueue';
+import { logAudit } from '@/lib/audit';
 
 export const fetchServiceQueuesData = async (eventId: string): Promise<ServiceGroup[]> => {
   console.log('=== FETCHING SERVICE QUEUE DATA ===');
