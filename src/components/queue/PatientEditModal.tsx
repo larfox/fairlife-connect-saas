@@ -496,6 +496,91 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
     }
   };
 
+  const handleDeleteEventRecord = async () => {
+    if (!patient?.id || !selectedEvent?.id) return;
+
+    setDeleting(true);
+    try {
+      const { data: visit, error: visitError } = await supabase
+        .from("patient_visits")
+        .select("id, queue_number")
+        .eq("patient_id", patient.id)
+        .eq("event_id", selectedEvent.id)
+        .maybeSingle();
+
+      if (visitError) throw visitError;
+
+      if (!visit) {
+        toast({
+          title: "Nothing to delete",
+          description: "This patient has no records for the selected event.",
+        });
+        setConfirmDeleteOpen(false);
+        return;
+      }
+
+      const childTables = [
+        "service_queue",
+        "basic_screening",
+        "dental_assessments",
+        "optician_assessments",
+        "ecg_results",
+        "immunizations",
+        "pap_smear_assessments",
+        "prescriptions",
+        "patient_prognosis",
+        "patient_complaints",
+      ] as const;
+
+      for (const table of childTables) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .eq("patient_visit_id", visit.id);
+        if (error) throw error;
+      }
+
+      const { error: deleteVisitError } = await supabase
+        .from("patient_visits")
+        .delete()
+        .eq("id", visit.id);
+
+      if (deleteVisitError) throw deleteVisitError;
+
+      await logAudit({
+        action: "patient_visit_deleted",
+        entityType: "patient_visit",
+        entityId: visit.id,
+        description: `Deleted ${patient.first_name} ${patient.last_name}'s records for "${selectedEvent.name}"`,
+        metadata: {
+          patient_id: patient.id,
+          patient_number: patient.patient_number ?? null,
+          event_id: selectedEvent.id,
+          event_name: selectedEvent.name,
+          queue_number: visit.queue_number,
+        },
+      });
+
+      toast({
+        title: "Record deleted",
+        description: `${patient.first_name} ${patient.last_name} was removed from this event.`,
+      });
+
+      setConfirmDeleteOpen(false);
+      onPatientUpdated();
+      onClose();
+    } catch (error) {
+      console.error("Error deleting patient event record:", error);
+      toast({
+        title: "Delete failed",
+        description: "Could not delete this record. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleClose = () => {
     onClose();
   };
