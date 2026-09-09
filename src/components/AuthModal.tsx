@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Mail, Lock, User, Building, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/audit";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -36,6 +37,13 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin", onAuthSuccess, onLo
       });
 
       if (error) throw error;
+
+      logAudit({
+        action: "sign_in",
+        entityType: "auth",
+        entityId: data.user?.id ?? null,
+        description: `${email} signed in`,
+      });
 
       toast({
         title: "Welcome back!",

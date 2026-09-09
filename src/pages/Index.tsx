@@ -84,6 +84,11 @@ const Index = () => {
   };
 
   const handleSignOut = async () => {
+    await logAudit({
+      action: "sign_out",
+      entityType: "auth",
+      description: "Signed out",
+    });
     await supabase.auth.signOut();
   };
 
