@@ -80,7 +80,32 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [knowYourNumbersServiceId, setKnowYourNumbersServiceId] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const checkAdmin = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData?.user?.email;
+      if (!email) return;
+      const { data } = await supabase
+        .from("staff")
+        .select("is_admin")
+        .eq("email", email)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (!cancelled) setIsAdmin(!!data?.is_admin);
+    };
+    checkAdmin();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
 
   useEffect(() => {
     if (isOpen && patient) {
