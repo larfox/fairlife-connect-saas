@@ -900,7 +900,7 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
                 {deleting ? "Deleting..." : "Yes, delete"}
               </AlertDialogAction>
             </AlertDialogFooter>
-          </AlertDialogFooter>
+          </AlertDialogContent>
         </AlertDialog>
       </DialogContent>
     </Dialog>
