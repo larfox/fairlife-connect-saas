@@ -851,16 +851,57 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
           </Card>
         </div>
 
-        <div className="flex gap-2 justify-end pt-4 border-t">
-          <Button variant="outline" onClick={handleClose}>
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between pt-4 border-t">
+          <div>
+            {isAdmin && selectedEvent?.id && (
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmDeleteOpen(true)}
+                disabled={deleting || loading}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete This Event Record
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={handleClose}>
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={loading}>
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </div>
+
+        <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this event record?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently removes {patient?.first_name} {patient?.last_name}'s queue entry,
+                screening results, service records and assessments for "{selectedEvent?.name}".
+                The person stays on file and their records at other events are not affected.
+                This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteEventRecord();
+                }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Deleting..." : "Yes, delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogFooter>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
