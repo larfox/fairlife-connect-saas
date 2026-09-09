@@ -468,10 +468,19 @@ export const PatientEditModal = ({ patient, isOpen, onClose, onPatientUpdated, s
         }
       }
 
+      logAudit({
+        action: "patient_updated",
+        entityType: "patient",
+        entityId: patient.id,
+        description: `Updated ${formData.first_name} ${formData.last_name}`,
+        metadata: { event_id: selectedEvent?.id, event_name: selectedEvent?.name },
+      });
+
       toast({
         title: "Patient updated",
         description: "Patient information has been successfully updated.",
       });
+
 
       onPatientUpdated();
       onClose();
