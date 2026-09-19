@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, FileText, Download, Printer, Users, Activity, BarChart3, PieChart, ArrowLeft, Upload, Database, UserCheck, Filter, ShieldCheck } from "lucide-react";
 import AuditTrailTab from "@/components/reports/AuditTrailTab";
+import ServiceValueTab from "@/components/reports/ServiceValueTab";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
@@ -2460,6 +2461,7 @@ const Reports = ({ onBack }: ReportsProps) => {
         {/* Analytics Tab */}
         <TabsContent value="analytics">
           <div className="grid gap-6">
+            <ServiceValueTab />
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
