@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Printer, DollarSign } from "lucide-react";
+import { Download, Printer, DollarSign, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -338,6 +338,10 @@ const ServiceValueTab = () => {
           </Button>
           {generated && locations.length > 0 && (
             <>
+              <Button variant="outline" onClick={handleSavePrices} disabled={savingPrices} className="gap-2">
+                <Save className="h-4 w-4" />
+                {savingPrices ? "Saving..." : "Save Prices"}
+              </Button>
               <Button variant="outline" onClick={handlePrint} className="gap-2">
                 <Printer className="h-4 w-4" />
                 Print
