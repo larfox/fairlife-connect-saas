@@ -1046,6 +1046,38 @@ export type Database = {
         }
         Relationships: []
       }
+      service_prices: {
+        Row: {
+          created_at: string
+          id: string
+          price: number
+          service_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price?: number
+          service_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price?: number
+          service_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_prices_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: true
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_queue: {
         Row: {
           completed_at: string | null
