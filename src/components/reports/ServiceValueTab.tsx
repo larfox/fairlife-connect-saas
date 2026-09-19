@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,52 @@ const ServiceValueTab = () => {
   const [locations, setLocations] = useState<string[]>([]);
   const [counts, setCounts] = useState<Record<string, Record<string, number>>>({});
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [savingPrices, setSavingPrices] = useState(false);
+
+  const loadPrices = async () => {
+    const { data, error } = await supabase.from("service_prices").select("service_id, price");
+    if (error) {
+      console.error("Error loading service prices:", error);
+      return;
+    }
+    const map: Record<string, number> = {};
+    (data || []).forEach((row: any) => {
+      map[row.service_id] = Number(row.price) || 0;
+    });
+    setPrices(map);
+  };
+
+  useEffect(() => {
+    loadPrices();
+  }, []);
+
+  const handleSavePrices = async () => {
+    setSavingPrices(true);
+    try {
+      const payload = services.map((s) => ({
+        service_id: s.id,
+        price: priceFor(s.id),
+      }));
+      if (payload.length === 0) return;
+      const { error } = await supabase
+        .from("service_prices")
+        .upsert(payload, { onConflict: "service_id" });
+      if (error) throw error;
+      toast({
+        title: "Prices saved",
+        description: "These prices will be used the next time you open this report.",
+      });
+    } catch (error: any) {
+      console.error("Error saving service prices:", error);
+      toast({
+        title: "Could not save prices",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPrices(false);
+    }
+  };
 
   const fetchData = async () => {
     if (!fromDate || !toDate) {
