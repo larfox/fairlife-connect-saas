@@ -1310,7 +1310,9 @@ export type Database = {
     }
     Functions: {
       generate_patient_number: { Args: never; Returns: string }
+      is_active_staff: { Args: never; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_staff_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       professional_capacity_enum:
