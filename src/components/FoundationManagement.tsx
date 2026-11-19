@@ -106,7 +106,7 @@ const FoundationManagement = ({ onBack }: FoundationManagementProps) => {
 
         {/* Management Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-7 w-full max-w-5xl mx-auto">
+          <TabsList className="flex w-full h-auto justify-start overflow-x-auto lg:grid lg:grid-cols-7 max-w-5xl mx-auto">
             {tabs.map((tab) => {
               const IconComponent = tab.icon;
               return (

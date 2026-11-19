@@ -19,6 +19,7 @@ import AuthModal from "@/components/AuthModal";
 import Dashboard from "@/components/Dashboard";
 import SessionRecoveryModal from "@/components/SessionRecoveryModal";
 import { logAudit } from "@/lib/audit";
+import { listOutbox, clearAllOffline } from "@/lib/offline/core";
 import heroImage from "@/assets/health-fair-collage.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -85,12 +86,17 @@ const Index = () => {
   };
 
   const handleSignOut = async () => {
+    const pendingChanges = (await listOutbox()).length;
+    if (pendingChanges > 0 && !window.confirm(`${pendingChanges} change(s) have not been saved to the server yet. Signing out now will lose them. Sign out anyway?`)) {
+      return;
+    }
     await logAudit({
       action: "sign_out",
       entityType: "auth",
       description: "Signed out",
     });
     await supabase.auth.signOut();
+    await clearAllOffline();
   };
 
   const handleAuthSuccess = () => {

@@ -270,7 +270,7 @@ const PatientHistoryModal = ({ isOpen, onClose, patientVisit }: PatientHistoryMo
 
           {/* Detailed Information Tabs */}
           <Tabs defaultValue="services" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="flex w-full h-auto justify-start overflow-x-auto md:grid md:grid-cols-5">
               <TabsTrigger value="services">Services</TabsTrigger>
               <TabsTrigger value="screening">Basic Screening</TabsTrigger>
               <TabsTrigger value="pap-smears">PAP Smears</TabsTrigger>

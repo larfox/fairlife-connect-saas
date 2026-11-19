@@ -1,0 +1,2 @@
+- Offline support lives in `src/lib/offline/`: `install.ts` wraps `window.fetch` (imported first in `main.tsx`) to cache Supabase REST reads in IndexedDB and queue writes in an outbox replayed in order on reconnect; new offline rows get client UUIDs. Why: ~280 direct Supabase calls work offline without rewriting each. Admin/setup tables are listed as online-only there.
+- The service worker is registered only from `src/lib/offline/registerSW.ts` (vite-plugin-pwa, guarded against dev/preview hosts). Why: stale workers must never break the Lovable preview.

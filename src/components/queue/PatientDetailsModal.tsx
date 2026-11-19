@@ -797,10 +797,10 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
     ];
     const visibleTabsCount = tabs.filter(tab => permissions.canAccessTab(tab)).length;
     
-    if (visibleTabsCount <= 6) return 'grid-cols-6';
-    if (visibleTabsCount <= 8) return 'grid-cols-8';
-    if (visibleTabsCount <= 10) return 'grid-cols-10';
-    return 'grid-cols-11';
+    if (visibleTabsCount <= 6) return 'lg:grid-cols-6';
+    if (visibleTabsCount <= 8) return 'lg:grid-cols-8';
+    if (visibleTabsCount <= 10) return 'lg:grid-cols-10';
+    return 'lg:grid-cols-11';
   };
 
   // Component to wrap tab content with permission check
@@ -853,7 +853,7 @@ const PatientDetailsModal = ({ patient, eventId, isOpen, onClose }: PatientDetai
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className={`grid w-full text-xs h-auto ${getTabsGridCols()}`}>
+            <TabsList className={`flex w-full justify-start overflow-x-auto text-xs h-auto lg:grid ${getTabsGridCols()}`}>
               {permissions.canAccessTab('overview') && (
                 <TabsTrigger value="overview" className="text-xs px-2 py-1 text-center whitespace-normal">Overview</TabsTrigger>
               )}

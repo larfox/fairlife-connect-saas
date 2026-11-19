@@ -1408,7 +1408,7 @@ const Reports = ({ onBack }: ReportsProps) => {
       </div>
 
       <Tabs defaultValue="location" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="flex w-full h-auto justify-start overflow-x-auto xl:grid xl:grid-cols-9">
           <TabsTrigger value="location" className="gap-2">
             <MapPin className="h-4 w-4" />
             Location Reports

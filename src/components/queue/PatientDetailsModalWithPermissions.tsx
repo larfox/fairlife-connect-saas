@@ -416,7 +416,7 @@ const PatientDetailsModalWithPermissions = ({ patient, eventId, isOpen, onClose 
         
         <div className="flex-1 min-h-0">
           <Tabs defaultValue="basic-info" className="h-full flex flex-col">
-            <TabsList className="grid grid-cols-10 w-full shrink-0">
+            <TabsList className="flex w-full h-auto justify-start overflow-x-auto xl:grid xl:grid-cols-10 shrink-0">
               {tabs.map((tab) => (
                 <TabsTrigger 
                   key={tab.id} 
